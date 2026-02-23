@@ -4,10 +4,12 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { BatteryBar } from "./battery-bar";
 import { StatusDot } from "@/components/ui/status-dot";
+import { cn } from "@/lib/utils";
 import type { FleetDrone, DroneStatus } from "@/lib/types";
 
 interface DroneCardProps {
   drone: FleetDrone;
+  selected?: boolean;
   onClick?: (id: string) => void;
 }
 
@@ -29,9 +31,9 @@ const statusToDot: Record<DroneStatus, "online" | "idle" | "warning" | "error" |
   offline: "offline",
 };
 
-export function DroneCard({ drone, onClick }: DroneCardProps) {
+export function DroneCard({ drone, selected, onClick }: DroneCardProps) {
   return (
-    <Card className="hover:border-border-strong transition-colors" onClick={() => onClick?.(drone.id)}>
+    <Card className={cn(selected && "border-accent-primary bg-accent-primary/5")} onClick={() => onClick?.(drone.id)}>
       <div className="flex items-start justify-between mb-2">
         <div className="flex items-center gap-2">
           <StatusDot status={statusToDot[drone.status]} />

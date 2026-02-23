@@ -1,7 +1,6 @@
 "use client";
 
-import { use, useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
 import { useFleetStore } from "@/stores/fleet-store";
 import { useDroneManager } from "@/stores/drone-manager";
 import { Tabs } from "@/components/ui/tabs";
@@ -13,7 +12,7 @@ import { DroneTelemetryTab } from "@/components/drone-detail/DroneTelemetryTab";
 import { DroneFlightsTab } from "@/components/drone-detail/DroneFlightsTab";
 import { DroneConfigureTab } from "@/components/drone-detail/DroneConfigureTab";
 import { DroneSettingsTab } from "@/components/drone-detail/DroneSettingsTab";
-import { ArrowLeft } from "lucide-react";
+import { X } from "lucide-react";
 
 const TABS = [
   { id: "overview", label: "Overview" },
@@ -24,13 +23,12 @@ const TABS = [
   { id: "settings", label: "Settings" },
 ];
 
-export default function DroneDetailPage({
-  params,
-}: {
-  params: Promise<{ droneId: string }>;
-}) {
-  const { droneId } = use(params);
-  const router = useRouter();
+interface DroneDetailPanelProps {
+  droneId: string;
+  onClose: () => void;
+}
+
+export function DroneDetailPanel({ droneId, onClose }: DroneDetailPanelProps) {
   const drones = useFleetStore((s) => s.drones);
   const [activeTab, setActiveTab] = useState("overview");
 
@@ -51,13 +49,8 @@ export default function DroneDetailPage({
         <p className="text-sm text-text-secondary">
           Drone &quot;{droneId}&quot; not found
         </p>
-        <Button
-          variant="secondary"
-          size="sm"
-          icon={<ArrowLeft size={14} />}
-          onClick={() => router.push("/fleet")}
-        >
-          Back to Fleet
+        <Button variant="secondary" size="sm" onClick={onClose}>
+          Back to Dashboard
         </Button>
       </div>
     );
@@ -67,17 +60,15 @@ export default function DroneDetailPage({
     <div className="flex-1 flex flex-col h-full overflow-auto">
       {/* Header */}
       <div className="flex items-center gap-3 px-3 py-2 border-b border-border-default bg-bg-secondary">
+        <h1 className="text-sm font-semibold text-text-primary">{drone.name}</h1>
+        <DroneStatusBadge status={drone.status} />
+        <div className="w-px h-5 bg-border-default" />
         <Button
           variant="ghost"
           size="sm"
-          icon={<ArrowLeft size={14} />}
-          onClick={() => router.push("/fleet")}
-        >
-          Fleet
-        </Button>
-        <div className="w-px h-5 bg-border-default" />
-        <h1 className="text-sm font-semibold text-text-primary">{drone.name}</h1>
-        <DroneStatusBadge status={drone.status} />
+          icon={<X size={14} />}
+          onClick={onClose}
+        />
         <span className="text-[10px] font-mono text-text-tertiary ml-auto">
           ID: {drone.id}
         </span>

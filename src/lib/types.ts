@@ -176,8 +176,6 @@ export type ViewId =
   | "dashboard"
   | "fly"
   | "plan"
-  | "fleet"
-  | "fleet-detail"
   | "history"
   | "analytics"
   | "config"

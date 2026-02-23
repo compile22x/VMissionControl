@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Search, LayoutDashboard, Plane, Route, Radio, History, BarChart3, Settings, Zap, Battery, Home, HeartPulse } from "lucide-react";
+import { Search, LayoutDashboard, Plane, Route, History, BarChart3, Settings, Zap, Battery, Home, HeartPulse } from "lucide-react";
 import { useFleetStore } from "@/stores/fleet-store";
 import { useDroneStore } from "@/stores/drone-store";
 import { useToast } from "@/components/ui/toast";
@@ -28,7 +28,6 @@ export function CommandPalette() {
     { id: "nav-dashboard", label: "Go to Dashboard", category: "Navigation", icon: <LayoutDashboard size={14} />, action: () => router.push("/") },
     { id: "nav-fly", label: "Go to Flight View", category: "Navigation", icon: <Plane size={14} />, action: () => router.push("/fly/alpha-1") },
     { id: "nav-plan", label: "Go to Mission Planner", category: "Navigation", icon: <Route size={14} />, action: () => router.push("/plan") },
-    { id: "nav-fleet", label: "Go to Fleet", category: "Navigation", icon: <Radio size={14} />, action: () => router.push("/fleet") },
     { id: "nav-history", label: "Go to History", category: "Navigation", icon: <History size={14} />, action: () => router.push("/history") },
     { id: "nav-analytics", label: "Go to Analytics", category: "Navigation", icon: <BarChart3 size={14} />, action: () => router.push("/analytics") },
     { id: "nav-config", label: "Go to Config", category: "Navigation", icon: <Settings size={14} />, action: () => router.push("/config") },

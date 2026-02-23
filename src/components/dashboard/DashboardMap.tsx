@@ -1,21 +1,17 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useFleetStore } from "@/stores/fleet-store";
+import { useDroneManager } from "@/stores/drone-manager";
 import { FleetMap } from "@/components/shared/fleet-map";
 
 export function DashboardMap() {
-  const router = useRouter();
   const drones = useFleetStore((s) => s.drones);
-
-  const handleDroneClick = (id: string) => {
-    router.push(`/fly/${id}`);
-  };
+  const selectDrone = useDroneManager((s) => s.selectDrone);
 
   return (
     <FleetMap
       drones={drones}
-      onDroneClick={handleDroneClick}
+      onDroneClick={selectDrone}
       className="w-full h-full min-h-[300px]"
     />
   );
