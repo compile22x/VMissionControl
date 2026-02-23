@@ -1,0 +1,96 @@
+/**
+ * Telemetry unit conversion and formatting utilities.
+ */
+
+/** Meters per second to km/h. */
+export function mpsToKph(mps: number): number {
+  return mps * 3.6;
+}
+
+/** Meters per second to knots. */
+export function mpsToKnots(mps: number): number {
+  return mps * 1.94384;
+}
+
+/** Meters to feet. */
+export function metersToFeet(m: number): number {
+  return m * 3.28084;
+}
+
+/** Degrees to radians. */
+export function degToRad(deg: number): number {
+  return (deg * Math.PI) / 180;
+}
+
+/** Radians to degrees. */
+export function radToDeg(rad: number): number {
+  return (rad * 180) / Math.PI;
+}
+
+/** Normalize heading to 0-360. */
+export function normalizeHeading(heading: number): number {
+  return ((heading % 360) + 360) % 360;
+}
+
+/** Format altitude with unit. */
+export function formatAlt(meters: number): string {
+  return `${meters.toFixed(1)}m`;
+}
+
+/** Format speed with unit. */
+export function formatSpeed(mps: number): string {
+  return `${mpsToKph(mps).toFixed(1)} km/h`;
+}
+
+/** Format heading as 3-digit compass. */
+export function formatHeading(deg: number): string {
+  return String(Math.round(normalizeHeading(deg))).padStart(3, "0") + "\u00B0";
+}
+
+/** Format battery percentage. */
+export function formatBattery(pct: number): string {
+  return `${Math.round(pct)}%`;
+}
+
+/** Format GPS coordinates to decimal degrees. */
+export function formatCoord(lat: number, lon: number): string {
+  return `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
+}
+
+/** Battery color based on percentage. */
+export function batteryColor(pct: number): string {
+  if (pct > 50) return "var(--alt-status-success)";
+  if (pct > 25) return "var(--alt-status-warning)";
+  return "var(--alt-status-error)";
+}
+
+/** Calculate distance between two GPS points in meters (Haversine). */
+export function haversineDistance(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+): number {
+  const R = 6371000;
+  const dLat = degToRad(lat2 - lat1);
+  const dLon = degToRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(degToRad(lat1)) * Math.cos(degToRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+/** Calculate bearing between two GPS points in degrees. */
+export function bearing(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+): number {
+  const dLon = degToRad(lon2 - lon1);
+  const y = Math.sin(dLon) * Math.cos(degToRad(lat2));
+  const x =
+    Math.cos(degToRad(lat1)) * Math.sin(degToRad(lat2)) -
+    Math.sin(degToRad(lat1)) * Math.cos(degToRad(lat2)) * Math.cos(dLon);
+  return normalizeHeading(radToDeg(Math.atan2(y, x)));
+}

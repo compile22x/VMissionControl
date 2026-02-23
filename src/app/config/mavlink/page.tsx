@@ -1,0 +1,364 @@
+"use client";
+
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useDroneManager } from "@/stores/drone-manager";
+import {
+  Radio, Filter, Pause, Play, Download, Trash2,
+  Hash, ArrowUpDown,
+} from "lucide-react";
+
+// MAVLink message ID → name (common messages)
+const MSG_NAMES: Record<number, string> = {
+  0: "HEARTBEAT",
+  1: "SYS_STATUS",
+  2: "SYSTEM_TIME",
+  4: "PING",
+  11: "SET_MODE",
+  20: "PARAM_REQUEST_READ",
+  21: "PARAM_REQUEST_LIST",
+  22: "PARAM_VALUE",
+  23: "PARAM_SET",
+  24: "GPS_RAW_INT",
+  29: "SCALED_PRESSURE",
+  30: "ATTITUDE",
+  31: "ATTITUDE_QUATERNION",
+  32: "LOCAL_POSITION_NED",
+  33: "GLOBAL_POSITION_INT",
+  35: "RC_CHANNELS_SCALED",
+  36: "SERVO_OUTPUT_RAW",
+  42: "MISSION_CURRENT",
+  44: "MISSION_COUNT",
+  47: "MISSION_ACK",
+  51: "MISSION_REQUEST_INT",
+  62: "NAV_CONTROLLER_OUTPUT",
+  65: "RC_CHANNELS",
+  69: "MANUAL_CONTROL",
+  73: "MISSION_ITEM_INT",
+  74: "VFR_HUD",
+  76: "COMMAND_LONG",
+  77: "COMMAND_ACK",
+  87: "POSITION_TARGET_GLOBAL_INT",
+  116: "SCALED_IMU2",
+  125: "POWER_STATUS",
+  126: "SERIAL_CONTROL",
+  129: "SCALED_IMU3",
+  136: "TERRAIN_REQUEST",
+  137: "TERRAIN_DATA",
+  147: "BATTERY_STATUS",
+  148: "AUTOPILOT_VERSION",
+  150: "SENSOR_OFFSETS",
+  152: "MEMINFO",
+  162: "FENCE_STATUS",
+  163: "AHRS",
+  164: "SIMSTATE",
+  165: "HWSTATUS",
+  168: "WIND",
+  173: "RANGEFINDER",
+  174: "AIRSPEED_AUTOCAL",
+  178: "AHRS2",
+  193: "EKF_STATUS_REPORT",
+  241: "VIBRATION",
+  242: "HOME_POSITION",
+  253: "STATUSTEXT",
+};
+
+interface InspectorMessage {
+  id: number;
+  timestamp: number;
+  msgId: number;
+  msgName: string;
+  systemId: number;
+  componentId: number;
+  sequence: number;
+  payloadLength: number;
+  payloadHex: string;
+  direction: "rx" | "tx";
+}
+
+interface MsgRate {
+  count: number;
+  lastTime: number;
+  hz: number;
+}
+
+export default function MavlinkInspectorPage() {
+  const selectedDroneId = useDroneManager((s) => s.selectedDroneId);
+  const getSelectedDrone = useDroneManager((s) => s.getSelectedDrone);
+
+  const [messages, setMessages] = useState<InspectorMessage[]>([]);
+  const [paused, setPaused] = useState(false);
+  const [filterMsgId, setFilterMsgId] = useState<string>("");
+  const [autoscroll, setAutoscroll] = useState(true);
+  const [maxMessages] = useState(500);
+  const [msgRates, setMsgRates] = useState<Map<number, MsgRate>>(new Map());
+
+  const logRef = useRef<HTMLDivElement>(null);
+  const msgCounterRef = useRef(0);
+  const pausedRef = useRef(false);
+  const ratesRef = useRef<Map<number, MsgRate>>(new Map());
+
+  // Keep ref in sync
+  useEffect(() => { pausedRef.current = paused; }, [paused]);
+
+  // Listen to transport data (raw MAVLink frames)
+  useEffect(() => {
+    const drone = getSelectedDrone();
+    if (!drone) return;
+
+    const handler = (data: Uint8Array) => {
+      // Parse MAVLink v2 frames from raw bytes
+      let offset = 0;
+      while (offset < data.length) {
+        // Find 0xFD magic byte
+        if (data[offset] !== 0xFD) { offset++; continue; }
+        if (offset + 10 > data.length) break; // Not enough for header
+
+        const payloadLen = data[offset + 1];
+        const frameLen = 12 + payloadLen; // header(10) + payload + crc(2)
+        if (offset + frameLen > data.length) break;
+
+        const seq = data[offset + 4];
+        const sysId = data[offset + 5];
+        const compId = data[offset + 6];
+        const msgId = data[offset + 7] | (data[offset + 8] << 8) | (data[offset + 9] << 16);
+
+        const payloadBytes = data.slice(offset + 10, offset + 10 + payloadLen);
+        const payloadHex = Array.from(payloadBytes)
+          .map((b) => b.toString(16).padStart(2, "0"))
+          .join(" ");
+
+        const now = Date.now();
+
+        // Update rates
+        const rate = ratesRef.current.get(msgId) ?? { count: 0, lastTime: now, hz: 0 };
+        rate.count++;
+        const elapsed = (now - rate.lastTime) / 1000;
+        if (elapsed >= 1) {
+          rate.hz = Math.round(rate.count / elapsed);
+          rate.count = 0;
+          rate.lastTime = now;
+        }
+        ratesRef.current.set(msgId, rate);
+
+        if (!pausedRef.current) {
+          const msg: InspectorMessage = {
+            id: msgCounterRef.current++,
+            timestamp: now,
+            msgId,
+            msgName: MSG_NAMES[msgId] ?? `MSG_${msgId}`,
+            systemId: sysId,
+            componentId: compId,
+            sequence: seq,
+            payloadLength: payloadLen,
+            payloadHex,
+            direction: "rx",
+          };
+
+          setMessages((prev) => {
+            const next = [...prev, msg];
+            return next.length > maxMessages ? next.slice(-maxMessages) : next;
+          });
+        }
+
+        offset += frameLen;
+      }
+    };
+
+    drone.transport.on("data", handler);
+    return () => { drone.transport.off("data", handler); };
+  }, [selectedDroneId, getSelectedDrone, maxMessages]);
+
+  // Update rates display periodically
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setMsgRates(new Map(ratesRef.current));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Auto-scroll
+  useEffect(() => {
+    if (autoscroll && logRef.current) {
+      logRef.current.scrollTop = logRef.current.scrollHeight;
+    }
+  }, [messages, autoscroll]);
+
+  // Filtering
+  const filterIds = useMemo(() => {
+    if (!filterMsgId.trim()) return null;
+    return new Set(
+      filterMsgId.split(",").map((s) => {
+        const trimmed = s.trim();
+        // Support both numeric IDs and message names
+        const byName = Object.entries(MSG_NAMES).find(([, name]) => name === trimmed.toUpperCase());
+        return byName ? Number(byName[0]) : Number(trimmed);
+      }).filter((n) => !isNaN(n))
+    );
+  }, [filterMsgId]);
+
+  const filtered = filterIds
+    ? messages.filter((m) => filterIds.has(m.msgId))
+    : messages;
+
+  const exportLog = useCallback(() => {
+    const lines = filtered.map((m) => {
+      const time = new Date(m.timestamp).toISOString();
+      return `[${time}] ${m.direction.toUpperCase()} ${m.msgName}(${m.msgId}) sys=${m.systemId} comp=${m.componentId} seq=${m.sequence} [${m.payloadHex}]`;
+    });
+    const blob = new Blob([lines.join("\n")], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `mavlink-log-${Date.now()}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [filtered]);
+
+  const formatTime = (ts: number) => {
+    const d = new Date(ts);
+    return `${d.toLocaleTimeString("en-US", { hour12: false })}.${String(d.getMilliseconds()).padStart(3, "0")}`;
+  };
+
+  // Sorted rate list
+  const sortedRates = useMemo(() => {
+    return Array.from(msgRates.entries())
+      .map(([id, rate]) => ({ id, name: MSG_NAMES[id] ?? `MSG_${id}`, hz: rate.hz }))
+      .sort((a, b) => b.hz - a.hz);
+  }, [msgRates]);
+
+  return (
+    <div className="h-full flex">
+      {/* Sidebar — Message rates */}
+      <div className="w-[220px] border-r border-border-default bg-bg-secondary flex-shrink-0 flex flex-col overflow-hidden">
+        <div className="px-3 py-3 border-b border-border-default">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-text-secondary flex items-center gap-1.5">
+            <ArrowUpDown size={12} />
+            Message Rates
+          </h2>
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          {sortedRates.length === 0 ? (
+            <p className="p-3 text-[10px] text-text-tertiary italic">
+              {selectedDroneId ? "Waiting for data..." : "Connect a drone"}
+            </p>
+          ) : (
+            <table className="w-full text-[10px] font-mono">
+              <thead>
+                <tr className="border-b border-border-default">
+                  <th className="text-left px-3 py-1 text-text-tertiary font-normal">Message</th>
+                  <th className="text-right px-3 py-1 text-text-tertiary font-normal">Hz</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedRates.map(({ id, name, hz }) => (
+                  <tr
+                    key={id}
+                    className="hover:bg-bg-tertiary cursor-pointer"
+                    onClick={() => setFilterMsgId(String(id))}
+                  >
+                    <td className="px-3 py-0.5 text-text-secondary">{name}</td>
+                    <td className="px-3 py-0.5 text-right text-accent-primary tabular-nums">{hz}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+
+      {/* Main area */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Toolbar */}
+        <div className="flex items-center gap-3 px-4 py-2 border-b border-border-default bg-bg-secondary">
+          <Radio size={14} className="text-text-secondary" />
+          <span className="text-xs font-semibold text-text-primary">MAVLink Inspector</span>
+          <span className="text-[10px] text-text-tertiary font-mono">{filtered.length} msgs</span>
+
+          <div className="flex-1" />
+
+          {/* Filter input */}
+          <div className="flex items-center gap-1">
+            <Filter size={12} className="text-text-tertiary" />
+            <input
+              type="text"
+              value={filterMsgId}
+              onChange={(e) => setFilterMsgId(e.target.value)}
+              placeholder="Filter: ID or name (comma-sep)"
+              className="bg-bg-tertiary text-text-primary text-[10px] font-mono px-2 py-1 w-[200px] border border-border-default focus:outline-none focus:border-accent-primary placeholder:text-text-tertiary"
+            />
+          </div>
+
+          <button
+            onClick={() => setPaused((p) => !p)}
+            className={`flex items-center gap-1 px-2 py-1 text-[10px] cursor-pointer ${paused ? "text-status-warning" : "text-text-secondary hover:text-text-primary"}`}
+          >
+            {paused ? <Pause size={10} /> : <Play size={10} />}
+            {paused ? "Paused" : "Live"}
+          </button>
+
+          <button
+            onClick={exportLog}
+            className="flex items-center gap-1 px-2 py-1 text-[10px] text-text-secondary hover:text-text-primary cursor-pointer"
+          >
+            <Download size={10} />
+            Export
+          </button>
+
+          <button
+            onClick={() => { setMessages([]); msgCounterRef.current = 0; }}
+            className="flex items-center gap-1 px-2 py-1 text-[10px] text-text-secondary hover:text-text-primary cursor-pointer"
+          >
+            <Trash2 size={10} />
+            Clear
+          </button>
+        </div>
+
+        {/* Message stream */}
+        <div
+          ref={logRef}
+          className="flex-1 overflow-y-auto font-mono text-[10px] leading-4"
+          onMouseEnter={() => setAutoscroll(false)}
+          onMouseLeave={() => setAutoscroll(true)}
+        >
+          {/* Header row */}
+          <div className="flex items-center gap-0 px-4 py-1 border-b border-border-default bg-bg-tertiary text-text-tertiary sticky top-0">
+            <span className="w-[90px] shrink-0">Time</span>
+            <span className="w-[20px] shrink-0">Dir</span>
+            <span className="w-[40px] shrink-0 text-right">ID</span>
+            <span className="w-[180px] shrink-0 pl-2">Name</span>
+            <span className="w-[30px] shrink-0 text-right">Sys</span>
+            <span className="w-[35px] shrink-0 text-right">Comp</span>
+            <span className="w-[30px] shrink-0 text-right">Seq</span>
+            <span className="w-[30px] shrink-0 text-right">Len</span>
+            <span className="pl-2 flex-1">Payload</span>
+          </div>
+
+          {filtered.length === 0 ? (
+            <div className="flex items-center justify-center h-32 text-text-tertiary text-xs">
+              {selectedDroneId ? (paused ? "Stream paused" : "Waiting for MAVLink frames...") : "Connect a drone to inspect MAVLink traffic"}
+            </div>
+          ) : (
+            filtered.map((msg) => (
+              <div
+                key={msg.id}
+                className="flex items-start gap-0 px-4 py-0.5 hover:bg-bg-tertiary/50"
+              >
+                <span className="w-[90px] shrink-0 text-text-tertiary">{formatTime(msg.timestamp)}</span>
+                <span className={`w-[20px] shrink-0 ${msg.direction === "tx" ? "text-accent-primary" : "text-green-400"}`}>
+                  {msg.direction === "tx" ? "TX" : "RX"}
+                </span>
+                <span className="w-[40px] shrink-0 text-right text-text-secondary">{msg.msgId}</span>
+                <span className="w-[180px] shrink-0 pl-2 text-accent-primary">{msg.msgName}</span>
+                <span className="w-[30px] shrink-0 text-right text-text-secondary">{msg.systemId}</span>
+                <span className="w-[35px] shrink-0 text-right text-text-secondary">{msg.componentId}</span>
+                <span className="w-[30px] shrink-0 text-right text-text-tertiary">{msg.sequence}</span>
+                <span className="w-[30px] shrink-0 text-right text-text-tertiary">{msg.payloadLength}</span>
+                <span className="pl-2 flex-1 text-text-tertiary break-all">{msg.payloadHex}</span>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

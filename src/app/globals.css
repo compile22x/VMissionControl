@@ -1,0 +1,112 @@
+@import "tailwindcss";
+@import "leaflet/dist/leaflet.css";
+
+@import "@fontsource/space-grotesk/500.css";
+@import "@fontsource/space-grotesk/600.css";
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/600.css";
+@import "@fontsource/jetbrains-mono/400.css";
+@import "@fontsource/jetbrains-mono/600.css";
+
+@theme {
+  --color-bg-primary: var(--alt-bg-primary);
+  --color-bg-secondary: var(--alt-bg-secondary);
+  --color-bg-tertiary: var(--alt-bg-tertiary);
+  --color-text-primary: var(--alt-text-primary);
+  --color-text-secondary: var(--alt-text-secondary);
+  --color-text-tertiary: var(--alt-text-tertiary);
+  --color-accent-primary: var(--alt-accent-primary);
+  --color-accent-primary-hover: var(--alt-accent-primary-hover);
+  --color-accent-secondary: var(--alt-accent-secondary);
+  --color-border-default: var(--alt-border-default);
+  --color-border-strong: var(--alt-border-strong);
+  --color-status-success: var(--alt-status-success);
+  --color-status-warning: var(--alt-status-warning);
+  --color-status-error: var(--alt-status-error);
+  --color-gcs-hud-green: var(--gcs-hud-green);
+  --color-gcs-armed: var(--gcs-armed);
+  --color-gcs-disarmed: var(--gcs-disarmed);
+  --font-display: "Space Grotesk", sans-serif;
+  --font-body: "Inter", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+}
+
+:root {
+  /* Background */
+  --alt-bg-primary: #000000;
+  --alt-bg-secondary: #0a0a0a;
+  --alt-bg-tertiary: #141414;
+
+  /* Text */
+  --alt-text-primary: #fafafa;
+  --alt-text-secondary: #a0a0a0;
+  --alt-text-tertiary: #666666;
+
+  /* Accent */
+  --alt-accent-primary: #3a82ff;
+  --alt-accent-primary-hover: #5b9aff;
+  --alt-accent-secondary: #dff140;
+
+  /* Border */
+  --alt-border-default: #1a1a1a;
+  --alt-border-strong: #2a2a2a;
+
+  /* Status */
+  --alt-status-success: #22c55e;
+  --alt-status-warning: #f59e0b;
+  --alt-status-error: #ef4444;
+
+  /* GCS-specific */
+  --gcs-hud-green: #00ff41;
+  --gcs-hud-bg: rgba(0, 0, 0, 0.6);
+  --gcs-armed: #ef4444;
+  --gcs-disarmed: #22c55e;
+}
+
+html {
+  background-color: var(--alt-bg-primary);
+  color: var(--alt-text-primary);
+  font-family: var(--font-body);
+}
+
+body {
+  height: 100dvh;
+  overflow: hidden;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--alt-bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--alt-border-strong);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--alt-text-tertiary);
+}
+
+/* Selection */
+::selection {
+  background-color: var(--alt-accent-primary);
+  color: var(--alt-text-primary);
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -1,0 +1,122 @@
+"use client";
+
+import { useState, useMemo } from "react";
+import { HistoryToolbar } from "@/components/history/HistoryToolbar";
+import { HistoryTable } from "@/components/history/HistoryTable";
+import { HistoryDetailPanel } from "@/components/history/HistoryDetailPanel";
+import { getFlightHistory } from "@/mock/history";
+import type { FlightRecord } from "@/lib/types";
+
+export default function FlightHistoryPage() {
+  const allRecords = useMemo(() => getFlightHistory(), []);
+
+  // Filters
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [status, setStatus] = useState("all");
+  const [droneFilter, setDroneFilter] = useState("all");
+  const [suiteFilter, setSuiteFilter] = useState("all");
+  const [sort, setSort] = useState("date-desc");
+
+  // Selected record
+  const [selectedRecord, setSelectedRecord] = useState<FlightRecord | null>(null);
+
+  // Unique drone names for the filter
+  const droneNames = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const r of allRecords) {
+      if (!seen.has(r.droneId)) seen.set(r.droneId, r.droneName);
+    }
+    return Array.from(seen.entries()).map(([value, label]) => ({ value, label }));
+  }, [allRecords]);
+
+  // Filtered and sorted records
+  const filteredRecords = useMemo(() => {
+    let records = [...allRecords];
+
+    // Date filter
+    if (dateFrom) {
+      const from = new Date(dateFrom).getTime();
+      records = records.filter((r) => r.date >= from);
+    }
+    if (dateTo) {
+      const to = new Date(dateTo).getTime() + 86400000; // end of day
+      records = records.filter((r) => r.date <= to);
+    }
+
+    // Status filter
+    if (status !== "all") {
+      records = records.filter((r) => r.status === status);
+    }
+
+    // Drone filter
+    if (droneFilter !== "all") {
+      records = records.filter((r) => r.droneId === droneFilter);
+    }
+
+    // Suite filter
+    if (suiteFilter !== "all") {
+      records = records.filter((r) => r.suiteType === suiteFilter);
+    }
+
+    // Sort
+    switch (sort) {
+      case "date-asc":
+        records.sort((a, b) => a.date - b.date);
+        break;
+      case "date-desc":
+        records.sort((a, b) => b.date - a.date);
+        break;
+      case "duration-desc":
+        records.sort((a, b) => b.duration - a.duration);
+        break;
+      case "distance-desc":
+        records.sort((a, b) => b.distance - a.distance);
+        break;
+    }
+
+    return records;
+  }, [allRecords, dateFrom, dateTo, status, droneFilter, suiteFilter, sort]);
+
+  return (
+    <div className="flex-1 flex flex-col h-full overflow-hidden">
+      {/* Header */}
+      <div className="px-4 py-3 border-b border-border-default shrink-0">
+        <h1 className="text-sm font-display font-semibold text-text-primary">Flight History</h1>
+      </div>
+
+      {/* Toolbar */}
+      <HistoryToolbar
+        dateFrom={dateFrom}
+        dateTo={dateTo}
+        status={status}
+        droneFilter={droneFilter}
+        suiteFilter={suiteFilter}
+        sort={sort}
+        droneNames={droneNames}
+        onDateFromChange={setDateFrom}
+        onDateToChange={setDateTo}
+        onStatusChange={setStatus}
+        onDroneFilterChange={setDroneFilter}
+        onSuiteFilterChange={setSuiteFilter}
+        onSortChange={setSort}
+      />
+
+      {/* Table + Detail */}
+      <div className="flex flex-1 overflow-hidden">
+        <HistoryTable
+          records={filteredRecords}
+          selectedId={selectedRecord?.id ?? null}
+          onSelect={setSelectedRecord}
+        />
+
+        {selectedRecord && (
+          <HistoryDetailPanel
+            record={selectedRecord}
+            onClose={() => setSelectedRecord(null)}
+          />
+        )}
+      </div>
+    </div>
+  );
+}

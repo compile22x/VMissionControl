@@ -1,0 +1,91 @@
+"use client";
+
+import { Card } from "@/components/ui/card";
+import { DataValue } from "@/components/ui/data-value";
+import { Badge } from "@/components/ui/badge";
+import { formatDate, formatDuration, formatTime } from "@/lib/utils";
+import type { FlightRecord } from "@/lib/types";
+import { X } from "lucide-react";
+
+const statusVariant: Record<string, "success" | "warning" | "error"> = {
+  completed: "success",
+  aborted: "warning",
+  emergency: "error",
+};
+
+interface HistoryDetailPanelProps {
+  record: FlightRecord;
+  onClose: () => void;
+}
+
+export function HistoryDetailPanel({ record, onClose }: HistoryDetailPanelProps) {
+  return (
+    <div className="w-[340px] border-l border-border-default bg-bg-secondary flex flex-col shrink-0 overflow-y-auto">
+      {/* Header */}
+      <div className="flex items-center justify-between px-3 py-2 border-b border-border-default">
+        <div className="flex items-center gap-2">
+          <h3 className="text-xs font-semibold text-text-primary uppercase tracking-wider">
+            Flight Detail
+          </h3>
+          <Badge variant={statusVariant[record.status] ?? "neutral"} size="sm">
+            {record.status}
+          </Badge>
+        </div>
+        <button
+          onClick={onClose}
+          className="text-text-tertiary hover:text-text-primary transition-colors cursor-pointer"
+        >
+          <X size={14} />
+        </button>
+      </div>
+
+      {/* Content */}
+      <div className="flex flex-col gap-3 p-3">
+        {/* Flight Info */}
+        <Card title="Flight Info" padding={true}>
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] text-text-secondary">Drone</span>
+              <span className="text-xs font-mono text-text-primary">{record.droneName}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] text-text-secondary">Date</span>
+              <span className="text-xs font-mono text-text-primary">{formatDate(record.date)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] text-text-secondary">Time</span>
+              <span className="text-xs font-mono text-text-primary">{formatTime(record.date)}</span>
+            </div>
+            {record.suiteType && (
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] text-text-secondary">Suite</span>
+                <span className="text-xs font-mono text-text-primary uppercase">{record.suiteType}</span>
+              </div>
+            )}
+          </div>
+        </Card>
+
+        {/* Metrics */}
+        <Card title="Metrics" padding={true}>
+          <div className="grid grid-cols-2 gap-3">
+            <DataValue label="Duration" value={formatDuration(record.duration)} />
+            <DataValue label="Distance" value={(record.distance / 1000).toFixed(1)} unit="km" />
+            <DataValue label="Max Altitude" value={record.maxAlt} unit="m" />
+            <DataValue label="Max Speed" value={record.maxSpeed} unit="m/s" />
+            <DataValue label="Waypoints" value={record.waypointCount} />
+            <DataValue label="Battery Used" value={record.batteryUsed} unit="%" />
+          </div>
+        </Card>
+
+        {/* Route Map Placeholder */}
+        <Card title="Route" padding={true}>
+          <div className="flex items-center justify-center h-[120px] bg-bg-tertiary border border-border-default">
+            <span className="text-[10px] text-text-tertiary font-mono">
+              Route replay available for recorded flights
+            </span>
+          </div>
+        </Card>
+      </div>
+    </div>
+  );
+}
