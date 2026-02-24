@@ -23,7 +23,7 @@ export function EmptyFleetState() {
           </h2>
           <p className="text-sm text-text-secondary mt-1">
             Connect a flight controller via USB or network to get started with
-            Altnautica Command.
+            ADOS Mission Control.
           </p>
         </div>
         <Button variant="primary" icon={<Plug size={14} />} onClick={openDialog}>

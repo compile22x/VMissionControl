@@ -7,7 +7,7 @@
  */
 "use client";
 
-import { useEffect, useRef, useCallback, useMemo, useState } from "react";
+import { useEffect, useCallback, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import type { Waypoint, PlannerTool } from "@/lib/types";
 import { haversineDistance, bearing } from "@/lib/telemetry-utils";
@@ -92,13 +92,12 @@ export function PlannerMap({
   onWaypointDragEnd,
   onWaypointRightClick,
 }: PlannerMapProps) {
-  const mapRef = useRef<L.Map | null>(null);
+  const [mapInstance, setMapInstance] = useState<L.Map | null>(null);
   const [zoom, setZoom] = useState(13);
 
   // Map click handler
   useEffect(() => {
-    const map = mapRef.current;
-    if (!map) return;
+    if (!mapInstance) return;
 
     const clickHandler = (e: L.LeafletMouseEvent) => {
       if (activeTool === "waypoint" || activeTool === "polygon" || activeTool === "circle") {
@@ -108,30 +107,29 @@ export function PlannerMap({
 
     const contextHandler = (e: L.LeafletMouseEvent) => {
       e.originalEvent.preventDefault();
-      const point = map.latLngToContainerPoint(e.latlng);
-      const rect = map.getContainer().getBoundingClientRect();
+      const point = mapInstance.latLngToContainerPoint(e.latlng);
+      const rect = mapInstance.getContainer().getBoundingClientRect();
       onMapRightClick(e.latlng.lat, e.latlng.lng, rect.left + point.x, rect.top + point.y);
     };
 
-    const zoomHandler = () => setZoom(map.getZoom());
+    const zoomHandler = () => setZoom(mapInstance.getZoom());
 
-    map.on("click", clickHandler);
-    map.on("contextmenu", contextHandler);
-    map.on("zoomend", zoomHandler);
+    mapInstance.on("click", clickHandler);
+    mapInstance.on("contextmenu", contextHandler);
+    mapInstance.on("zoomend", zoomHandler);
 
     return () => {
-      map.off("click", clickHandler);
-      map.off("contextmenu", contextHandler);
-      map.off("zoomend", zoomHandler);
+      mapInstance.off("click", clickHandler);
+      mapInstance.off("contextmenu", contextHandler);
+      mapInstance.off("zoomend", zoomHandler);
     };
-  }, [activeTool, onMapClick, onMapRightClick]);
+  }, [mapInstance, activeTool, onMapClick, onMapRightClick]);
 
   // Set cursor based on tool
   useEffect(() => {
-    const map = mapRef.current;
-    if (!map) return;
-    map.getContainer().style.cursor = TOOL_CURSORS[activeTool];
-  }, [activeTool]);
+    if (!mapInstance) return;
+    mapInstance.getContainer().style.cursor = TOOL_CURSORS[activeTool];
+  }, [mapInstance, activeTool]);
 
   const polylinePositions: [number, number][] = waypoints.map((wp) => [wp.lat, wp.lon]);
 
@@ -162,9 +160,7 @@ export function PlannerMap({
         attributionControl={false}
         style={{ background: "#0a0a0a" }}
         ref={(instance) => {
-          if (instance) {
-            mapRef.current = instance;
-          }
+          if (instance) setMapInstance(instance);
         }}
       >
         <TileLayer url={DARK_TILES} attribution={ATTRIBUTION} />

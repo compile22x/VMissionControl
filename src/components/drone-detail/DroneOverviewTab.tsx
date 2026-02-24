@@ -4,6 +4,8 @@ import { Card } from "@/components/ui/card";
 import { DataValue } from "@/components/ui/data-value";
 import { BatteryBar } from "@/components/shared/battery-bar";
 import { formatDate } from "@/lib/utils";
+import { useSettingsStore } from "@/stores/settings-store";
+import { getJurisdictionConfig } from "@/lib/jurisdiction";
 import type { FleetDrone } from "@/lib/types";
 
 interface DroneOverviewTabProps {
@@ -11,6 +13,9 @@ interface DroneOverviewTabProps {
 }
 
 export function DroneOverviewTab({ drone }: DroneOverviewTabProps) {
+  const jurisdiction = useSettingsStore((s) => s.jurisdiction);
+  const jConfig = getJurisdictionConfig(jurisdiction);
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3">
       <Card title="Identification">
@@ -18,7 +23,7 @@ export function DroneOverviewTab({ drone }: DroneOverviewTabProps) {
           <DataValue label="Name" value={drone.name} />
           <DataValue label="ID" value={drone.id} />
           <DataValue label="Serial" value={`ALT-${drone.id.toUpperCase()}`} />
-          <DataValue label="Registration" value="DGCA-MICRO-001" />
+          <DataValue label={jConfig.registrationLabel} value={`${jConfig.name}-MICRO-001`} />
         </div>
       </Card>
 

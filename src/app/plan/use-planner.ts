@@ -20,8 +20,11 @@ import {
   getAutoSave,
   clearAutoSave,
   downloadMissionFile,
-  loadMissionFile,
   saveMissionToStorage,
+  loadMissionFromStorage,
+  exportWaypointsFormat,
+  exportQGCPlan,
+  importMissionFile,
 } from "@/lib/mission-io";
 import type { ContextMenuItem } from "@/components/planner/MapContextMenu";
 import type { SuiteType, Waypoint } from "@/lib/types";
@@ -86,6 +89,10 @@ export function usePlanner() {
 
   // Clear confirm
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+
+  // Save/Load dialog state
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [showLoadDialog, setShowLoadDialog] = useState(false);
 
   // ── Autosave recovery ─────────────────────────────────────
   const autoSaveChecked = useRef(false);
@@ -254,6 +261,34 @@ export function usePlanner() {
   }, [clearMission, setSelectedWaypoint, setExpandedWaypoint, toast]);
 
   // ── Save/Load ─────────────────────────────────────────────
+  const handleSaveNative = useCallback(async (name: string) => {
+    const metadata = {
+      name,
+      droneId: selectedDroneId || undefined,
+      suiteType: (suiteType as SuiteType) || undefined,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+    setMissionName(name);
+    await downloadMissionFile(waypoints, metadata);
+    await saveMissionToStorage(waypoints, metadata);
+    useSettingsStore.getState().incrementSaveCount();
+    toast("Mission saved (.altmission)", "success");
+  }, [waypoints, selectedDroneId, suiteType, toast, setMissionName]);
+
+  const handleSaveWaypoints = useCallback((name: string) => {
+    setMissionName(name);
+    exportWaypointsFormat(waypoints, name);
+    toast("Exported (.waypoints)", "success");
+  }, [waypoints, toast, setMissionName]);
+
+  const handleSaveQGCPlan = useCallback((name: string) => {
+    setMissionName(name);
+    exportQGCPlan(waypoints, name);
+    toast("Exported (.plan)", "success");
+  }, [waypoints, toast, setMissionName]);
+
+  /** For keyboard shortcut — quick save as native format. */
   const handleSave = useCallback(async () => {
     const metadata = {
       name: missionName || "Untitled Mission",
@@ -268,21 +303,48 @@ export function usePlanner() {
     toast("Mission saved", "success");
   }, [waypoints, missionName, selectedDroneId, suiteType, toast]);
 
-  const handleLoadFile = useCallback(
+  const handleImportFile = useCallback(
     async (file: File) => {
       try {
-        const mission = await loadMissionFile(file);
+        const result = await importMissionFile(file);
+        setWaypoints(result.waypoints);
+        if (result.metadata?.name) setMissionName(result.metadata.name);
+        if (result.metadata?.droneId) setSelectedDroneId(result.metadata.droneId);
+        if (result.metadata?.suiteType) setSuiteType(result.metadata.suiteType);
+        const name = result.metadata?.name || file.name;
+        toast(`Loaded "${name}" (${result.waypoints.length} waypoints)`, "success");
+      } catch {
+        toast("Failed to load mission file", "error");
+      }
+    },
+    [setWaypoints, toast, setMissionName, setSelectedDroneId, setSuiteType]
+  );
+
+  const handleLoadRecent = useCallback(
+    async (key: string) => {
+      try {
+        const mission = await loadMissionFromStorage(key);
+        if (!mission) {
+          toast("Mission not found", "error");
+          return;
+        }
         setWaypoints(mission.waypoints);
         if (mission.metadata.name) setMissionName(mission.metadata.name);
         if (mission.metadata.droneId) setSelectedDroneId(mission.metadata.droneId);
         if (mission.metadata.suiteType) setSuiteType(mission.metadata.suiteType);
         toast(`Loaded "${mission.metadata.name}"`, "success");
       } catch {
-        toast("Failed to load mission file", "error");
+        toast("Failed to load recent mission", "error");
       }
     },
-    [setWaypoints, toast]
+    [setWaypoints, toast, setMissionName, setSelectedDroneId, setSuiteType]
   );
+
+  const handleReverseWaypoints = useCallback(() => {
+    if (waypoints.length < 2) return;
+    setWaypoints([...waypoints].reverse());
+    toast("Waypoints reversed", "info");
+  }, [waypoints, setWaypoints, toast]);
 
   const handleUpload = useCallback(() => {
     uploadMission();
@@ -326,6 +388,10 @@ export function usePlanner() {
     contextMenu, setContextMenu,
     showClearConfirm, setShowClearConfirm,
 
+    // Save/Load dialogs
+    showSaveDialog, setShowSaveDialog,
+    showLoadDialog, setShowLoadDialog,
+
     // Handlers
     handleMapClick,
     handleMapRightClick,
@@ -336,7 +402,12 @@ export function usePlanner() {
     handleClearAll,
     confirmClear,
     handleSave,
-    handleLoadFile,
+    handleSaveNative,
+    handleSaveWaypoints,
+    handleSaveQGCPlan,
+    handleImportFile,
+    handleLoadRecent,
+    handleReverseWaypoints,
     handleUpload,
     handleAddManualWaypoint,
 

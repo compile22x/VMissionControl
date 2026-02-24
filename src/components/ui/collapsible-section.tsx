@@ -31,8 +31,11 @@ export function CollapsibleSection({
 
   return (
     <div className={cn("border-b border-border-default", className)}>
-      <button
+      <div
+        role="button"
+        tabIndex={0}
         onClick={() => setOpen(!open)}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpen(!open); } }}
         className="w-full flex items-center gap-2 px-3 py-2 hover:bg-bg-tertiary transition-colors cursor-pointer"
       >
         {open ? (
@@ -49,7 +52,7 @@ export function CollapsibleSection({
         {trailing && (
           <div onClick={(e) => e.stopPropagation()}>{trailing}</div>
         )}
-      </button>
+      </div>
       {open && <div>{children}</div>}
     </div>
   );

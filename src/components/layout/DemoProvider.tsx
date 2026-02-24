@@ -1,9 +1,15 @@
 "use client";
 
 import { useEffect } from "react";
+import { useSettingsStore } from "@/stores/settings-store";
+import { useFleetStore } from "@/stores/fleet-store";
 
 export function DemoProvider() {
+  const demoMode = useSettingsStore((s) => s.demoMode);
+
   useEffect(() => {
+    if (!demoMode) return;
+
     let mounted = true;
     let engine: { start: (ms: number) => void; stop: () => void } | undefined;
     import("@/mock/engine").then((mod) => {
@@ -14,8 +20,10 @@ export function DemoProvider() {
     return () => {
       mounted = false;
       engine?.stop();
+      useFleetStore.getState().setDrones([]);
+      useFleetStore.getState().clearAlerts();
     };
-  }, []);
+  }, [demoMode]);
 
   return null;
 }

@@ -24,6 +24,9 @@ const COMMAND_OPTIONS: { value: WaypointCommand; label: string }[] = [
   { value: "RTL", label: "Return to Launch" },
   { value: "ROI", label: "Region of Interest" },
   { value: "DO_SET_SPEED", label: "Set Speed" },
+  { value: "DO_SET_CAM_TRIGG", label: "Camera Trigger" },
+  { value: "DO_DIGICAM", label: "Camera Control" },
+  { value: "DO_JUMP", label: "Jump to WP" },
   { value: "DELAY", label: "Delay" },
   { value: "CONDITION_YAW", label: "Set Yaw" },
 ];
@@ -89,6 +92,15 @@ export function WaypointListItem({
   const [localHoldTime, setLocalHoldTime] = useState(
     waypoint.holdTime !== undefined ? String(waypoint.holdTime) : ""
   );
+  const [localParam1, setLocalParam1] = useState(
+    waypoint.param1 !== undefined ? String(waypoint.param1) : ""
+  );
+  const [localParam2, setLocalParam2] = useState(
+    waypoint.param2 !== undefined ? String(waypoint.param2) : ""
+  );
+  const [localParam3, setLocalParam3] = useState(
+    waypoint.param3 !== undefined ? String(waypoint.param3) : ""
+  );
 
   // Re-sync local state when props change (e.g. from map drag or undo)
   useEffect(() => { setLocalLat(waypoint.lat.toFixed(6)); }, [waypoint.lat]);
@@ -100,6 +112,15 @@ export function WaypointListItem({
   useEffect(() => {
     setLocalHoldTime(waypoint.holdTime !== undefined ? String(waypoint.holdTime) : "");
   }, [waypoint.holdTime]);
+  useEffect(() => {
+    setLocalParam1(waypoint.param1 !== undefined ? String(waypoint.param1) : "");
+  }, [waypoint.param1]);
+  useEffect(() => {
+    setLocalParam2(waypoint.param2 !== undefined ? String(waypoint.param2) : "");
+  }, [waypoint.param2]);
+  useEffect(() => {
+    setLocalParam3(waypoint.param3 !== undefined ? String(waypoint.param3) : "");
+  }, [waypoint.param3]);
 
   const commitField = useCallback(
     (field: keyof Waypoint, value: string) => {
@@ -229,6 +250,80 @@ export function WaypointListItem({
               value={localHoldTime}
               onChange={(e) => setLocalHoldTime(e.target.value)}
               onBlur={() => commitField("holdTime", localHoldTime)}
+            />
+          )}
+          {cmd === "LOITER_TURNS" && (
+            <div className="grid grid-cols-2 gap-2">
+              <Input
+                label="Turns"
+                type="number"
+                placeholder="1"
+                value={localParam1}
+                onChange={(e) => setLocalParam1(e.target.value)}
+                onBlur={() => commitField("param1", localParam1)}
+              />
+              <Input
+                label="Radius"
+                type="number"
+                unit="m"
+                placeholder="0"
+                value={localParam3}
+                onChange={(e) => setLocalParam3(e.target.value)}
+                onBlur={() => commitField("param3", localParam3)}
+              />
+            </div>
+          )}
+          {cmd === "DO_JUMP" && (
+            <div className="grid grid-cols-2 gap-2">
+              <Input
+                label="Target WP"
+                type="number"
+                placeholder="1"
+                value={localParam1}
+                onChange={(e) => setLocalParam1(e.target.value)}
+                onBlur={() => commitField("param1", localParam1)}
+              />
+              <Input
+                label="Repeat"
+                type="number"
+                placeholder="1"
+                value={localParam2}
+                onChange={(e) => setLocalParam2(e.target.value)}
+                onBlur={() => commitField("param2", localParam2)}
+              />
+            </div>
+          )}
+          {cmd === "CONDITION_YAW" && (
+            <div className="grid grid-cols-2 gap-2">
+              <Input
+                label="Angle"
+                type="number"
+                unit="deg"
+                placeholder="0"
+                value={localParam1}
+                onChange={(e) => setLocalParam1(e.target.value)}
+                onBlur={() => commitField("param1", localParam1)}
+              />
+              <Input
+                label="Rate"
+                type="number"
+                unit="deg/s"
+                placeholder="0"
+                value={localParam2}
+                onChange={(e) => setLocalParam2(e.target.value)}
+                onBlur={() => commitField("param2", localParam2)}
+              />
+            </div>
+          )}
+          {cmd === "DO_SET_CAM_TRIGG" && (
+            <Input
+              label="Trigger Distance"
+              type="number"
+              unit="m"
+              placeholder="0"
+              value={localParam1}
+              onChange={(e) => setLocalParam1(e.target.value)}
+              onBlur={() => commitField("param1", localParam1)}
             />
           )}
         </div>

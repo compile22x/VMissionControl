@@ -8,6 +8,7 @@ interface DropdownItem {
   label: string;
   icon?: ReactNode;
   danger?: boolean;
+  divider?: boolean;
 }
 
 interface DropdownMenuProps {
@@ -42,24 +43,28 @@ export function DropdownMenu({ trigger, items, onSelect, align = "left" }: Dropd
             align === "right" ? "right-0" : "left-0"
           )}
         >
-          {items.map((item) => (
-            <button
-              key={item.id}
-              className={cn(
-                "w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left transition-colors cursor-pointer",
-                item.danger
-                  ? "text-status-error hover:bg-status-error/10"
-                  : "text-text-primary hover:bg-bg-tertiary"
-              )}
-              onClick={() => {
-                onSelect(item.id);
-                setOpen(false);
-              }}
-            >
-              {item.icon}
-              {item.label}
-            </button>
-          ))}
+          {items.map((item) =>
+            item.divider ? (
+              <div key={item.id} className="border-t border-border-default my-1" />
+            ) : (
+              <button
+                key={item.id}
+                className={cn(
+                  "w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left transition-colors cursor-pointer",
+                  item.danger
+                    ? "text-status-error hover:bg-status-error/10"
+                    : "text-text-primary hover:bg-bg-tertiary"
+                )}
+                onClick={() => {
+                  onSelect(item.id);
+                  setOpen(false);
+                }}
+              >
+                {item.icon}
+                {item.label}
+              </button>
+            )
+          )}
         </div>
       )}
     </div>

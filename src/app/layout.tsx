@@ -5,8 +5,8 @@ import { ToastProvider } from "@/components/ui/toast";
 import ConvexClientProvider from "./ConvexClientProvider";
 
 export const metadata: Metadata = {
-  title: "Altnautica Command",
-  description: "Open-source Ground Control Station",
+  title: "ADOS Mission Control",
+  description: "Open-source Ground Control Station by Altnautica",
 };
 
 export default function RootLayout({

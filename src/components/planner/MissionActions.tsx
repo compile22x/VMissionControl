@@ -1,14 +1,13 @@
 /**
  * @module MissionActions
  * @description Action bar at the bottom of the planner right panel.
- * Upload to drone (primary), save/load buttons, and overflow menu
- * (download from drone, export, clear all).
+ * Upload to drone (primary), save/load buttons (open modals), and overflow menu
+ * (download from drone, reverse waypoints, discard changes).
  * @license GPL-3.0-only
  */
 "use client";
 
-import { useRef } from "react";
-import { Upload, Save, FolderOpen, MoreHorizontal, Download, FileDown, Trash2 } from "lucide-react";
+import { Upload, Save, FolderOpen, MoreHorizontal, Download, ArrowDownUp, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu } from "@/components/ui/dropdown-menu";
 
@@ -18,11 +17,10 @@ interface MissionActionsProps {
   uploadState: "idle" | "uploading" | "uploaded" | "error";
   onUpload: () => void;
   onSave: () => void;
-  onLoadFile: (file: File) => void;
-  onLoadRecent: () => void;
+  onLoad: () => void;
   onDownloadFromDrone: () => void;
-  onExportWaypoints: () => void;
-  onClearAll: () => void;
+  onReverseWaypoints: () => void;
+  onDiscard: () => void;
 }
 
 export function MissionActions({
@@ -31,24 +29,23 @@ export function MissionActions({
   uploadState,
   onUpload,
   onSave,
-  onLoadFile,
-  onLoadRecent,
+  onLoad,
   onDownloadFromDrone,
-  onExportWaypoints,
-  onClearAll,
+  onReverseWaypoints,
+  onDiscard,
 }: MissionActionsProps) {
-  const fileRef = useRef<HTMLInputElement>(null);
-
   const overflowItems = [
     { id: "download-drone", label: "Download from Drone", icon: <Download size={12} /> },
-    { id: "export", label: "Export .waypoints", icon: <FileDown size={12} /> },
-    { id: "clear", label: "Clear All", icon: <Trash2 size={12} />, danger: true },
+    { id: "div1", label: "", divider: true },
+    { id: "reverse", label: "Reverse Waypoints", icon: <ArrowDownUp size={12} /> },
+    { id: "div2", label: "", divider: true },
+    { id: "discard", label: "Discard Changes", icon: <Trash2 size={12} />, danger: true },
   ];
 
   const handleOverflow = (id: string) => {
     if (id === "download-drone") onDownloadFromDrone();
-    else if (id === "export") onExportWaypoints();
-    else if (id === "clear") onClearAll();
+    else if (id === "reverse") onReverseWaypoints();
+    else if (id === "discard") onDiscard();
   };
 
   return (
@@ -81,7 +78,7 @@ export function MissionActions({
           size="md"
           className="flex-1"
           icon={<FolderOpen size={12} />}
-          onClick={() => fileRef.current?.click()}
+          onClick={onLoad}
         >
           Load
         </Button>
@@ -94,20 +91,6 @@ export function MissionActions({
           align="right"
         />
       </div>
-
-      <input
-        ref={fileRef}
-        type="file"
-        accept=".altmission,.json"
-        className="hidden"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) {
-            onLoadFile(file);
-            e.target.value = "";
-          }
-        }}
-      />
     </div>
   );
 }

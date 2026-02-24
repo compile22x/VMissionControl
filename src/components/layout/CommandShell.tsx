@@ -5,20 +5,21 @@ import { Settings, AlertTriangle, LogOut, CloudOff } from "lucide-react";
 import { CommandNav } from "./CommandNav";
 import { DemoProvider } from "./DemoProvider";
 import { CommandPalette } from "@/components/shared/command-palette";
-import { isDemoMode } from "@/lib/utils";
 import { useFleetStore } from "@/stores/fleet-store";
 import { useDroneStore } from "@/stores/drone-store";
 import { useVideoStore } from "@/stores/video-store";
 import { useDroneManager } from "@/stores/drone-manager";
 import { useAuthStore } from "@/stores/auth-store";
+import { useSettingsStore } from "@/stores/settings-store";
 import { LocalStorageBanner } from "@/components/ui/local-storage-banner";
 import { SignInModal } from "@/components/auth/SignInModal";
 import { ConnectDialog } from "@/components/connect/ConnectDialog";
+import { WelcomeModal } from "@/components/onboarding/WelcomeModal";
 import { formatSyncTime } from "@/lib/sync";
 import Link from "next/link";
 
 export function CommandShell({ children }: { children: React.ReactNode }) {
-  const demo = isDemoMode();
+  const demo = useSettingsStore((s) => s.demoMode);
   const alertCount = useFleetStore((s) => s.alerts.filter((a) => !a.acknowledged).length);
   const mavConnected = useDroneManager((s) => s.selectedDroneId !== null);
   const videoStreaming = useVideoStore((s) => s.isStreaming);
@@ -33,12 +34,18 @@ export function CommandShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex flex-col h-dvh">
+      {/* Welcome onboarding modal */}
+      <WelcomeModal />
+
       {/* Top bar */}
       <header className="h-12 flex items-center justify-between px-4 bg-bg-secondary border-b border-border-default shrink-0">
         {/* Left — Wordmark */}
-        <div className="flex items-center gap-2">
-          <span className="font-display uppercase tracking-widest text-sm font-semibold text-accent-primary">
-            Altnautica Command
+        <div className="flex items-baseline gap-1.5">
+          <span className="font-display uppercase tracking-[0.25em] text-sm font-semibold text-accent-primary">
+            ADOS
+          </span>
+          <span className="text-[10px] uppercase tracking-widest text-text-tertiary font-medium">
+            Mission Control
           </span>
           {demo && (
             <span className="px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider bg-status-warning/20 text-status-warning">
