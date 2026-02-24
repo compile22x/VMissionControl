@@ -1,8 +1,17 @@
+/**
+ * @module PlannerMap
+ * @description Leaflet-based mission planner map component. Renders waypoint markers
+ * (draggable in select mode), path polyline, segment distance/bearing labels,
+ * and handles click/right-click/drag events. Uses dark CARTO tiles.
+ * @license GPL-3.0-only
+ */
 "use client";
 
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
-import type { Waypoint } from "@/lib/types";
+import type { Waypoint, PlannerTool } from "@/lib/types";
+import { haversineDistance, bearing } from "@/lib/telemetry-utils";
+import { DEFAULT_CENTER, MAP_COLORS } from "@/lib/map-constants";
 import L from "leaflet";
 
 const MapContainer = dynamic(
@@ -25,59 +34,128 @@ const Marker = dynamic(
 const DARK_TILES = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
 const ATTRIBUTION =
   '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>';
-const BANGALORE_CENTER: [number, number] = [12.9716, 77.5946];
 
-function makeWaypointIcon(index: number): L.DivIcon {
+function makeWaypointIcon(index: number, selected: boolean): L.DivIcon {
+  const fill = selected ? MAP_COLORS.accentSelected : MAP_COLORS.accentPrimary;
+  const stroke = selected ? MAP_COLORS.accentPrimary : MAP_COLORS.foreground;
+  const textFill = selected ? MAP_COLORS.background : "#fff";
   return L.divIcon({
     className: "",
     iconSize: [24, 24],
     iconAnchor: [12, 12],
     html: `<svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="12" cy="12" r="11" fill="#3a82ff" stroke="#fafafa" stroke-width="1.5"/>
-      <text x="12" y="16" text-anchor="middle" fill="#fff" font-size="11" font-family="JetBrains Mono, monospace" font-weight="600">${index + 1}</text>
+      <circle cx="12" cy="12" r="11" fill="${fill}" stroke="${stroke}" stroke-width="1.5"/>
+      <text x="12" y="16" text-anchor="middle" fill="${textFill}" font-size="11" font-family="JetBrains Mono, monospace" font-weight="600">${index + 1}</text>
     </svg>`,
   });
 }
 
+function makeSegmentLabel(text: string): L.DivIcon {
+  return L.divIcon({
+    className: "",
+    iconSize: [80, 16],
+    iconAnchor: [40, 8],
+    html: `<div style="font-size:9px;font-family:JetBrains Mono,monospace;color:${MAP_COLORS.muted};white-space:nowrap;text-align:center;background:rgba(10,10,15,0.7);padding:1px 4px;border:1px solid rgba(255,255,255,0.1)">${text}</div>`,
+  });
+}
+
+function formatDist(m: number): string {
+  return m >= 1000 ? `${(m / 1000).toFixed(1)}km` : `${Math.round(m)}m`;
+}
+
+const TOOL_CURSORS: Record<PlannerTool, string> = {
+  select: "default",
+  waypoint: "crosshair",
+  polygon: "crosshair",
+  circle: "crosshair",
+  measure: "help",
+};
 
 interface PlannerMapProps {
   waypoints: Waypoint[];
+  activeTool: PlannerTool;
+  selectedWaypointId: string | null;
   onMapClick: (lat: number, lon: number) => void;
-  onWaypointClick?: (id: string) => void;
-  selectedWaypointId?: string | null;
+  onMapRightClick: (lat: number, lon: number, x: number, y: number) => void;
+  onWaypointClick: (id: string) => void;
+  onWaypointDragEnd: (id: string, lat: number, lon: number) => void;
+  onWaypointRightClick: (id: string, x: number, y: number) => void;
 }
 
 export function PlannerMap({
   waypoints,
-  onMapClick,
-  onWaypointClick,
+  activeTool,
   selectedWaypointId,
+  onMapClick,
+  onMapRightClick,
+  onWaypointClick,
+  onWaypointDragEnd,
+  onWaypointRightClick,
 }: PlannerMapProps) {
   const mapRef = useRef<L.Map | null>(null);
+  const [zoom, setZoom] = useState(13);
 
-  const handleMapReady = useCallback(() => {
-    // Map ready callback
-  }, []);
-
+  // Map click handler
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
 
-    const handler = (e: L.LeafletMouseEvent) => {
-      onMapClick(e.latlng.lat, e.latlng.lng);
+    const clickHandler = (e: L.LeafletMouseEvent) => {
+      if (activeTool === "waypoint" || activeTool === "polygon" || activeTool === "circle") {
+        onMapClick(e.latlng.lat, e.latlng.lng);
+      }
     };
-    map.on("click", handler);
+
+    const contextHandler = (e: L.LeafletMouseEvent) => {
+      e.originalEvent.preventDefault();
+      const point = map.latLngToContainerPoint(e.latlng);
+      const rect = map.getContainer().getBoundingClientRect();
+      onMapRightClick(e.latlng.lat, e.latlng.lng, rect.left + point.x, rect.top + point.y);
+    };
+
+    const zoomHandler = () => setZoom(map.getZoom());
+
+    map.on("click", clickHandler);
+    map.on("contextmenu", contextHandler);
+    map.on("zoomend", zoomHandler);
+
     return () => {
-      map.off("click", handler);
+      map.off("click", clickHandler);
+      map.off("contextmenu", contextHandler);
+      map.off("zoomend", zoomHandler);
     };
-  }, [onMapClick]);
+  }, [activeTool, onMapClick, onMapRightClick]);
+
+  // Set cursor based on tool
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    map.getContainer().style.cursor = TOOL_CURSORS[activeTool];
+  }, [activeTool]);
 
   const polylinePositions: [number, number][] = waypoints.map((wp) => [wp.lat, wp.lon]);
+
+  // Compute segment labels
+  const segments = useMemo(() => {
+    if (zoom < 14 || waypoints.length < 2) return [];
+    return waypoints.slice(1).map((wp, i) => {
+      const prev = waypoints[i];
+      const dist = haversineDistance(prev.lat, prev.lon, wp.lat, wp.lon);
+      const brg = bearing(prev.lat, prev.lon, wp.lat, wp.lon);
+      const midLat = (prev.lat + wp.lat) / 2;
+      const midLon = (prev.lon + wp.lon) / 2;
+      return {
+        key: `seg-${prev.id}-${wp.id}`,
+        position: [midLat, midLon] as [number, number],
+        label: `${formatDist(dist)} ${Math.round(brg)}°`,
+      };
+    });
+  }, [waypoints, zoom]);
 
   return (
     <div className="w-full h-full relative">
       <MapContainer
-        center={BANGALORE_CENTER}
+        center={DEFAULT_CENTER}
         zoom={13}
         className="w-full h-full"
         zoomControl={false}
@@ -86,17 +164,17 @@ export function PlannerMap({
         ref={(instance) => {
           if (instance) {
             mapRef.current = instance;
-            handleMapReady();
           }
         }}
       >
         <TileLayer url={DARK_TILES} attribution={ATTRIBUTION} />
 
+        {/* Path polyline */}
         {polylinePositions.length >= 2 && (
           <Polyline
             positions={polylinePositions}
             pathOptions={{
-              color: "#3a82ff",
+              color: MAP_COLORS.accentPrimary,
               weight: 2,
               dashArray: "6 4",
               opacity: 0.8,
@@ -104,22 +182,43 @@ export function PlannerMap({
           />
         )}
 
+        {/* Segment distance/bearing labels */}
+        {segments.map((seg) => (
+          <Marker
+            key={seg.key}
+            position={seg.position}
+            icon={makeSegmentLabel(seg.label)}
+            interactive={false}
+          />
+        ))}
+
+        {/* Waypoint markers */}
         {waypoints.map((wp, i) => (
           <Marker
             key={wp.id}
             position={[wp.lat, wp.lon]}
-            icon={makeWaypointIcon(i)}
+            icon={makeWaypointIcon(i, wp.id === selectedWaypointId)}
+            draggable={activeTool === "select"}
             eventHandlers={{
               click: (e) => {
                 e.originalEvent.stopPropagation();
-                onWaypointClick?.(wp.id);
+                onWaypointClick(wp.id);
+              },
+              dragend: (e) => {
+                const latlng = e.target.getLatLng();
+                onWaypointDragEnd(wp.id, latlng.lat, latlng.lng);
+              },
+              contextmenu: (e) => {
+                e.originalEvent.preventDefault();
+                e.originalEvent.stopPropagation();
+                onWaypointRightClick(wp.id, e.originalEvent.clientX, e.originalEvent.clientY);
               },
             }}
           />
         ))}
       </MapContainer>
 
-      {/* Overlay instructions */}
+      {/* Instructions overlay */}
       {waypoints.length === 0 && (
         <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] pointer-events-none">
           <div className="bg-bg-secondary/90 border border-border-default px-3 py-1.5">
@@ -129,15 +228,6 @@ export function PlannerMap({
           </div>
         </div>
       )}
-
-      {/* Waypoint count */}
-      <div className="absolute bottom-4 left-4 z-[1000]">
-        <div className="bg-bg-secondary/90 border border-border-default px-2 py-1">
-          <span className="text-[10px] text-text-secondary font-mono">
-            WP: {waypoints.length}
-          </span>
-        </div>
-      </div>
     </div>
   );
 }

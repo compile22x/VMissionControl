@@ -1,5 +1,9 @@
 /**
- * Core TypeScript types for Altnautica Command GCS.
+ * @module types
+ * @description Core TypeScript types for Altnautica Command GCS.
+ * Covers drone state, telemetry, fleet, mission planning, video, input, UI,
+ * hardware, flight history, and analytics domains.
+ * @license GPL-3.0-only
  */
 
 // ── Drone State ──────────────────────────────────────────────
@@ -127,7 +131,17 @@ export interface Waypoint {
   param3?: number;
 }
 
-export type WaypointCommand = "WAYPOINT" | "LOITER" | "TAKEOFF" | "LAND" | "RTL" | "ROI" | "DO_SET_SPEED";
+/** MAVLink command types supported in mission waypoints. */
+export type WaypointCommand =
+  | "WAYPOINT" | "LOITER" | "LOITER_TIME" | "LOITER_TURNS"
+  | "TAKEOFF" | "LAND" | "RTL" | "ROI" | "DO_SET_SPEED"
+  | "DO_SET_CAM_TRIGG" | "DO_DIGICAM" | "DO_JUMP" | "DELAY" | "CONDITION_YAW";
+
+/** Available tools in the map toolbar. */
+export type PlannerTool = "select" | "waypoint" | "polygon" | "circle" | "measure";
+
+/** Altitude reference frame for waypoints. */
+export type AltitudeFrame = "relative" | "absolute" | "terrain";
 
 export type MissionState = "idle" | "planning" | "uploading" | "uploaded" | "running" | "paused" | "completed" | "aborted";
 

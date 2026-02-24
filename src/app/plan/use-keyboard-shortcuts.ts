@@ -1,0 +1,121 @@
+/**
+ * @module use-keyboard-shortcuts
+ * @description Keyboard shortcut hook for the mission planner.
+ * Handles tool switching (V/W/P/C/M), undo/redo (Cmd+Z/Cmd+Shift+Z),
+ * delete waypoint (Delete/Backspace), save (Cmd+S), and escape.
+ * @license GPL-3.0-only
+ */
+
+import { useEffect } from "react";
+import type { PlannerTool } from "@/lib/types";
+
+interface UseKeyboardShortcutsParams {
+  activeTool: PlannerTool;
+  setActiveTool: (tool: PlannerTool) => void;
+  undo: () => void;
+  redo: () => void;
+  selectedWaypointId: string | null;
+  removeWaypoint: (id: string) => void;
+  setSelectedWaypoint: (id: string | null) => void;
+  expandedWaypointId: string | null;
+  setExpandedWaypoint: (id: string | null) => void;
+  handleSave: () => void;
+}
+
+const TOOL_MAP: Record<string, PlannerTool> = {
+  v: "select",
+  w: "waypoint",
+  p: "polygon",
+  c: "circle",
+  m: "measure",
+};
+
+/** Register global keyboard shortcuts for the mission planner. */
+export function useKeyboardShortcuts({
+  activeTool,
+  setActiveTool,
+  undo,
+  redo,
+  selectedWaypointId,
+  removeWaypoint,
+  setSelectedWaypoint,
+  expandedWaypointId,
+  setExpandedWaypoint,
+  handleSave,
+}: UseKeyboardShortcutsParams): void {
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      const inInput =
+        target.tagName === "INPUT" ||
+        target.tagName === "SELECT" ||
+        target.tagName === "TEXTAREA";
+      if (inInput) return;
+
+      const isMeta = e.metaKey || e.ctrlKey;
+
+      // Tool shortcuts (V/W/P/C/M)
+      if (!isMeta) {
+        const tool = TOOL_MAP[e.key.toLowerCase()];
+        if (tool) {
+          e.preventDefault();
+          setActiveTool(tool);
+          return;
+        }
+      }
+
+      // Undo (Cmd+Z)
+      if (isMeta && e.key === "z" && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+        return;
+      }
+
+      // Redo (Cmd+Shift+Z)
+      if (isMeta && e.key === "z" && e.shiftKey) {
+        e.preventDefault();
+        redo();
+        return;
+      }
+
+      // Delete selected waypoint
+      if ((e.key === "Delete" || e.key === "Backspace") && selectedWaypointId) {
+        e.preventDefault();
+        removeWaypoint(selectedWaypointId);
+        setSelectedWaypoint(null);
+        setExpandedWaypoint(null);
+        return;
+      }
+
+      // Save (Cmd+S)
+      if (isMeta && e.key === "s") {
+        e.preventDefault();
+        handleSave();
+        return;
+      }
+
+      // Escape — collapse expanded waypoint or reset tool
+      if (e.key === "Escape") {
+        if (expandedWaypointId) {
+          setExpandedWaypoint(null);
+        } else if (activeTool !== "select") {
+          setActiveTool("select");
+        }
+      }
+    };
+
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [
+    activeTool,
+    setActiveTool,
+    undo,
+    redo,
+    selectedWaypointId,
+    removeWaypoint,
+    setSelectedWaypoint,
+    expandedWaypointId,
+    setExpandedWaypoint,
+    handleSave,
+  ]);
+}

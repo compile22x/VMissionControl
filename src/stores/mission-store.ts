@@ -1,7 +1,22 @@
+/**
+ * @module mission-store
+ * @description Zustand store for mission waypoint state, undo/redo history,
+ * and mission upload/download via the drone protocol abstraction.
+ *
+ * Undo/redo uses a bounded stack (max 50 entries). Each mutation pushes the
+ * current waypoints array onto the undo stack and clears the redo stack.
+ * Undo pops from undo → sets waypoints → pushes to redo (and vice versa).
+ *
+ * @license GPL-3.0-only
+ */
+
 import { create } from "zustand";
-import type { Mission, Waypoint, MissionState, SuiteType } from "@/lib/types";
+import type { Mission, Waypoint, WaypointCommand, MissionState, SuiteType } from "@/lib/types";
 import type { MissionItem } from "@/lib/protocol/types";
 import { useDroneManager } from "./drone-manager";
+
+/** Maximum undo/redo history depth. */
+const MAX_UNDO = 50;
 
 interface MissionStoreState {
   activeMission: Mission | null;
@@ -9,12 +24,16 @@ interface MissionStoreState {
   progress: number;
   currentWaypoint: number;
   uploadState: "idle" | "uploading" | "uploaded" | "error";
+  undoStack: Waypoint[][];
+  redoStack: Waypoint[][];
 
   setMission: (mission: Mission | null) => void;
   setWaypoints: (waypoints: Waypoint[]) => void;
   addWaypoint: (waypoint: Waypoint) => void;
+  insertWaypoint: (waypoint: Waypoint, atIndex: number) => void;
   removeWaypoint: (id: string) => void;
   updateWaypoint: (id: string, update: Partial<Waypoint>) => void;
+  reorderWaypoints: (fromIndex: number, toIndex: number) => void;
   setProgress: (progress: number, currentWaypoint: number) => void;
   setMissionState: (state: MissionState) => void;
   setUploadState: (state: "idle" | "uploading" | "uploaded" | "error") => void;
@@ -22,6 +41,14 @@ interface MissionStoreState {
   clearMission: () => void;
   uploadMission: () => Promise<void>;
   downloadMission: () => Promise<void>;
+  undo: () => void;
+  redo: () => void;
+}
+
+function pushUndo(state: { undoStack: Waypoint[][]; waypoints: Waypoint[] }) {
+  const stack = [...state.undoStack, [...state.waypoints]];
+  if (stack.length > MAX_UNDO) stack.shift();
+  return { undoStack: stack, redoStack: [] as Waypoint[][] };
 }
 
 export const useMissionStore = create<MissionStoreState>((set, get) => ({
@@ -30,6 +57,8 @@ export const useMissionStore = create<MissionStoreState>((set, get) => ({
   progress: 0,
   currentWaypoint: 0,
   uploadState: "idle",
+  undoStack: [],
+  redoStack: [],
 
   setMission: (activeMission) => set({
     activeMission,
@@ -38,22 +67,45 @@ export const useMissionStore = create<MissionStoreState>((set, get) => ({
     currentWaypoint: activeMission?.currentWaypoint ?? 0,
   }),
 
-  setWaypoints: (waypoints) => set({ waypoints }),
+  setWaypoints: (waypoints) => set((s) => ({
+    ...pushUndo(s),
+    waypoints,
+  })),
 
   addWaypoint: (waypoint) =>
-    set((state) => ({ waypoints: [...state.waypoints, waypoint] })),
+    set((s) => ({
+      ...pushUndo(s),
+      waypoints: [...s.waypoints, waypoint],
+    })),
+
+  insertWaypoint: (waypoint, atIndex) =>
+    set((s) => {
+      const wps = [...s.waypoints];
+      wps.splice(atIndex, 0, waypoint);
+      return { ...pushUndo(s), waypoints: wps };
+    }),
 
   removeWaypoint: (id) =>
-    set((state) => ({
-      waypoints: state.waypoints.filter((w) => w.id !== id),
+    set((s) => ({
+      ...pushUndo(s),
+      waypoints: s.waypoints.filter((w) => w.id !== id),
     })),
 
   updateWaypoint: (id, update) =>
-    set((state) => ({
-      waypoints: state.waypoints.map((w) =>
+    set((s) => ({
+      ...pushUndo(s),
+      waypoints: s.waypoints.map((w) =>
         w.id === id ? { ...w, ...update } : w
       ),
     })),
+
+  reorderWaypoints: (fromIndex, toIndex) =>
+    set((s) => {
+      const wps = [...s.waypoints];
+      const [moved] = wps.splice(fromIndex, 1);
+      wps.splice(toIndex, 0, moved);
+      return { ...pushUndo(s), waypoints: wps };
+    }),
 
   setProgress: (progress, currentWaypoint) =>
     set({ progress, currentWaypoint }),
@@ -83,15 +135,44 @@ export const useMissionStore = create<MissionStoreState>((set, get) => ({
       progress: 0,
       currentWaypoint: 0,
       uploadState: "idle",
+      undoStack: [],
+      redoStack: [],
     }),
 
   clearMission: () =>
-    set({
+    set((s) => ({
+      ...pushUndo(s),
       activeMission: null,
       waypoints: [],
       progress: 0,
       currentWaypoint: 0,
       uploadState: "idle",
+    })),
+
+  undo: () =>
+    set((s) => {
+      if (s.undoStack.length === 0) return s;
+      const stack = [...s.undoStack];
+      const prev = stack.pop();
+      if (!prev) return s;
+      return {
+        undoStack: stack,
+        redoStack: [...s.redoStack, [...s.waypoints]].slice(-MAX_UNDO),
+        waypoints: prev,
+      };
+    }),
+
+  redo: () =>
+    set((s) => {
+      if (s.redoStack.length === 0) return s;
+      const stack = [...s.redoStack];
+      const next = stack.pop();
+      if (!next) return s;
+      return {
+        redoStack: stack,
+        undoStack: [...s.undoStack, [...s.waypoints]].slice(-MAX_UNDO),
+        waypoints: next,
+      };
     }),
 
   uploadMission: async () => {
@@ -101,10 +182,18 @@ export const useMissionStore = create<MissionStoreState>((set, get) => ({
     if (waypoints.length === 0) return;
 
     set({ uploadState: "uploading" });
+
+    const cmdMap = {
+      WAYPOINT: 16, LOITER: 17, LOITER_TURNS: 18, LOITER_TIME: 19,
+      RTL: 20, LAND: 21, TAKEOFF: 22, ROI: 201, DO_SET_SPEED: 178,
+      DO_SET_CAM_TRIGG: 206, DO_DIGICAM: 203, DO_JUMP: 177, DELAY: 112,
+      CONDITION_YAW: 115,
+    } satisfies Record<WaypointCommand, number>;
+
     const items: MissionItem[] = waypoints.map((wp, i) => ({
       seq: i,
       frame: 3,     // MAV_FRAME_GLOBAL_RELATIVE_ALT
-      command: wp.command === "TAKEOFF" ? 22 : wp.command === "LAND" ? 21 : wp.command === "RTL" ? 20 : wp.command === "LOITER" ? 17 : 16, // MAV_CMD_NAV_*
+      command: cmdMap[wp.command ?? "WAYPOINT"] ?? 16,
       current: i === 0 ? 1 : 0,
       autocontinue: 1,
       param1: wp.holdTime ?? 0,
@@ -128,6 +217,12 @@ export const useMissionStore = create<MissionStoreState>((set, get) => ({
     const protocol = useDroneManager.getState().getSelectedProtocol();
     if (!protocol) return;
 
+    const reverseCmd: Record<number, string> = {
+      16: "WAYPOINT", 17: "LOITER", 18: "LOITER_TURNS", 19: "LOITER_TIME",
+      20: "RTL", 21: "LAND", 22: "TAKEOFF", 201: "ROI", 178: "DO_SET_SPEED",
+      177: "DO_JUMP", 112: "DELAY", 115: "CONDITION_YAW",
+    };
+
     try {
       const items = await protocol.downloadMission();
       const waypoints: Waypoint[] = items.map((item) => ({
@@ -136,7 +231,7 @@ export const useMissionStore = create<MissionStoreState>((set, get) => ({
         lon: item.y / 1e7,
         alt: item.z,
         holdTime: item.param1 || undefined,
-        command: item.command === 22 ? "TAKEOFF" : item.command === 21 ? "LAND" : item.command === 20 ? "RTL" : item.command === 17 ? "LOITER" : "WAYPOINT",
+        command: (reverseCmd[item.command] ?? "WAYPOINT") as Waypoint["command"],
       }));
       set({ waypoints });
     } catch {

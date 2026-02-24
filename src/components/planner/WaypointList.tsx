@@ -1,21 +1,73 @@
+/**
+ * @module WaypointList
+ * @description Scrollable list of waypoints in the right panel with drag-and-drop
+ * reordering. Renders {@link WaypointListItem} for each waypoint.
+ * @license GPL-3.0-only
+ */
 "use client";
 
-import { X } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { useState, useCallback, useRef } from "react";
+import { Plus } from "lucide-react";
+import { WaypointListItem } from "./WaypointListItem";
 import type { Waypoint } from "@/lib/types";
 
 interface WaypointListProps {
   waypoints: Waypoint[];
   selectedId: string | null;
+  expandedId: string | null;
   onSelect: (id: string) => void;
+  onExpand: (id: string | null) => void;
+  onUpdate: (id: string, update: Partial<Waypoint>) => void;
   onRemove: (id: string) => void;
+  onReorder: (fromIndex: number, toIndex: number) => void;
+  onAddManual: () => void;
 }
 
-export function WaypointList({ waypoints, selectedId, onSelect, onRemove }: WaypointListProps) {
+export function WaypointList({
+  waypoints,
+  selectedId,
+  expandedId,
+  onSelect,
+  onExpand,
+  onUpdate,
+  onRemove,
+  onReorder,
+  onAddManual,
+}: WaypointListProps) {
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const dragIndexRef = useRef<number | null>(null);
+
+  const handleDragStart = useCallback((index: number) => (e: React.DragEvent) => {
+    dragIndexRef.current = index;
+    e.dataTransfer.effectAllowed = "move";
+  }, []);
+
+  const handleDragOver = useCallback((index: number) => (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setDragOverIndex(index);
+  }, []);
+
+  const handleDrop = useCallback((toIndex: number) => (e: React.DragEvent) => {
+    e.preventDefault();
+    const from = dragIndexRef.current;
+    if (from !== null && from !== toIndex) {
+      onReorder(from, toIndex);
+    }
+    dragIndexRef.current = null;
+    setDragOverIndex(null);
+  }, [onReorder]);
+
+  const handleDragEnd = useCallback(() => {
+    dragIndexRef.current = null;
+    setDragOverIndex(null);
+  }, []);
+
   if (waypoints.length === 0) {
     return (
-      <div className="flex-1 flex items-center justify-center">
+      <div className="flex flex-col items-center justify-center py-8 gap-2">
         <p className="text-xs text-text-tertiary">No waypoints added</p>
+        <p className="text-[10px] text-text-tertiary">Click map or press [+] to add</p>
       </div>
     );
   }
@@ -23,42 +75,22 @@ export function WaypointList({ waypoints, selectedId, onSelect, onRemove }: Wayp
   return (
     <div className="flex-1 overflow-y-auto">
       {waypoints.map((wp, i) => (
-        <div
+        <WaypointListItem
           key={wp.id}
-          className={cn(
-            "flex items-center gap-2 px-3 py-2 border-b border-border-default cursor-pointer transition-colors",
-            "hover:bg-bg-tertiary",
-            selectedId === wp.id && "bg-accent-primary/10"
-          )}
-          onClick={() => onSelect(wp.id)}
-        >
-          {/* Sequence number */}
-          <div className="w-5 h-5 flex items-center justify-center bg-accent-primary text-[10px] font-mono font-semibold text-white shrink-0">
-            {i + 1}
-          </div>
-
-          {/* Coordinates */}
-          <div className="flex-1 min-w-0">
-            <div className="text-xs font-mono text-text-primary truncate">
-              {wp.lat.toFixed(4)}, {wp.lon.toFixed(4)}
-            </div>
-            <div className="flex items-center gap-2 text-[10px] text-text-tertiary font-mono">
-              <span>{wp.alt}m</span>
-              <span className="text-text-secondary">{wp.command ?? "WAYPOINT"}</span>
-            </div>
-          </div>
-
-          {/* Delete */}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onRemove(wp.id);
-            }}
-            className="text-text-tertiary hover:text-status-error transition-colors shrink-0 cursor-pointer"
-          >
-            <X size={14} />
-          </button>
-        </div>
+          waypoint={wp}
+          index={i}
+          expanded={expandedId === wp.id}
+          selected={selectedId === wp.id}
+          onToggleExpand={() => onExpand(expandedId === wp.id ? null : wp.id)}
+          onSelect={() => onSelect(wp.id)}
+          onUpdate={(update) => onUpdate(wp.id, update)}
+          onRemove={() => onRemove(wp.id)}
+          onDragStart={handleDragStart(i)}
+          onDragOver={handleDragOver(i)}
+          onDragEnd={handleDragEnd}
+          onDrop={handleDrop(i)}
+          dragOver={dragOverIndex === i && dragIndexRef.current !== i}
+        />
       ))}
     </div>
   );

@@ -1,5 +1,8 @@
 /**
- * Telemetry unit conversion and formatting utilities.
+ * @module telemetry-utils
+ * @description Telemetry unit conversion, formatting, and geospatial calculation utilities.
+ * Includes Haversine distance, bearing, path distance, and common unit conversions.
+ * @license GPL-3.0-only
  */
 
 /** Meters per second to km/h. */
@@ -78,6 +81,18 @@ export function haversineDistance(
     Math.sin(dLat / 2) ** 2 +
     Math.cos(degToRad(lat1)) * Math.cos(degToRad(lat2)) * Math.sin(dLon / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+/** Calculate total path distance for an array of waypoints in meters. */
+export function totalPathDistance(waypoints: { lat: number; lon: number }[]): number {
+  let total = 0;
+  for (let i = 1; i < waypoints.length; i++) {
+    total += haversineDistance(
+      waypoints[i - 1].lat, waypoints[i - 1].lon,
+      waypoints[i].lat, waypoints[i].lon
+    );
+  }
+  return total;
 }
 
 /** Calculate bearing between two GPS points in degrees. */

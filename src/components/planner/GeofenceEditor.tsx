@@ -1,9 +1,14 @@
+/**
+ * @module GeofenceEditor
+ * @description Geofence configuration panel — enable/disable toggle, type selector
+ * (circle/polygon), max altitude input, and breach action dropdown.
+ * @license GPL-3.0-only
+ */
 "use client";
 
 import { Toggle } from "@/components/ui/toggle";
 import { Select } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
 const GEOFENCE_TYPE_OPTIONS = [
@@ -39,40 +44,38 @@ export function GeofenceEditor({
   onActionChange,
 }: GeofenceEditorProps) {
   return (
-    <Card title="Geofence" padding={true}>
-      <div className="flex flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <Toggle label="Enable Geofence" checked={enabled} onChange={onToggle} />
-          <Badge variant={enabled ? "success" : "neutral"} size="sm">
-            {enabled ? "Active" : "Off"}
-          </Badge>
-        </div>
-
-        {enabled && (
-          <>
-            <Select
-              label="Type"
-              options={GEOFENCE_TYPE_OPTIONS}
-              value={type}
-              onChange={onTypeChange}
-            />
-            <Input
-              label="Max Altitude"
-              type="number"
-              unit="m"
-              value={maxAlt}
-              onChange={(e) => onMaxAltChange(e.target.value)}
-              placeholder="120"
-            />
-            <Select
-              label="Breach Action"
-              options={GEOFENCE_ACTION_OPTIONS}
-              value={action}
-              onChange={onActionChange}
-            />
-          </>
-        )}
+    <div className="flex flex-col gap-3 px-3 py-2">
+      <div className="flex items-center justify-between">
+        <Toggle label="Enable Geofence" checked={enabled} onChange={onToggle} />
+        <Badge variant={enabled ? "success" : "neutral"} size="sm">
+          {enabled ? "Active" : "Off"}
+        </Badge>
       </div>
-    </Card>
+
+      {enabled && (
+        <>
+          <Select
+            label="Type"
+            options={GEOFENCE_TYPE_OPTIONS}
+            value={type}
+            onChange={onTypeChange}
+          />
+          <Input
+            label="Max Altitude"
+            type="number"
+            unit="m"
+            value={maxAlt}
+            onChange={(e) => onMaxAltChange(e.target.value)}
+            placeholder="120"
+          />
+          <Select
+            label="Breach Action"
+            options={GEOFENCE_ACTION_OPTIONS}
+            value={action}
+            onChange={onActionChange}
+          />
+        </>
+      )}
+    </div>
   );
 }

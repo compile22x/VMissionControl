@@ -1,0 +1,344 @@
+/**
+ * @module use-planner
+ * @description Core hook for the mission planner page. Encapsulates all planner
+ * logic: store connections, local state, map/context handlers, save/load,
+ * autosave recovery, and the cancel-on-unmount cleanup.
+ * @license GPL-3.0-only
+ */
+
+import { useState, useCallback, useEffect, useRef } from "react";
+import { useMissionStore } from "@/stores/mission-store";
+import { usePlannerStore } from "@/stores/planner-store";
+import { useFleetStore } from "@/stores/fleet-store";
+import { useToast } from "@/components/ui/toast";
+import { randomId } from "@/lib/utils";
+import { DEFAULT_CENTER } from "@/lib/map-constants";
+import {
+  autoSave,
+  cancelAutoSave,
+  getAutoSave,
+  clearAutoSave,
+  downloadMissionFile,
+  loadMissionFile,
+  saveMissionToStorage,
+} from "@/lib/mission-io";
+import type { ContextMenuItem } from "@/components/planner/MapContextMenu";
+import type { SuiteType, Waypoint } from "@/lib/types";
+
+/** Clamp a latitude to [-90, 90]. */
+function clampLat(lat: number): number {
+  return Math.max(-90, Math.min(90, lat));
+}
+
+/** Clamp a longitude to [-180, 180]. */
+function clampLon(lon: number): number {
+  return Math.max(-180, Math.min(180, lon));
+}
+
+/** Clamp altitude to >= 0. */
+function clampAlt(alt: number): number {
+  return Math.max(0, alt);
+}
+
+export interface ContextMenuState {
+  x: number;
+  y: number;
+  items: ContextMenuItem[];
+  lat?: number;
+  lon?: number;
+  waypointId?: string;
+}
+
+export function usePlanner() {
+  const {
+    waypoints, addWaypoint, removeWaypoint, updateWaypoint, insertWaypoint,
+    reorderWaypoints, uploadMission, downloadMission, uploadState,
+    undoStack, redoStack, undo, redo, clearMission, setWaypoints,
+  } = useMissionStore();
+
+  const {
+    activeTool, setActiveTool,
+    panelCollapsed, togglePanel,
+    altProfileCollapsed, toggleAltProfile,
+    expandedWaypointId, setExpandedWaypoint,
+    selectedWaypointId, setSelectedWaypoint,
+    defaultAlt, defaultSpeed, defaultAcceptRadius, defaultFrame,
+    setDefaults,
+  } = usePlannerStore();
+
+  const drones = useFleetStore((s) => s.drones);
+  const { toast } = useToast();
+
+  // Mission setup state
+  const [missionName, setMissionName] = useState("");
+  const [selectedDroneId, setSelectedDroneId] = useState("");
+  const [suiteType, setSuiteType] = useState("");
+
+  // Geofence state
+  const [geofenceEnabled, setGeofenceEnabled] = useState(false);
+  const [geofenceType, setGeofenceType] = useState("circle");
+  const [geofenceMaxAlt, setGeofenceMaxAlt] = useState("120");
+  const [geofenceAction, setGeofenceAction] = useState("RTL");
+
+  // Context menu state
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+
+  // Clear confirm
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+
+  // ── Autosave recovery ─────────────────────────────────────
+  const autoSaveChecked = useRef(false);
+  useEffect(() => {
+    if (autoSaveChecked.current) return;
+    autoSaveChecked.current = true;
+    const saved = getAutoSave();
+    if (saved && saved.waypoints.length > 0) {
+      toast("Unsaved mission found — restoring", "info");
+      setWaypoints(saved.waypoints);
+      if (saved.metadata.name) setMissionName(saved.metadata.name);
+      if (saved.metadata.droneId) setSelectedDroneId(saved.metadata.droneId);
+      if (saved.metadata.suiteType) setSuiteType(saved.metadata.suiteType);
+    }
+  }, [setWaypoints, toast]);
+
+  // Auto-save on waypoint changes + cleanup on unmount
+  useEffect(() => {
+    if (waypoints.length > 0) {
+      autoSave(waypoints, {
+        name: missionName,
+        droneId: selectedDroneId || undefined,
+        suiteType: (suiteType as SuiteType) || undefined,
+      });
+    }
+    return () => cancelAutoSave();
+  }, [waypoints, missionName, selectedDroneId, suiteType]);
+
+  // ── Map handlers ──────────────────────────────────────────
+  const handleMapClick = useCallback(
+    (lat: number, lon: number) => {
+      const wp: Waypoint = {
+        id: randomId(),
+        lat: clampLat(lat),
+        lon: clampLon(lon),
+        alt: clampAlt(defaultAlt),
+        speed: defaultSpeed,
+        command: "WAYPOINT",
+      };
+      addWaypoint(wp);
+    },
+    [addWaypoint, defaultAlt, defaultSpeed]
+  );
+
+  const handleMapRightClick = useCallback(
+    (lat: number, lon: number, x: number, y: number) => {
+      setContextMenu({
+        x, y, lat, lon,
+        items: [
+          { id: "add-wp", label: "Add Waypoint" },
+          { id: "add-takeoff", label: "Add Takeoff" },
+          { id: "add-land", label: "Add Land" },
+          { id: "add-roi", label: "Set ROI" },
+          { id: "div1", label: "", divider: true },
+          { id: "center", label: "Center Map Here" },
+        ],
+      });
+    },
+    []
+  );
+
+  const handleWaypointRightClick = useCallback(
+    (id: string, x: number, y: number) => {
+      setContextMenu({
+        x, y, waypointId: id,
+        items: [
+          { id: "edit", label: "Edit" },
+          { id: "insert-before", label: "Insert Before" },
+          { id: "insert-after", label: "Insert After" },
+          { id: "div1", label: "", divider: true },
+          { id: "delete-wp", label: "Delete", danger: true },
+        ],
+      });
+    },
+    []
+  );
+
+  const handleContextAction = useCallback(
+    (actionId: string) => {
+      if (!contextMenu) return;
+      const { lat, lon, waypointId } = contextMenu;
+
+      const makeWp = (cmd: Waypoint["command"]): Waypoint => ({
+        id: randomId(),
+        lat: clampLat(lat ?? 0),
+        lon: clampLon(lon ?? 0),
+        alt: cmd === "LAND" ? 0 : clampAlt(defaultAlt),
+        command: cmd,
+      });
+
+      switch (actionId) {
+        case "add-wp":
+          addWaypoint(makeWp("WAYPOINT"));
+          break;
+        case "add-takeoff":
+          addWaypoint(makeWp("TAKEOFF"));
+          break;
+        case "add-land":
+          addWaypoint(makeWp("LAND"));
+          break;
+        case "add-roi":
+          addWaypoint(makeWp("ROI"));
+          break;
+        case "center":
+          break;
+        case "edit":
+          if (waypointId) {
+            setSelectedWaypoint(waypointId);
+            setExpandedWaypoint(waypointId);
+          }
+          break;
+        case "insert-before":
+        case "insert-after": {
+          if (!waypointId) break;
+          const idx = waypoints.findIndex((w) => w.id === waypointId);
+          if (idx === -1) break;
+          const ref = waypoints[idx];
+          const newWp: Waypoint = {
+            id: randomId(),
+            lat: clampLat(ref.lat + 0.0005),
+            lon: clampLon(ref.lon + 0.0005),
+            alt: clampAlt(defaultAlt),
+            command: "WAYPOINT",
+          };
+          insertWaypoint(newWp, actionId === "insert-before" ? idx : idx + 1);
+          break;
+        }
+        case "delete-wp":
+          if (waypointId) removeWaypoint(waypointId);
+          break;
+      }
+      setContextMenu(null);
+    },
+    [contextMenu, addWaypoint, insertWaypoint, removeWaypoint, defaultAlt, waypoints, setSelectedWaypoint, setExpandedWaypoint]
+  );
+
+  const handleWaypointClick = useCallback(
+    (id: string) => setSelectedWaypoint(id),
+    [setSelectedWaypoint]
+  );
+
+  const handleWaypointDragEnd = useCallback(
+    (id: string, lat: number, lon: number) => {
+      updateWaypoint(id, { lat: clampLat(lat), lon: clampLon(lon) });
+    },
+    [updateWaypoint]
+  );
+
+  // ── Toolbar handlers ──────────────────────────────────────
+  const handleClearAll = useCallback(() => {
+    if (waypoints.length > 0) setShowClearConfirm(true);
+  }, [waypoints.length]);
+
+  const confirmClear = useCallback(() => {
+    clearMission();
+    clearAutoSave();
+    setSelectedWaypoint(null);
+    setExpandedWaypoint(null);
+    setMissionName("");
+    setSelectedDroneId("");
+    setSuiteType("");
+    setShowClearConfirm(false);
+    toast("Mission cleared", "info");
+  }, [clearMission, setSelectedWaypoint, setExpandedWaypoint, toast]);
+
+  // ── Save/Load ─────────────────────────────────────────────
+  const handleSave = useCallback(() => {
+    const metadata = {
+      name: missionName || "Untitled Mission",
+      droneId: selectedDroneId || undefined,
+      suiteType: (suiteType as SuiteType) || undefined,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+    downloadMissionFile(waypoints, metadata);
+    saveMissionToStorage(waypoints, metadata);
+    toast("Mission saved", "success");
+  }, [waypoints, missionName, selectedDroneId, suiteType, toast]);
+
+  const handleLoadFile = useCallback(
+    async (file: File) => {
+      try {
+        const mission = await loadMissionFile(file);
+        setWaypoints(mission.waypoints);
+        if (mission.metadata.name) setMissionName(mission.metadata.name);
+        if (mission.metadata.droneId) setSelectedDroneId(mission.metadata.droneId);
+        if (mission.metadata.suiteType) setSuiteType(mission.metadata.suiteType);
+        toast(`Loaded "${mission.metadata.name}"`, "success");
+      } catch {
+        toast("Failed to load mission file", "error");
+      }
+    },
+    [setWaypoints, toast]
+  );
+
+  const handleUpload = useCallback(() => {
+    uploadMission();
+  }, [uploadMission]);
+
+  const handleAddManualWaypoint = useCallback(() => {
+    const lastWp = waypoints[waypoints.length - 1];
+    const wp: Waypoint = {
+      id: randomId(),
+      lat: clampLat(lastWp ? lastWp.lat + 0.001 : DEFAULT_CENTER[0]),
+      lon: clampLon(lastWp ? lastWp.lon + 0.001 : DEFAULT_CENTER[1]),
+      alt: clampAlt(defaultAlt),
+      command: "WAYPOINT",
+    };
+    addWaypoint(wp);
+  }, [waypoints, addWaypoint, defaultAlt]);
+
+  return {
+    // Store state
+    waypoints, undoStack, redoStack, uploadState,
+    activeTool, setActiveTool,
+    panelCollapsed, togglePanel,
+    altProfileCollapsed, toggleAltProfile,
+    expandedWaypointId, setExpandedWaypoint,
+    selectedWaypointId, setSelectedWaypoint,
+    defaultAlt, defaultSpeed, defaultAcceptRadius, defaultFrame, setDefaults,
+    drones,
+
+    // Mission setup
+    missionName, setMissionName,
+    selectedDroneId, setSelectedDroneId,
+    suiteType, setSuiteType,
+
+    // Geofence
+    geofenceEnabled, setGeofenceEnabled,
+    geofenceType, setGeofenceType,
+    geofenceMaxAlt, setGeofenceMaxAlt,
+    geofenceAction, setGeofenceAction,
+
+    // Context menu
+    contextMenu, setContextMenu,
+    showClearConfirm, setShowClearConfirm,
+
+    // Handlers
+    handleMapClick,
+    handleMapRightClick,
+    handleWaypointRightClick,
+    handleContextAction,
+    handleWaypointClick,
+    handleWaypointDragEnd,
+    handleClearAll,
+    confirmClear,
+    handleSave,
+    handleLoadFile,
+    handleUpload,
+    handleAddManualWaypoint,
+
+    // Store actions passed through
+    undo, redo,
+    updateWaypoint, removeWaypoint, reorderWaypoints,
+    downloadMission,
+  };
+}
