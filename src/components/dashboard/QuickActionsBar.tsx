@@ -5,12 +5,14 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
-import { Map, Plus, FileText, Home } from "lucide-react";
+import { Map, Plug, FileText, Home } from "lucide-react";
+import { useConnectDialogStore } from "@/stores/connect-dialog-store";
 
 export function QuickActionsBar() {
   const router = useRouter();
   const { toast } = useToast();
   const [rthOpen, setRthOpen] = useState(false);
+  const openDialog = useConnectDialogStore((s) => s.openDialog);
 
   return (
     <>
@@ -26,10 +28,10 @@ export function QuickActionsBar() {
         <Button
           variant="secondary"
           size="sm"
-          icon={<Plus size={14} />}
-          onClick={() => toast("Add drone dialog coming soon", "info")}
+          icon={<Plug size={14} />}
+          onClick={openDialog}
         >
-          Add Drone
+          Connect Drone
         </Button>
         <Button
           variant="secondary"

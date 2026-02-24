@@ -11,9 +11,11 @@
  */
 
 import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
 import type { Mission, Waypoint, WaypointCommand, MissionState, SuiteType } from "@/lib/types";
 import type { MissionItem } from "@/lib/protocol/types";
 import { useDroneManager } from "./drone-manager";
+import { indexedDBStorage } from "@/lib/storage";
 
 /** Maximum undo/redo history depth. */
 const MAX_UNDO = 50;
@@ -51,7 +53,9 @@ function pushUndo(state: { undoStack: Waypoint[][]; waypoints: Waypoint[] }) {
   return { undoStack: stack, redoStack: [] as Waypoint[][] };
 }
 
-export const useMissionStore = create<MissionStoreState>((set, get) => ({
+export const useMissionStore = create<MissionStoreState>()(
+  persist(
+    (set, get) => ({
   activeMission: null,
   waypoints: [],
   progress: 0,
@@ -238,4 +242,15 @@ export const useMissionStore = create<MissionStoreState>((set, get) => ({
       // downloadMission not yet implemented on protocol — silent fail
     }
   },
-}));
+    }),
+    {
+      name: "altcmd:mission-store",
+      storage: createJSONStorage(indexedDBStorage.storage),
+      version: 1,
+      partialize: (state) => ({
+        waypoints: state.waypoints,
+        activeMission: state.activeMission,
+      }),
+    }
+  )
+);

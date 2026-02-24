@@ -13,6 +13,7 @@ import { useFleetStore } from "@/stores/fleet-store";
 import { useToast } from "@/components/ui/toast";
 import { randomId } from "@/lib/utils";
 import { DEFAULT_CENTER } from "@/lib/map-constants";
+import { useSettingsStore } from "@/stores/settings-store";
 import {
   autoSave,
   cancelAutoSave,
@@ -91,14 +92,16 @@ export function usePlanner() {
   useEffect(() => {
     if (autoSaveChecked.current) return;
     autoSaveChecked.current = true;
-    const saved = getAutoSave();
-    if (saved && saved.waypoints.length > 0) {
-      toast("Unsaved mission found — restoring", "info");
-      setWaypoints(saved.waypoints);
-      if (saved.metadata.name) setMissionName(saved.metadata.name);
-      if (saved.metadata.droneId) setSelectedDroneId(saved.metadata.droneId);
-      if (saved.metadata.suiteType) setSuiteType(saved.metadata.suiteType);
-    }
+    (async () => {
+      const saved = await getAutoSave();
+      if (saved && saved.waypoints.length > 0) {
+        toast("Unsaved mission found — restoring", "info");
+        setWaypoints(saved.waypoints);
+        if (saved.metadata.name) setMissionName(saved.metadata.name);
+        if (saved.metadata.droneId) setSelectedDroneId(saved.metadata.droneId);
+        if (saved.metadata.suiteType) setSuiteType(saved.metadata.suiteType);
+      }
+    })();
   }, [setWaypoints, toast]);
 
   // Auto-save on waypoint changes + cleanup on unmount
@@ -240,7 +243,7 @@ export function usePlanner() {
 
   const confirmClear = useCallback(() => {
     clearMission();
-    clearAutoSave();
+    void clearAutoSave();
     setSelectedWaypoint(null);
     setExpandedWaypoint(null);
     setMissionName("");
@@ -251,7 +254,7 @@ export function usePlanner() {
   }, [clearMission, setSelectedWaypoint, setExpandedWaypoint, toast]);
 
   // ── Save/Load ─────────────────────────────────────────────
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async () => {
     const metadata = {
       name: missionName || "Untitled Mission",
       droneId: selectedDroneId || undefined,
@@ -259,8 +262,9 @@ export function usePlanner() {
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
-    downloadMissionFile(waypoints, metadata);
-    saveMissionToStorage(waypoints, metadata);
+    await downloadMissionFile(waypoints, metadata);
+    await saveMissionToStorage(waypoints, metadata);
+    useSettingsStore.getState().incrementSaveCount();
     toast("Mission saved", "success");
   }, [waypoints, missionName, selectedDroneId, suiteType, toast]);
 

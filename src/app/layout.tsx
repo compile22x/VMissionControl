@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { CommandShell } from "@/components/layout/CommandShell";
 import { ToastProvider } from "@/components/ui/toast";
+import ConvexClientProvider from "./ConvexClientProvider";
 
 export const metadata: Metadata = {
   title: "Altnautica Command",
@@ -13,12 +14,18 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const content = (
+    <ToastProvider>
+      <CommandShell>{children}</CommandShell>
+    </ToastProvider>
+  );
+
   return (
     <html lang="en" className="dark">
       <body className="h-dvh overflow-hidden bg-bg-primary text-text-primary font-body">
-        <ToastProvider>
-          <CommandShell>{children}</CommandShell>
-        </ToastProvider>
+        <ConvexClientProvider>
+          {content}
+        </ConvexClientProvider>
       </body>
     </html>
   );

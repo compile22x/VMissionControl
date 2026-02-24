@@ -18,12 +18,12 @@ export function ConnectionPresets({
   const [presets, setPresets] = useState<ConnectionPreset[]>([]);
 
   useEffect(() => {
-    setPresets(getPresets());
+    getPresets().then(setPresets);
   }, []);
 
-  function handleDelete(id: string) {
-    deletePreset(id);
-    setPresets(getPresets());
+  async function handleDelete(id: string) {
+    await deletePreset(id);
+    setPresets(await getPresets());
   }
 
   if (presets.length === 0) {

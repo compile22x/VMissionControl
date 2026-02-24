@@ -33,7 +33,7 @@ export function MapWrapper({
     <MapContainer
       center={center}
       zoom={zoom}
-      className={className}
+      className={`isolate ${className}`}
       zoomControl={false}
       attributionControl={false}
       style={{ background: "#0a0a0a" }}

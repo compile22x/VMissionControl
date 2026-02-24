@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import { useFleetStore } from "@/stores/fleet-store";
 import { useDroneManager } from "@/stores/drone-manager";
 import { DroneCard } from "@/components/shared/drone-card";
-import { AddDroneModal } from "@/components/fleet/AddDroneModal";
+import { useConnectDialogStore } from "@/stores/connect-dialog-store";
 import { Plus, Search, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface DroneListPanelProps {
@@ -18,7 +18,7 @@ export function DroneListPanel({ collapsed, onToggleCollapse }: DroneListPanelPr
   const selectDrone = useDroneManager((s) => s.selectDrone);
 
   const [search, setSearch] = useState("");
-  const [addModalOpen, setAddModalOpen] = useState(false);
+  const openDialog = useConnectDialogStore((s) => s.openDialog);
 
   const filtered = useMemo(() => {
     if (!search.trim()) return drones;
@@ -54,7 +54,7 @@ export function DroneListPanel({ collapsed, onToggleCollapse }: DroneListPanelPr
         </span>
         <div className="flex items-center gap-1">
           <button
-            onClick={() => setAddModalOpen(true)}
+            onClick={openDialog}
             className="p-1 text-text-tertiary hover:text-text-primary transition-colors"
           >
             <Plus size={14} />
@@ -106,7 +106,6 @@ export function DroneListPanel({ collapsed, onToggleCollapse }: DroneListPanelPr
         </span>
       </div>
 
-      <AddDroneModal open={addModalOpen} onClose={() => setAddModalOpen(false)} />
     </div>
   );
 }

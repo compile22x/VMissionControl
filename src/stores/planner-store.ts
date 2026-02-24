@@ -7,7 +7,9 @@
  */
 
 import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
 import type { PlannerTool, AltitudeFrame } from "@/lib/types";
+import { indexedDBStorage } from "@/lib/storage";
 
 interface PlannerStoreState {
   /** Currently selected map tool (select, waypoint, polygon, circle, measure). */
@@ -37,7 +39,9 @@ interface PlannerStoreState {
   setDefaults: (defaults: Partial<Pick<PlannerStoreState, "defaultAlt" | "defaultSpeed" | "defaultAcceptRadius" | "defaultFrame">>) => void;
 }
 
-export const usePlannerStore = create<PlannerStoreState>((set) => ({
+export const usePlannerStore = create<PlannerStoreState>()(
+  persist(
+    (set) => ({
   activeTool: "waypoint",
   panelCollapsed: false,
   altProfileCollapsed: true,
@@ -54,4 +58,17 @@ export const usePlannerStore = create<PlannerStoreState>((set) => ({
   setExpandedWaypoint: (expandedWaypointId) => set({ expandedWaypointId }),
   setSelectedWaypoint: (selectedWaypointId) => set({ selectedWaypointId }),
   setDefaults: (defaults) => set((s) => ({ ...s, ...defaults })),
-}));
+    }),
+    {
+      name: "altcmd:planner-store",
+      storage: createJSONStorage(indexedDBStorage.storage),
+      version: 1,
+      partialize: (state) => ({
+        defaultAlt: state.defaultAlt,
+        defaultSpeed: state.defaultSpeed,
+        defaultAcceptRadius: state.defaultAcceptRadius,
+        defaultFrame: state.defaultFrame,
+      }),
+    }
+  )
+);

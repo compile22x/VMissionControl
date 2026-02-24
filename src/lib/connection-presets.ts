@@ -1,6 +1,11 @@
 /**
- * Connection presets — localStorage-backed saved connection configs.
+ * @module connection-presets
+ * @description Connection presets — IndexedDB-backed saved connection configs.
+ * On first load, migrates any existing localStorage data to IndexedDB.
+ * @license GPL-3.0-only
  */
+
+import { get, set } from "idb-keyval";
 
 export interface ConnectionPreset {
   id: string;
@@ -15,37 +20,47 @@ export interface ConnectionPreset {
 
 const STORAGE_KEY = "command:connection-presets";
 
-function readPresets(): ConnectionPreset[] {
+// One-time migration
+async function migratePresetsFromLocalStorage(): Promise<void> {
+  if (typeof window === "undefined") return;
+  const migrated = await get("command:presets-migrated");
+  if (migrated) return;
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      await set(STORAGE_KEY, JSON.parse(raw));
+      localStorage.removeItem(STORAGE_KEY);
+    }
+    await set("command:presets-migrated", true);
+  } catch {
+    // silent
+  }
+}
+
+if (typeof window !== "undefined") {
+  migratePresetsFromLocalStorage();
+}
+
+export async function getPresets(): Promise<ConnectionPreset[]> {
+  try {
+    return (await get<ConnectionPreset[]>(STORAGE_KEY)) ?? [];
   } catch {
     return [];
   }
 }
 
-function writePresets(presets: ConnectionPreset[]): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(presets));
-  } catch {
-    /* ignore storage errors */
-  }
-}
-
-export function getPresets(): ConnectionPreset[] {
-  return readPresets();
-}
-
-export function savePreset(preset: ConnectionPreset): void {
-  const presets = readPresets();
+export async function savePreset(preset: ConnectionPreset): Promise<void> {
+  const presets = await getPresets();
   const idx = presets.findIndex((p) => p.id === preset.id);
   if (idx >= 0) {
     presets[idx] = preset;
   } else {
     presets.push(preset);
   }
-  writePresets(presets);
+  await set(STORAGE_KEY, presets);
 }
 
-export function deletePreset(id: string): void {
-  writePresets(readPresets().filter((p) => p.id !== id));
+export async function deletePreset(id: string): Promise<void> {
+  const presets = await getPresets();
+  await set(STORAGE_KEY, presets.filter((p) => p.id !== id));
 }

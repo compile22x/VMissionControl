@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Search, LayoutDashboard, Plane, Route, History, BarChart3, Settings, Zap, Battery, Home, HeartPulse } from "lucide-react";
+import { Search, LayoutDashboard, Plane, Route, History, BarChart3, Settings, Zap, Battery, Home, HeartPulse, Plug } from "lucide-react";
 import { useFleetStore } from "@/stores/fleet-store";
 import { useDroneStore } from "@/stores/drone-store";
+import { useConnectDialogStore } from "@/stores/connect-dialog-store";
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 
@@ -32,6 +33,10 @@ export function CommandPalette() {
     { id: "nav-analytics", label: "Go to Analytics", category: "Navigation", icon: <BarChart3 size={14} />, action: () => router.push("/analytics") },
     { id: "nav-config", label: "Go to Config", category: "Navigation", icon: <Settings size={14} />, action: () => router.push("/config") },
     { id: "nav-wizard", label: "Go to Pre-flight Wizard", category: "Navigation", icon: <HeartPulse size={14} />, action: () => router.push("/wizard") },
+    {
+      id: "cmd-connect", label: "Connect Drone", category: "Commands", icon: <Plug size={14} />,
+      action: () => useConnectDialogStore.getState().openDialog(),
+    },
     {
       id: "cmd-rth", label: "Return to Home All", category: "Commands", icon: <Home size={14} />,
       action: () => {

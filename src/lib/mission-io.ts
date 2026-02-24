@@ -3,13 +3,17 @@
  * @description Mission save/load/autosave utilities for the .altmission file format.
  *
  * File format: `.altmission` — JSON with `{ version, metadata, waypoints }`.
- * Autosave uses a 2-second debounce timer writing to `localStorage` under
+ * Autosave uses a 2-second debounce timer writing to IndexedDB under
  * the key `altcmd_autosave`. Call {@link cancelAutoSave} on page unmount
  * to prevent stale timer fires after navigation.
+ *
+ * Data persisted via idb-keyval (IndexedDB). On first load, any existing
+ * localStorage data is migrated to IndexedDB automatically.
  *
  * @license GPL-3.0-only
  */
 
+import { get, set, del } from "idb-keyval";
 import type { Waypoint, SuiteType } from "@/lib/types";
 
 const AUTOSAVE_KEY = "altcmd_autosave";
@@ -34,11 +38,58 @@ interface RecentMission {
   name: string;
   date: number;
   wpCount: number;
-  key: string; // localStorage key
+  key: string;
 }
 
+// ── One-time localStorage → IndexedDB migration ────────────
+
+async function migrateFromLocalStorage(): Promise<void> {
+  if (typeof window === "undefined") return;
+  const migrated = await get("altcmd:migrated");
+  if (migrated) return;
+
+  try {
+    const autosave = localStorage.getItem(AUTOSAVE_KEY);
+    if (autosave) {
+      await set(AUTOSAVE_KEY, JSON.parse(autosave));
+      localStorage.removeItem(AUTOSAVE_KEY);
+    }
+
+    const recent = localStorage.getItem(RECENT_KEY);
+    if (recent) {
+      await set(RECENT_KEY, JSON.parse(recent));
+      localStorage.removeItem(RECENT_KEY);
+    }
+
+    const keysToMigrate: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith("altcmd_mission_")) {
+        keysToMigrate.push(key);
+      }
+    }
+    for (const key of keysToMigrate) {
+      const val = localStorage.getItem(key);
+      if (val) {
+        await set(key, JSON.parse(val));
+        localStorage.removeItem(key);
+      }
+    }
+
+    await set("altcmd:migrated", true);
+  } catch {
+    // Migration failed — not critical
+  }
+}
+
+if (typeof window !== "undefined") {
+  migrateFromLocalStorage();
+}
+
+// ── File download/upload (unchanged) ────────────────────────
+
 /** Save mission as downloadable .altmission JSON file. */
-export function downloadMissionFile(waypoints: Waypoint[], metadata: MissionMetadata): void {
+export async function downloadMissionFile(waypoints: Waypoint[], metadata: MissionMetadata): Promise<void> {
   const file: MissionFile = {
     version: 1,
     metadata: { ...metadata, updatedAt: Date.now() },
@@ -51,7 +102,7 @@ export function downloadMissionFile(waypoints: Waypoint[], metadata: MissionMeta
   a.download = `${metadata.name || "mission"}.altmission`;
   a.click();
   URL.revokeObjectURL(url);
-  addToRecent(metadata.name, waypoints.length);
+  await addToRecent(metadata.name, waypoints.length);
 }
 
 /** Load mission from a File object. */
@@ -64,28 +115,25 @@ export async function loadMissionFile(file: File): Promise<MissionFile> {
   return data;
 }
 
-/** Debounced auto-save to localStorage (2s debounce). */
+// ── Autosave ────────────────────────────────────────────────
+
 let autoSaveTimer: ReturnType<typeof setTimeout> | null = null;
 
 export function autoSave(waypoints: Waypoint[], metadata: Partial<MissionMetadata>): void {
   if (autoSaveTimer) clearTimeout(autoSaveTimer);
   autoSaveTimer = setTimeout(() => {
-    try {
-      const data: MissionFile = {
-        version: 1,
-        metadata: {
-          name: metadata.name || "Untitled",
-          droneId: metadata.droneId,
-          suiteType: metadata.suiteType,
-          createdAt: metadata.createdAt || Date.now(),
-          updatedAt: Date.now(),
-        },
-        waypoints,
-      };
-      localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(data));
-    } catch {
-      // localStorage full or unavailable — silent fail
-    }
+    const data: MissionFile = {
+      version: 1,
+      metadata: {
+        name: metadata.name || "Untitled",
+        droneId: metadata.droneId,
+        suiteType: metadata.suiteType,
+        createdAt: metadata.createdAt || Date.now(),
+        updatedAt: Date.now(),
+      },
+      waypoints,
+    };
+    set(AUTOSAVE_KEY, data).catch(() => {});
   }, 2000);
 }
 
@@ -98,12 +146,10 @@ export function cancelAutoSave(): void {
 }
 
 /** Get auto-saved mission data. */
-export function getAutoSave(): MissionFile | null {
+export async function getAutoSave(): Promise<MissionFile | null> {
   try {
-    const raw = localStorage.getItem(AUTOSAVE_KEY);
-    if (!raw) return null;
-    const data = JSON.parse(raw) as MissionFile;
-    if (!data.waypoints?.length) return null;
+    const data = await get<MissionFile>(AUTOSAVE_KEY);
+    if (!data || !data.waypoints?.length) return null;
     return data;
   } catch {
     return null;
@@ -111,16 +157,18 @@ export function getAutoSave(): MissionFile | null {
 }
 
 /** Clear auto-save. */
-export function clearAutoSave(): void {
+export async function clearAutoSave(): Promise<void> {
   try {
-    localStorage.removeItem(AUTOSAVE_KEY);
+    await del(AUTOSAVE_KEY);
   } catch {
     // silent
   }
 }
 
-/** Save to localStorage with a named key + add to recents. */
-export function saveMissionToStorage(waypoints: Waypoint[], metadata: MissionMetadata): void {
+// ── Named mission storage ───────────────────────────────────
+
+/** Save to IndexedDB with a named key + add to recents. */
+export async function saveMissionToStorage(waypoints: Waypoint[], metadata: MissionMetadata): Promise<void> {
   const key = `altcmd_mission_${Date.now()}`;
   const file: MissionFile = {
     version: 1,
@@ -128,41 +176,39 @@ export function saveMissionToStorage(waypoints: Waypoint[], metadata: MissionMet
     waypoints,
   };
   try {
-    localStorage.setItem(key, JSON.stringify(file));
-    addToRecent(metadata.name, waypoints.length, key);
+    await set(key, file);
+    await addToRecent(metadata.name, waypoints.length, key);
   } catch {
     // silent
   }
 }
 
 /** Get recent missions list. */
-export function getRecentMissions(): RecentMission[] {
+export async function getRecentMissions(): Promise<RecentMission[]> {
   try {
-    const raw = localStorage.getItem(RECENT_KEY);
-    if (!raw) return [];
-    return JSON.parse(raw) as RecentMission[];
+    const recent = await get<RecentMission[]>(RECENT_KEY);
+    return recent ?? [];
   } catch {
     return [];
   }
 }
 
-/** Load a mission from localStorage by key. */
-export function loadMissionFromStorage(key: string): MissionFile | null {
+/** Load a mission from IndexedDB by key. */
+export async function loadMissionFromStorage(key: string): Promise<MissionFile | null> {
   try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return null;
-    return JSON.parse(raw) as MissionFile;
+    const data = await get<MissionFile>(key);
+    return data ?? null;
   } catch {
     return null;
   }
 }
 
-function addToRecent(name: string, wpCount: number, key?: string): void {
+async function addToRecent(name: string, wpCount: number, key?: string): Promise<void> {
   try {
-    const recent = getRecentMissions();
+    const recent = await getRecentMissions();
     recent.unshift({ name, date: Date.now(), wpCount, key: key || "" });
     if (recent.length > MAX_RECENT) recent.length = MAX_RECENT;
-    localStorage.setItem(RECENT_KEY, JSON.stringify(recent));
+    await set(RECENT_KEY, recent);
   } catch {
     // silent
   }
