@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plug } from "lucide-react";
@@ -8,12 +8,19 @@ import { WebSocketTransport } from "@/lib/protocol/transport-websocket";
 import { MAVLinkAdapter } from "@/lib/protocol/mavlink-adapter";
 import { useDroneManager } from "@/stores/drone-manager";
 import { randomId } from "@/lib/utils";
+import { getPreset } from "@/lib/presets/presets";
+import { BuildPresetPicker } from "./BuildPresetPicker";
 
 const QUICK_PRESETS = [
   { label: "mavlink-router", url: "ws://localhost:14550" },
   { label: "SITL", url: "ws://localhost:5760" },
   { label: "Secondary", url: "ws://localhost:14555" },
 ];
+
+/** Detect SITL-like URLs (ws://localhost:576*). */
+function isSitlUrl(url: string): boolean {
+  return /^wss?:\/\/(localhost|127\.0\.0\.1):576\d/.test(url);
+}
 
 export function WebSocketPanel({
   onConnected,
@@ -23,7 +30,10 @@ export function WebSocketPanel({
   const [url, setUrl] = useState("ws://localhost:14550");
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null);
   const addDrone = useDroneManager((s) => s.addDrone);
+
+  const showPresetPicker = useMemo(() => isSitlUrl(url), [url]);
 
   async function handleConnect() {
     setError(null);
@@ -46,12 +56,19 @@ export function WebSocketPanel({
       const adapter = new MAVLinkAdapter();
       const vehicleInfo = await adapter.connect(transport);
       const droneId = randomId();
-      const droneName = `${vehicleInfo.firmwareVersionString} (${vehicleInfo.vehicleClass})`;
+
+      // Use preset name if available, otherwise firmware info
+      const preset = selectedPresetId ? getPreset(selectedPresetId) : null;
+      const droneName = preset
+        ? preset.name
+        : `${vehicleInfo.firmwareVersionString} (${vehicleInfo.vehicleClass})`;
 
       addDrone(droneId, droneName, adapter, transport, vehicleInfo, {
         type: "websocket",
         url: trimmed,
+        presetId: selectedPresetId ?? undefined,
       });
+
       onConnected?.(droneName, "websocket", trimmed);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Connection failed");
@@ -88,6 +105,14 @@ export function WebSocketPanel({
           </button>
         ))}
       </div>
+
+      {/* Build preset picker — shown when SITL URL detected */}
+      {showPresetPicker && (
+        <BuildPresetPicker
+          selectedPresetId={selectedPresetId}
+          onSelect={setSelectedPresetId}
+        />
+      )}
 
       <Button
         onClick={handleConnect}

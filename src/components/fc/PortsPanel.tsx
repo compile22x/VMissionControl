@@ -11,8 +11,9 @@ import {
   RotateCcw,
   AlertTriangle,
   Usb,
+  RefreshCw,
+  Info,
 } from "lucide-react";
-import type { ParameterValue } from "@/lib/protocol/types";
 
 /** Serial port protocol options (SERIAL_PROTOCOL values). */
 const PROTOCOL_OPTIONS = [
@@ -53,6 +54,11 @@ const BAUD_OPTIONS = [
 
 const NUM_PORTS = 8;
 
+/** Standard hardware labels for serial ports. */
+const HARDWARE_LABELS: string[] = [
+  "USB", "Telem1", "Telem2", "GPS1", "GPS2", "USER", "USER", "USER",
+];
+
 interface PortConfig {
   protocol: string;
   baud: string;
@@ -66,8 +72,9 @@ export function PortsPanel() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [needsReboot, setNeedsReboot] = useState(false);
 
-  // Load serial params on mount
+  // Load serial port config from FC on mount
   useEffect(() => {
     loadPorts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -158,6 +165,7 @@ export function PortsPanel() {
       setError(`Failed: ${failures.join(", ")}`);
     } else {
       setOriginal(ports.map((p) => ({ ...p })));
+      setNeedsReboot(true);
     }
     setSaving(false);
   }, [ports, original]);
@@ -167,6 +175,13 @@ export function PortsPanel() {
       setPorts(original.map((p) => ({ ...p })));
     }
   }, [original]);
+
+  const handleReboot = useCallback(async () => {
+    const protocol = useDroneManager.getState().getSelectedProtocol();
+    if (!protocol) return;
+    await protocol.reboot();
+    setNeedsReboot(false);
+  }, []);
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden">
@@ -180,9 +195,21 @@ export function PortsPanel() {
           {hasChanges && (
             <Badge variant="warning" size="sm">Unsaved changes</Badge>
           )}
+          {needsReboot && (
+            <Badge variant="error" size="sm">Reboot required</Badge>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={<RefreshCw size={12} />}
+            onClick={loadPorts}
+            disabled={loading}
+          >
+            Refresh
+          </Button>
           <Button
             variant="ghost"
             size="sm"
@@ -202,6 +229,15 @@ export function PortsPanel() {
           >
             Save Changes
           </Button>
+          {needsReboot && (
+            <Button
+              variant="danger"
+              size="sm"
+              onClick={handleReboot}
+            >
+              Reboot FC
+            </Button>
+          )}
         </div>
       </div>
 
@@ -219,9 +255,19 @@ export function PortsPanel() {
         </div>
       )}
 
+      {/* Reboot info banner */}
+      {needsReboot && (
+        <div className="flex-shrink-0 px-4 py-2 bg-status-warning/10 border-b border-status-warning/30 flex items-center gap-2">
+          <Info size={14} className="text-status-warning flex-shrink-0" />
+          <span className="text-xs text-status-warning">
+            Serial port changes require a reboot to take effect.
+          </span>
+        </div>
+      )}
+
       {/* Port table */}
       <div className="flex-1 overflow-y-auto p-4">
-        <div className="max-w-2xl space-y-2">
+        <div className="max-w-3xl space-y-2">
           {loading ? (
             <div className="flex items-center justify-center py-16">
               <span className="text-xs text-text-tertiary">Loading serial parameters...</span>
@@ -229,9 +275,12 @@ export function PortsPanel() {
           ) : (
             <>
               {/* Table header */}
-              <div className="grid grid-cols-[60px_1fr_1fr] gap-3 px-3 py-2">
+              <div className="grid grid-cols-[60px_80px_1fr_1fr] gap-3 px-3 py-2">
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-text-tertiary">
                   Port
+                </span>
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-text-tertiary">
+                  Label
                 </span>
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-text-tertiary">
                   Protocol
@@ -248,9 +297,12 @@ export function PortsPanel() {
 
                 return (
                   <Card key={i} className={rowChanged ? "border-status-warning/40" : undefined}>
-                    <div className="grid grid-cols-[60px_1fr_1fr] gap-3 items-center">
+                    <div className="grid grid-cols-[60px_80px_1fr_1fr] gap-3 items-center">
                       <span className="text-xs font-mono text-text-secondary">
                         SERIAL{i}
+                      </span>
+                      <span className="text-xs text-text-tertiary">
+                        {HARDWARE_LABELS[i]}
                       </span>
                       <Select
                         options={PROTOCOL_OPTIONS}

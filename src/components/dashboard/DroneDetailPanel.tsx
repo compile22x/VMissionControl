@@ -7,7 +7,6 @@ import { Tabs } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { DroneStatusBadge } from "@/components/shared/drone-status-badge";
 import { DroneOverviewTab } from "@/components/drone-detail/DroneOverviewTab";
-import { DroneArchitectureTab } from "@/components/drone-detail/DroneArchitectureTab";
 import { DroneTelemetryTab } from "@/components/drone-detail/DroneTelemetryTab";
 import { DroneFlightsTab } from "@/components/drone-detail/DroneFlightsTab";
 import { DroneConfigureTab } from "@/components/drone-detail/DroneConfigureTab";
@@ -16,7 +15,6 @@ import { X } from "lucide-react";
 
 const TABS = [
   { id: "overview", label: "Overview" },
-  { id: "architecture", label: "Architecture" },
   { id: "telemetry", label: "Telemetry" },
   { id: "flights", label: "Flights" },
   { id: "configure", label: "Configure" },
@@ -80,7 +78,6 @@ export function DroneDetailPanel({ droneId, onClose }: DroneDetailPanelProps) {
       {/* Tab content */}
       <div className="flex-1 min-h-0 overflow-auto">
         {activeTab === "overview" && <DroneOverviewTab drone={drone} />}
-        {activeTab === "architecture" && <DroneArchitectureTab />}
         {activeTab === "telemetry" && <DroneTelemetryTab drone={drone} />}
         {activeTab === "flights" && <DroneFlightsTab droneId={droneId} />}
         {activeTab === "configure" && (

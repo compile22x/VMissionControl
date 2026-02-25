@@ -18,6 +18,7 @@ export interface ConnectionMeta {
   url?: string;
   portVendorId?: number;
   portProductId?: number;
+  presetId?: string;
 }
 
 export interface ManagedDrone {

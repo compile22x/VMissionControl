@@ -282,24 +282,6 @@ export interface PanelState {
   chat: boolean;
 }
 
-// ── Hardware ─────────────────────────────────────────────────
-
-export interface HardwareComponent {
-  id: string;
-  name: string;
-  type: "compute" | "fc" | "esc" | "motor" | "sensor" | "camera" | "radio" | "gps" | "battery" | "frame";
-  status: "ok" | "warning" | "error" | "offline";
-  details?: Record<string, string | number>;
-}
-
-export interface HardwareConnection {
-  id: string;
-  source: string;  // component id
-  target: string;  // component id
-  protocol: string; // e.g. "UART", "SPI", "I2C", "USB", "PWM", "CAN"
-  label?: string;
-}
-
 // ── Flight History ───────────────────────────────────────────
 
 export interface FlightRecord {

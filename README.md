@@ -10,7 +10,6 @@ Built for operators who need real-time fleet visibility, mission planning, and m
 - **Immersive flight view** — Full-screen first-person video feed with heads-up display overlay (altitude, speed, heading, battery, GPS, signal strength)
 - **Mission planning** — Waypoint-based mission editor with takeoff/landing sequences, altitude profiles, and speed constraints on an interactive map
 - **Analytics dashboard** — Flight time, distance, battery consumption, and fleet utilization charts with historical trend analysis
-- **Hardware architecture diagrams** — Interactive node-graph visualization of drone hardware topology (sensors, compute, power, comms) using React Flow
 - **Demo mode** — Five simulated drones flying realistic patterns over Bangalore. No hardware, no backend, no setup — just `npm run demo`
 
 ## Quick Start
@@ -43,7 +42,6 @@ npm run start      # Run production build on port 4000
 | State | Zustand 5 | Telemetry stores with ring buffers |
 | Maps | Leaflet + react-leaflet | Interactive map with dark tiles, offline support |
 | Charts | Recharts | Telemetry time-series and fleet analytics |
-| Diagrams | @xyflow/react (React Flow) | Hardware architecture node graphs |
 | Styling | Tailwind v4 | CSS-first design tokens |
 | Fonts | Space Grotesk, Inter, JetBrains Mono | Display, body, telemetry |
 | Icons | lucide-react | UI iconography |
@@ -65,7 +63,6 @@ Store slices:
 | `videoStore` | Stream URLs, resolution, latency, recording state |
 | `mapStore` | Viewport, layers, tile source, offline regions |
 | `uiStore` | View state, panel layout, theme, sidebar |
-| `hardwareStore` | Component topology, health, connections |
 
 ### Data Flow Modes
 
