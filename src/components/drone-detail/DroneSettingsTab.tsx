@@ -47,7 +47,8 @@ export function DroneSettingsTab({ drone }: DroneSettingsTabProps) {
   };
 
   return (
-    <div className="p-3 max-w-lg">
+    <div className="flex-1 overflow-auto p-3">
+    <div className="max-w-lg">
       <Card title="Drone Settings">
         <div className="flex flex-col gap-4">
           <Input
@@ -87,6 +88,7 @@ export function DroneSettingsTab({ drone }: DroneSettingsTabProps) {
         confirmLabel="Delete"
         variant="danger"
       />
+    </div>
     </div>
   );
 }

@@ -10,7 +10,7 @@ import { QuickActionsBar } from "@/components/dashboard/QuickActionsBar";
 
 export function DashboardOverview() {
   return (
-    <div className="flex-1 flex flex-col h-full overflow-auto p-3 gap-3">
+    <div className="flex-1 overflow-auto p-3 flex flex-col gap-3">
       {/* Top bento grid: Map + Status cards */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-3 min-h-0">
         {/* Map — left 60% */}

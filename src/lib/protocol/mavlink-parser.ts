@@ -65,6 +65,7 @@ export const CRC_EXTRA: ReadonlyMap<number, number> = new Map([
   [192, 36],  // MAG_CAL_REPORT
   [241, 90],  // VIBRATION
   [335, 71],  // EKF_STATUS_REPORT
+  [66, 148],  // REQUEST_DATA_STREAM
 ]);
 
 /**
@@ -107,6 +108,7 @@ const PAYLOAD_LENGTHS: ReadonlyMap<number, number> = new Map([
   [192, 44],  // MAG_CAL_REPORT (base, without extensions)
   [241, 32],  // VIBRATION
   [335, 22],  // EKF_STATUS_REPORT
+  [66, 6],    // REQUEST_DATA_STREAM
 ]);
 
 // ── CRC-16/MCRF4XX ─────────────────────────────────────────

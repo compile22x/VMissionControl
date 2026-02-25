@@ -424,7 +424,7 @@ export function ParametersPanel() {
         </div>
       )}
 
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex min-h-0 overflow-hidden">
         {!loading && parameters.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-3 text-text-tertiary">
             <ListTree size={32} strokeWidth={1.5} />

@@ -27,6 +27,7 @@ import {
   encodeSetMode, encodeParamRequestList, encodeParamRequestRead, encodeParamSet,
   encodeMissionCount, encodeMissionItemInt, encodeSerialControl,
   encodeMissionRequestList, encodeMissionRequestInt, encodeMissionAck, encodeMissionClearAll,
+  encodeRequestDataStream,
 } from './mavlink-encoder'
 import {
   decodeHeartbeat, decodeAttitude, decodeGlobalPositionInt,
@@ -60,6 +61,7 @@ export class MAVLinkAdapter implements DroneProtocol {
   private _connected = false
   private _disconnected = false
   private heartbeatInterval: ReturnType<typeof setInterval> | null = null
+  private streamRequestInterval: ReturnType<typeof setInterval> | null = null
   private dataHandler: ((data: Uint8Array) => void) | null = null
   private closeHandler: (() => void) | null = null
 
@@ -174,6 +176,14 @@ export class MAVLinkAdapter implements DroneProtocol {
     // Send first heartbeat immediately
     this.transport.send(encodeHeartbeat(this.sysId, this.compId))
 
+    // Request telemetry data streams from the FC
+    this.requestDataStreams()
+
+    // Re-request streams every 10s in case FC missed the initial request
+    this.streamRequestInterval = setInterval(() => {
+      this.requestDataStreams()
+    }, 10000)
+
     return vehicleInfo
   }
 
@@ -192,6 +202,10 @@ export class MAVLinkAdapter implements DroneProtocol {
       clearInterval(this.heartbeatInterval)
       this.heartbeatInterval = null
     }
+    if (this.streamRequestInterval) {
+      clearInterval(this.streamRequestInterval)
+      this.streamRequestInterval = null
+    }
     this.commandQueue.clear()
     this.parser.reset()
     if (this.transport && this.dataHandler) {
@@ -199,6 +213,40 @@ export class MAVLinkAdapter implements DroneProtocol {
       this.transport.off('close', this.closeHandler as (data: void) => void)
     }
     this.transport = null
+  }
+
+  // ── Data Stream Requests ─────────────────────────────────
+
+  /**
+   * Request telemetry data streams from the flight controller.
+   *
+   * ArduPilot only streams telemetry (ATTITUDE, GPS, VFR_HUD, BATTERY, etc.)
+   * when either SRn_* parameters are set or the GCS explicitly requests streams
+   * via REQUEST_DATA_STREAM (msg 66). HEARTBEAT is always sent regardless.
+   *
+   * Every production GCS (QGC, Mission Planner) sends these immediately after
+   * connecting. Fire-and-forget — no ACK expected.
+   */
+  private requestDataStreams(): void {
+    if (!this.transport?.isConnected) return
+
+    const streams: [number, number][] = [
+      [10, 10],  // EXTRA1 (ATTITUDE) at 10 Hz
+      [6,  5],   // POSITION (GLOBAL_POSITION_INT) at 5 Hz
+      [11, 4],   // EXTRA2 (VFR_HUD) at 4 Hz
+      [2,  2],   // EXTENDED_STATUS (SYS_STATUS, GPS_RAW_INT) at 2 Hz
+      [12, 2],   // EXTRA3 (BATTERY_STATUS, EKF_STATUS, VIBRATION) at 2 Hz
+      [3,  2],   // RC_CHANNELS at 2 Hz
+      [1,  2],   // RAW_SENSORS (SERVO_OUTPUT_RAW, SCALED_PRESSURE) at 2 Hz
+    ]
+
+    for (const [streamId, rate] of streams) {
+      this.transport.send(encodeRequestDataStream(
+        this.targetSysId, this.targetCompId,
+        streamId, rate, 1, // 1 = start
+        this.sysId, this.compId,
+      ))
+    }
   }
 
   // ── Frame Routing ──────────────────────────────────────

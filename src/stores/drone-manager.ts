@@ -290,7 +290,6 @@ export const useDroneManager = create<DroneManagerState>((set, get) => ({
     set({ selectedDroneId: id });
     if (id) {
       useDroneStore.getState().selectDrone(id);
-      useTelemetryStore.getState().clear();
     }
   },
 

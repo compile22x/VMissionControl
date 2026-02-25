@@ -411,6 +411,40 @@ export function encodeMissionAck(
   return buildFrame(47, payload, sysId, compId);
 }
 
+// ── REQUEST_DATA_STREAM (ID 66) ──────────────────────────────
+
+/**
+ * Encode a REQUEST_DATA_STREAM message.
+ *
+ * Requests the FC to start (or stop) sending a specific MAVLink data stream
+ * at a given rate. ArduPilot requires this (or non-zero SRn_* params) to
+ * begin streaming telemetry like ATTITUDE, GPS, VFR_HUD, BATTERY, etc.
+ *
+ * @param targetSys    - Target system ID
+ * @param targetComp   - Target component ID
+ * @param streamId     - MAVLink data stream ID (e.g. 6=POSITION, 10=EXTRA1)
+ * @param messageRate  - Requested rate in Hz
+ * @param startStop    - 1 to start, 0 to stop
+ */
+export function encodeRequestDataStream(
+  targetSys: number,
+  targetComp: number,
+  streamId: number,
+  messageRate: number,
+  startStop: number,
+  sysId = 255,
+  compId = 190,
+): Uint8Array {
+  const payload = new Uint8Array(6);
+  const dv = new DataView(payload.buffer);
+  dv.setUint16(0, messageRate, true);  // req_message_rate (uint16)
+  payload[2] = targetSys;              // target_system
+  payload[3] = targetComp;             // target_component
+  payload[4] = streamId;              // req_stream_id
+  payload[5] = startStop;             // start_stop (1=start, 0=stop)
+  return buildFrame(66, payload, sysId, compId);
+}
+
 // ── MISSION_CLEAR_ALL (ID 45) ───────────────────────────────
 
 /** Clear all mission items on the flight controller. */

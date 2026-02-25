@@ -195,7 +195,7 @@ export function DroneLogsPanel({ droneId }: DroneLogsPanelProps) {
   // ── Render ─────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col h-full">
       {/* ── Toolbar ──────────────────────────────────────────── */}
       <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border-default flex-wrap">
         {/* Severity filter */}
@@ -262,7 +262,7 @@ export function DroneLogsPanel({ droneId }: DroneLogsPanelProps) {
       {/* ── Message list ─────────────────────────────────────── */}
       <div
         ref={logRef}
-        className="h-[300px] overflow-y-auto font-mono text-[11px] leading-5"
+        className="flex-1 min-h-0 overflow-y-auto font-mono text-[11px] leading-5"
         onMouseEnter={() => setAutoscroll(false)}
         onMouseLeave={() => setAutoscroll(true)}
       >

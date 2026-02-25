@@ -1,78 +1,104 @@
 "use client";
 
-import { Card } from "@/components/ui/card";
-import { DataValue } from "@/components/ui/data-value";
-import { BatteryBar } from "@/components/shared/battery-bar";
-import { DroneLogsPanel } from "@/components/drone-detail/DroneLogsPanel";
-import { SensorHealthBar } from "@/components/shared/SensorHealthBar";
-import { formatDate } from "@/lib/utils";
-import { useSettingsStore } from "@/stores/settings-store";
-import { getJurisdictionConfig } from "@/lib/jurisdiction";
+import { useState } from "react";
+import dynamic from "next/dynamic";
+import { TelemetryReadout } from "@/components/flight/TelemetryReadout";
+import { CompactInfoCards } from "@/components/flight/CompactInfoCards";
+import { FlightControlsBar } from "@/components/flight/FlightControlsBar";
+import { OsdOverlay } from "@/components/flight/OsdOverlay";
+import { VideoCanvas } from "@/components/flight/VideoCanvas";
 import type { FleetDrone } from "@/lib/types";
+
+const OverviewHud = dynamic(
+  () => import("@/components/flight/OverviewHud").then((m) => m.OverviewHud),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-full bg-[#0a1428] border border-border-default flex items-center justify-center">
+        <span className="text-[10px] font-mono text-text-tertiary">Loading HUD...</span>
+      </div>
+    ),
+  }
+);
+
+const OverviewMap = dynamic(
+  () => import("@/components/flight/OverviewMap").then((m) => m.OverviewMap),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-full bg-[#0a0a0a] border border-border-default flex items-center justify-center">
+        <span className="text-[10px] font-mono text-text-tertiary">Loading Map...</span>
+      </div>
+    ),
+  }
+);
 
 interface DroneOverviewTabProps {
   drone: FleetDrone;
 }
 
+type RightPanel = "map" | "fly";
+
 export function DroneOverviewTab({ drone }: DroneOverviewTabProps) {
-  const jurisdiction = useSettingsStore((s) => s.jurisdiction);
-  const jConfig = getJurisdictionConfig(jurisdiction);
+  const [rightPanel, setRightPanel] = useState<RightPanel>("map");
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3">
-      <Card title="Identification">
-        <div className="grid grid-cols-2 gap-4">
-          <DataValue label="Name" value={drone.name} />
-          <DataValue label="ID" value={drone.id} />
-          <DataValue label="Serial" value={`ALT-${drone.id.toUpperCase()}`} />
-          <DataValue label={jConfig.registrationLabel} value={`${jConfig.name}-MICRO-001`} />
+    <div className="flex-1 flex overflow-hidden">
+      {/* Left column: HUD + Telemetry + Info */}
+      <div className="w-80 shrink-0 flex flex-col overflow-y-auto border-r border-border-default">
+        {/* Compact HUD */}
+        <div className="h-60 shrink-0">
+          <OverviewHud />
         </div>
-      </Card>
 
-      <Card title="Enrollment">
-        <div className="grid grid-cols-2 gap-4">
-          <DataValue label="Enrolled" value={formatDate(Date.now() - 30 * 24 * 60 * 60 * 1000)} />
-          <DataValue label="Last Flight" value={formatDate(drone.lastHeartbeat)} />
-          <DataValue label="Total Flights" value="47" />
-          <DataValue label="Flight Hours" value="23.4" unit="hrs" />
+        {/* Telemetry readout */}
+        <TelemetryReadout />
+
+        {/* Drone info cards */}
+        <CompactInfoCards drone={drone} />
+      </div>
+
+      {/* Right column: Map / Fly toggle */}
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+        {/* Sub-tab bar */}
+        <div className="flex items-center gap-1 px-2 py-1.5 bg-bg-secondary border-b border-border-default shrink-0">
+          <button
+            onClick={() => setRightPanel("map")}
+            className={
+              rightPanel === "map"
+                ? "px-3 py-1 text-xs font-mono font-semibold text-text-primary bg-bg-tertiary rounded"
+                : "px-3 py-1 text-xs font-mono text-text-tertiary hover:text-text-secondary transition-colors rounded"
+            }
+          >
+            Map
+          </button>
+          <button
+            onClick={() => setRightPanel("fly")}
+            className={
+              rightPanel === "fly"
+                ? "px-3 py-1 text-xs font-mono font-semibold text-text-primary bg-bg-tertiary rounded"
+                : "px-3 py-1 text-xs font-mono text-text-tertiary hover:text-text-secondary transition-colors rounded"
+            }
+          >
+            Fly
+          </button>
         </div>
-      </Card>
 
-      <Card title="Hardware Profile">
-        <div className="grid grid-cols-2 gap-4">
-          <DataValue label="Frame Type" value={drone.frameType || "Chimera7 Pro V2"} />
-          <DataValue label="Firmware" value={drone.firmwareVersion || "ArduPilot 4.5"} />
-          <DataValue label="Compute" value="RPi CM4" />
-          <DataValue label="Weight Class" value="Micro" />
+        {/* Panel content */}
+        <div className="flex-1 min-h-0">
+          {rightPanel === "map" && <OverviewMap />}
+          {rightPanel === "fly" && (
+            <div className="flex flex-col h-full">
+              <div className="flex-1 relative min-h-0">
+                <VideoCanvas>
+                  <OsdOverlay />
+                </VideoCanvas>
+              </div>
+              <FlightControlsBar />
+            </div>
+          )}
         </div>
-      </Card>
-
-      <Card title="Health & Status">
-        <div className="flex flex-col gap-3">
-          <SensorHealthBar />
-          <DataValue label="Health Score" value={drone.healthScore} unit="%" />
-          <div>
-            <span className="text-[11px] text-text-secondary">Battery</span>
-            <BatteryBar percentage={drone.battery?.remaining ?? 0} className="mt-1" />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <DataValue
-              label="Voltage"
-              value={(drone.battery?.voltage ?? 0).toFixed(1)}
-              unit="V"
-            />
-            <DataValue
-              label="GPS Sats"
-              value={drone.gps?.satellites ?? 0}
-            />
-          </div>
-        </div>
-      </Card>
-
-      {/* Flight Logs — full width */}
-      <Card title="Flight Logs" padding={false} className="md:col-span-2">
-        <DroneLogsPanel droneId={drone.id} />
-      </Card>
+      </div>
     </div>
   );
 }

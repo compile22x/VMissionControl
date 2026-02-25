@@ -83,7 +83,7 @@ export class WebSocketTransport implements Transport {
     if (!this._connected || !this.ws) {
       throw new Error("Not connected");
     }
-    this.ws.send(data.buffer);
+    this.ws.send(data);
   }
 
   /** Close the WebSocket connection. Idempotent — safe to call multiple times. */

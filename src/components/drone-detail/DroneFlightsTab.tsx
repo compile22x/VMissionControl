@@ -106,14 +106,14 @@ export function DroneFlightsTab({ droneId }: DroneFlightsTabProps) {
 
   if (flights.length === 0) {
     return (
-      <div className="flex items-center justify-center h-48 text-xs text-text-tertiary">
+      <div className="flex-1 flex items-center justify-center text-xs text-text-tertiary">
         No flight records found for this drone
       </div>
     );
   }
 
   return (
-    <div className="p-3">
+    <div className="flex-1 overflow-auto p-3">
       <div className="text-xs text-text-secondary mb-2">
         {flights.length} flight{flights.length !== 1 ? "s" : ""} recorded
       </div>

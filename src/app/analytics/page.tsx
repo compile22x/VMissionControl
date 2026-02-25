@@ -39,7 +39,7 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Content */}
-      <div className="flex flex-col gap-4 p-4 overflow-y-auto">
+      <div className="flex flex-col gap-4 p-4">
         {/* Stat Cards */}
         <AnalyticsStatCards data={analytics} />
 

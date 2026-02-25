@@ -53,6 +53,7 @@ export function DroneTelemetryTab({ drone }: DroneTelemetryTabProps) {
   }, [drone.battery?.remaining]);
 
   return (
+    <div className="flex-1 overflow-auto">
     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3">
       <Card title="Altitude History">
         <ChartWrapper height={240}>
@@ -134,6 +135,7 @@ export function DroneTelemetryTab({ drone }: DroneTelemetryTabProps) {
           </LineChart>
         </ChartWrapper>
       </Card>
+    </div>
     </div>
   );
 }

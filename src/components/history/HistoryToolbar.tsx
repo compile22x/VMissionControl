@@ -67,7 +67,7 @@ export function HistoryToolbar({
   const allDroneOptions = [{ value: "all", label: "All Drones" }, ...droneNames];
 
   return (
-    <div className="flex items-end gap-3 px-4 py-3 border-b border-border-default flex-wrap">
+    <div className="flex items-end gap-3 px-4 py-3 border-b border-border-default flex-wrap shrink-0">
       <Input
         label="From"
         type="date"

@@ -3,8 +3,8 @@
 import { useState, useEffect } from "react";
 import { useFleetStore } from "@/stores/fleet-store";
 import { useDroneManager } from "@/stores/drone-manager";
-import { Tabs } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { DroneStatusBadge } from "@/components/shared/drone-status-badge";
 import { DroneOverviewTab } from "@/components/drone-detail/DroneOverviewTab";
 import { DroneTelemetryTab } from "@/components/drone-detail/DroneTelemetryTab";
@@ -55,28 +55,42 @@ export function DroneDetailPanel({ droneId, onClose }: DroneDetailPanelProps) {
   }
 
   return (
-    <div className="flex-1 flex flex-col h-full overflow-auto">
-      {/* Header */}
-      <div className="flex items-center gap-3 px-3 py-2 border-b border-border-default bg-bg-secondary">
-        <h1 className="text-sm font-semibold text-text-primary">{drone.name}</h1>
+    <div className="flex-1 flex flex-col h-full overflow-hidden">
+      {/* Merged header + tabs bar */}
+      <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border-default bg-bg-secondary flex-shrink-0">
+        <h1 className="text-sm font-semibold text-text-primary shrink-0">{drone.name}</h1>
         <DroneStatusBadge status={drone.status} />
-        <div className="w-px h-5 bg-border-default" />
         <Button
           variant="ghost"
           size="sm"
           icon={<X size={14} />}
           onClick={onClose}
         />
-        <span className="text-[10px] font-mono text-text-tertiary ml-auto">
+
+        <div className="w-px h-5 bg-border-default shrink-0" />
+
+        {TABS.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={cn(
+              "px-2.5 py-1.5 text-xs font-medium transition-colors cursor-pointer shrink-0",
+              activeTab === tab.id
+                ? "text-accent-primary border-b-2 border-accent-primary"
+                : "text-text-secondary hover:text-text-primary"
+            )}
+          >
+            {tab.label}
+          </button>
+        ))}
+
+        <span className="text-[10px] font-mono text-text-tertiary ml-auto shrink-0">
           ID: {drone.id}
         </span>
       </div>
 
-      {/* Tabs */}
-      <Tabs tabs={TABS} activeTab={activeTab} onChange={setActiveTab} />
-
       {/* Tab content */}
-      <div className="flex-1 min-h-0 overflow-auto">
+      <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
         {activeTab === "overview" && <DroneOverviewTab drone={drone} />}
         {activeTab === "telemetry" && <DroneTelemetryTab drone={drone} />}
         {activeTab === "flights" && <DroneFlightsTab droneId={droneId} />}

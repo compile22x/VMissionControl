@@ -47,7 +47,7 @@ export default function FlightViewPage({
   }, [droneId, drone, selectDrone, setMission, setFlightMode, setArmState]);
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full overflow-hidden">
       {/* Main area: Video + Telemetry sidebar */}
       <div className="flex-1 flex overflow-hidden">
         {/* Video canvas area */}
