@@ -1,7 +1,7 @@
 /**
  * @module simulation-store
  * @description Zustand store for mission simulation playback state.
- * Manages playback controls, camera mode, elapsed time, and drone trail.
+ * Manages playback controls, camera mode, and elapsed time.
  * Non-persisted — resets on page reload.
  * @license GPL-3.0-only
  */
@@ -11,19 +11,12 @@ import { create } from "zustand";
 export type PlaybackState = "stopped" | "playing" | "paused";
 export type CameraMode = "topdown" | "follow";
 
-interface TrailPosition {
-  lat: number;
-  lon: number;
-  alt: number;
-}
-
 interface SimulationStoreState {
   playbackState: PlaybackState;
   playbackSpeed: number;
   elapsed: number;
   totalDuration: number;
   cameraMode: CameraMode;
-  trailPositions: TrailPosition[];
 
   play: () => void;
   pause: () => void;
@@ -35,11 +28,9 @@ interface SimulationStoreState {
   setCameraMode: (mode: CameraMode) => void;
   setTotalDuration: (duration: number) => void;
   tick: (deltaMs: number) => void;
-  appendTrail: (pos: TrailPosition) => void;
   reset: () => void;
 }
 
-const MAX_TRAIL = 500;
 const STEP_SECONDS = 1;
 
 export const useSimulationStore = create<SimulationStoreState>()((set, get) => ({
@@ -48,17 +39,15 @@ export const useSimulationStore = create<SimulationStoreState>()((set, get) => (
   elapsed: 0,
   totalDuration: 0,
   cameraMode: "topdown",
-  trailPositions: [],
 
   play: () => set({ playbackState: "playing" }),
   pause: () => set({ playbackState: "paused" }),
-  stop: () => set({ playbackState: "stopped", elapsed: 0, trailPositions: [] }),
+  stop: () => set({ playbackState: "stopped", elapsed: 0 }),
 
   seek: (time) => {
     const { totalDuration } = get();
     set({
       elapsed: Math.max(0, Math.min(time, totalDuration)),
-      trailPositions: [],
     });
   },
 
@@ -71,7 +60,6 @@ export const useSimulationStore = create<SimulationStoreState>()((set, get) => (
     const { elapsed } = get();
     set({
       elapsed: Math.max(elapsed - STEP_SECONDS, 0),
-      trailPositions: [],
     });
   },
 
@@ -90,18 +78,11 @@ export const useSimulationStore = create<SimulationStoreState>()((set, get) => (
     }
   },
 
-  appendTrail: (pos) => {
-    const { trailPositions } = get();
-    const next = [...trailPositions, pos];
-    set({ trailPositions: next.length > MAX_TRAIL ? next.slice(-MAX_TRAIL) : next });
-  },
-
   reset: () =>
     set({
       playbackState: "stopped",
       playbackSpeed: 1,
       elapsed: 0,
       cameraMode: "topdown",
-      trailPositions: [],
     }),
 }));
