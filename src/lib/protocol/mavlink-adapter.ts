@@ -126,9 +126,10 @@ export class MAVLinkAdapter implements DroneProtocol {
   private fencePointCallbacks: FencePointCallback[] = []
   private systemTimeCallbacks: SystemTimeCallback[] = []
 
-  // Parameter cache (30s TTL) — avoids re-fetching when switching panels
+  // Parameter cache (5min TTL) — avoids re-fetching when switching panels.
+  // Safe because setParameter() invalidates via paramCache.delete(name).
   private paramCache = new Map<string, { value: number; timestamp: number }>()
-  private static readonly PARAM_CACHE_TTL_MS = 30_000
+  private static readonly PARAM_CACHE_TTL_MS = 300_000
 
   // Heartbeat timeout / link-loss detection (T1-1)
   private lastVehicleHeartbeat = 0
@@ -547,6 +548,9 @@ export class MAVLinkAdapter implements DroneProtocol {
 
     // Notify subscribers
     for (const cb of this.parameterCallbacks) cb(param)
+
+    // Seed paramCache from every PARAM_VALUE — getAllParameters() warms cache for all panels
+    this.paramCache.set(pv.paramId, { value: pv.paramValue, timestamp: Date.now() })
 
     // If downloading all params, accumulate
     if (this.parameterDownload) {

@@ -37,6 +37,9 @@ const POWER_PARAMS = [
   "BATT_MONITOR", "BATT_CAPACITY", "BATT_AMP_PERVLT", "BATT_AMP_OFFSET",
   "BATT_FS_LOW_VOLT", "BATT_FS_LOW_ACT", "BATT_FS_CRT_VOLT", "BATT_FS_CRT_ACT",
   "BATT_FS_LOW_MAH", "BATT_FS_CRT_MAH",
+];
+
+const OPTIONAL_POWER_PARAMS = [
   "BATT2_MONITOR", "BATT2_CAPACITY", "BATT2_AMP_PERVLT", "BATT2_AMP_OFFSET",
   "BATT2_FS_LOW_VOLT", "BATT2_FS_LOW_ACT", "BATT2_FS_CRT_VOLT", "BATT2_FS_CRT_ACT",
   "BATT2_FS_LOW_MAH", "BATT2_FS_CRT_MAH",
@@ -64,7 +67,7 @@ export function PowerPanel() {
     params, loading, error, dirtyParams, hasRamWrites,
     loadProgress, hasLoaded,
     refresh, setLocalValue, saveAllToRam, commitToFlash,
-  } = usePanelParams({ paramNames: POWER_PARAMS, panelId: "power" });
+  } = usePanelParams({ paramNames: POWER_PARAMS, optionalParams: OPTIONAL_POWER_PARAMS, panelId: "power" });
 
   const connected = !!getSelectedProtocol();
   const hasDirty = dirtyParams.size > 0;

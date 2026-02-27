@@ -11,7 +11,9 @@ import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Camera, Save, HardDrive, Aperture, Ruler, Calculator } from "lucide-react";
 
-const CAMERA_PARAMS = [
+const CAMERA_PARAMS: string[] = [];
+
+const OPTIONAL_CAMERA_PARAMS = [
   "CAM1_TYPE", "CAM1_DURATION", "CAM1_SERVO_OFF", "CAM1_SERVO_ON", "CAM1_TRIGG_DIST",
 ];
 
@@ -40,7 +42,7 @@ export function CameraPanel() {
     params, loading, error, dirtyParams, hasRamWrites,
     loadProgress, hasLoaded,
     refresh, setLocalValue, saveAllToRam, commitToFlash,
-  } = usePanelParams({ paramNames: CAMERA_PARAMS, panelId: "camera" });
+  } = usePanelParams({ paramNames: CAMERA_PARAMS, optionalParams: OPTIONAL_CAMERA_PARAMS, panelId: "camera" });
 
   const connected = !!getSelectedProtocol();
   const hasDirty = dirtyParams.size > 0;

@@ -14,10 +14,13 @@ import { Button } from "@/components/ui/button";
 import { Gauge, Save, HardDrive } from "lucide-react";
 
 const SENSOR_PARAMS = [
+  "GND_ABS_PRESS", "GND_TEMP", "BARO_PRIMARY",
+];
+
+const OPTIONAL_SENSOR_PARAMS = [
   "RNGFND1_TYPE", "RNGFND1_PIN", "RNGFND1_MIN_CM", "RNGFND1_MAX_CM", "RNGFND1_ORIENT",
   "FLOW_TYPE", "FLOW_FXSCALER", "FLOW_FYSCALER", "FLOW_ORIENT_YAW",
   "ARSPD_TYPE", "ARSPD_USE", "ARSPD_OFFSET", "ARSPD_RATIO",
-  "GND_ABS_PRESS", "GND_TEMP", "BARO_PRIMARY",
 ];
 
 const RNGFND_TYPE_OPTIONS = [
@@ -66,7 +69,7 @@ export function SensorsPanel() {
     params, loading, error, dirtyParams, hasRamWrites,
     loadProgress, hasLoaded,
     refresh, setLocalValue, saveAllToRam, commitToFlash,
-  } = usePanelParams({ paramNames: SENSOR_PARAMS, panelId: "sensors" });
+  } = usePanelParams({ paramNames: SENSOR_PARAMS, optionalParams: OPTIONAL_SENSOR_PARAMS, panelId: "sensors" });
 
   const connected = !!getSelectedProtocol();
   const hasDirty = dirtyParams.size > 0;

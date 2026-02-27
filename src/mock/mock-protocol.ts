@@ -241,6 +241,10 @@ export class MockProtocol implements DroneProtocol {
     for (const cb of this.systemTimeCbs) cb(data);
   }
 
+  emitAutopilotVersion(data: Parameters<AutopilotVersionCallback>[0]): void {
+    for (const cb of this.autopilotVersionCbs) cb(data);
+  }
+
   // ── Connection ──────────────────────────────────────────
 
   get isConnected(): boolean {
@@ -737,7 +741,21 @@ export class MockProtocol implements DroneProtocol {
   onExtendedSysState(cb: ExtendedSysStateCallback): () => void { return sub(this.extendedSysStateCbs, cb); }
   onFencePoint(cb: FencePointCallback): () => void { return sub(this.fencePointCbs, cb); }
   onSystemTime(cb: SystemTimeCallback): () => void { return sub(this.systemTimeCbs, cb); }
-  async requestMessage(): Promise<CommandResult> { return ok("Message requested"); }
+  async requestMessage(messageId: number): Promise<CommandResult> {
+    if (messageId === 148) {
+      setTimeout(() => {
+        this.emitAutopilotVersion({
+          capabilities: 0xFF,
+          flightSwVersion: 0x04050007,
+          middlewareSwVersion: 0,
+          osSwVersion: 0,
+          boardVersion: 1032, // SpeedyBee F405 Wing (matches primary test board)
+          uid: 0,
+        });
+      }, 0);
+    }
+    return ok("Message requested");
+  }
   async setMessageInterval(): Promise<CommandResult> { return ok("Interval set"); }
 
   // ── Mock Telemetry Tick ─────────────────────────────────

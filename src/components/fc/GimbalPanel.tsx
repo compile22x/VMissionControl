@@ -12,7 +12,9 @@ import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Move3D, Save, HardDrive, Crosshair, RotateCcw } from "lucide-react";
 
-const GIMBAL_PARAMS = [
+const GIMBAL_PARAMS: string[] = [];
+
+const OPTIONAL_GIMBAL_PARAMS = [
   "MNT1_TYPE", "MNT1_PITCH_MIN", "MNT1_PITCH_MAX",
   "MNT1_ROLL_MIN", "MNT1_ROLL_MAX",
   "MNT1_YAW_MIN", "MNT1_YAW_MAX",
@@ -52,7 +54,7 @@ export function GimbalPanel() {
     params, loading, error, dirtyParams, hasRamWrites,
     loadProgress, hasLoaded,
     refresh, setLocalValue, saveAllToRam, commitToFlash,
-  } = usePanelParams({ paramNames: GIMBAL_PARAMS, panelId: "gimbal" });
+  } = usePanelParams({ paramNames: GIMBAL_PARAMS, optionalParams: OPTIONAL_GIMBAL_PARAMS, panelId: "gimbal" });
 
   const connected = !!getSelectedProtocol();
   const hasDirty = dirtyParams.size > 0;

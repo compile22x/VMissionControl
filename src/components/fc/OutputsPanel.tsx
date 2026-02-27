@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Toggle } from "@/components/ui/toggle";
@@ -8,8 +8,18 @@ import { useToast } from "@/components/ui/toast";
 import { useDroneManager } from "@/stores/drone-manager";
 import { useTelemetryStore } from "@/stores/telemetry-store";
 import { SERVO_FUNCTION_GROUPS } from "@/lib/servo-functions";
+import {
+  detectBoardProfile,
+  detectTimerGroupConflicts,
+  getTimerGroupForOutput,
+  getOutputProtocol,
+  UNKNOWN_BOARD,
+  type BoardProfile,
+  type TimerGroupConflict,
+} from "@/lib/board-profiles";
 import { usePanelParams } from "@/hooks/use-panel-params";
 import { PanelHeader } from "./PanelHeader";
+import { TimerGroupDiagram } from "./TimerGroupDiagram";
 import { Save, Zap, HardDrive, Info, AlertTriangle } from "lucide-react";
 
 // ── Constants ────────────────────────────────────────────────
@@ -30,6 +40,9 @@ const OUTPUT_PARAMS: string[] = [
     ];
   }).flat(),
 ];
+
+// MOT_PWM_TYPE may not exist on all firmware configs (e.g. ArduPlane without motor outputs)
+const OPTIONAL_OUTPUT_PARAMS = ['MOT_PWM_TYPE'];
 
 interface OutputRow {
   function: number;
@@ -107,7 +120,7 @@ export function OutputsPanel() {
     params, loading, error, dirtyParams, hasRamWrites,
     loadProgress, hasLoaded,
     refresh, setLocalValue, saveAllToRam, commitToFlash,
-  } = usePanelParams({ paramNames: OUTPUT_PARAMS, panelId: "outputs" });
+  } = usePanelParams({ paramNames: OUTPUT_PARAMS, optionalParams: OPTIONAL_OUTPUT_PARAMS, panelId: "outputs" });
 
   // ── GPIO detection (SERVOx_FUNCTION = -1 means GPIO) ────
   const gpioOutputs = useMemo(() => {
@@ -154,6 +167,55 @@ export function OutputsPanel() {
 
   // ── Validation ─────────────────────────────────────────────
   const { pwmWarnings, conflicts } = useMemo(() => validateOutputs(outputs), [outputs]);
+
+  // ── Timer Group / Board Profile ─────────────────────────────
+  const motPwmType = params.get('MOT_PWM_TYPE') ?? 0;
+
+  // Detect board from AUTOPILOT_VERSION message's boardVersion field
+  const [boardVersion, setBoardVersion] = useState(0);
+  const [manualBoardOverride, setManualBoardOverride] = useState<BoardProfile | null>(null);
+  useEffect(() => {
+    if (!protocol?.onAutopilotVersion) return;
+    const unsub = protocol.onAutopilotVersion((data) => {
+      setBoardVersion(data.boardVersion);
+    });
+    // Request AUTOPILOT_VERSION by sending MAV_CMD_REQUEST_MESSAGE(148)
+    protocol.requestMessage?.(148).catch(() => {});
+    return unsub;
+  }, [protocol]);
+
+  const autoDetectedProfile: BoardProfile = useMemo(
+    () => detectBoardProfile(boardVersion),
+    [boardVersion],
+  );
+
+  // Manual override takes precedence, but auto-detection replaces it when a real board is found
+  const boardProfile: BoardProfile = (autoDetectedProfile !== UNKNOWN_BOARD)
+    ? autoDetectedProfile
+    : (manualBoardOverride ?? UNKNOWN_BOARD);
+
+  // Build function map for conflict detection (output number → function ID)
+  const functionMap = useMemo(() => {
+    const map = new Map<number, number>();
+    for (let i = 0; i < OUTPUT_COUNT; i++) {
+      map.set(i + 1, params.get(`SERVO${i + 1}_FUNCTION`) ?? 0);
+    }
+    return map;
+  }, [params]);
+
+  const timerConflicts: TimerGroupConflict[] = useMemo(
+    () => detectTimerGroupConflicts(boardProfile, functionMap, motPwmType),
+    [boardProfile, functionMap, motPwmType],
+  );
+
+  // Set of outputs disabled by timer conflicts for row highlighting
+  const conflictDisabledOutputs = useMemo(() => {
+    const set = new Set<number>();
+    for (const c of timerConflicts) {
+      for (const o of c.disabledOutputs) set.add(o);
+    }
+    return set;
+  }, [timerConflicts]);
 
   const hasDirty = dirtyParams.size > 0;
 
@@ -259,6 +321,37 @@ export function OutputsPanel() {
           )}
         </PanelHeader>
 
+        {/* ── Timer Group Diagram ──────────────────────────── */}
+
+        {hasLoaded && (
+          <TimerGroupDiagram
+            board={boardProfile}
+            functions={functionMap}
+            motPwmType={motPwmType}
+            conflicts={timerConflicts}
+            onBoardOverride={setManualBoardOverride}
+          />
+        )}
+
+        {/* ── Timer Group Conflict Warning ────────────────── */}
+
+        {timerConflicts.length > 0 && (
+          <div className="p-2 bg-status-error/10 border border-status-error/20 space-y-1">
+            <div className="flex items-center gap-1.5">
+              <AlertTriangle size={12} className="text-status-error shrink-0" />
+              <span className="text-[10px] font-medium text-status-error">Timer Group Conflict</span>
+            </div>
+            {timerConflicts.map((c, i) => (
+              <p key={i} className="text-[10px] text-status-error pl-5">
+                Outputs {c.outputs.join(", ")} share a timer group.
+                DShot motors ({c.dshotOutputs.map((o) => `S${o}`).join(", ")}) disable
+                PWM servos ({c.pwmOutputs.map((o) => `S${o}`).join(", ")}).
+                Move servos to an all-PWM group.
+              </p>
+            ))}
+          </div>
+        )}
+
         {/* ── Warnings ─────────────────────────────────────── */}
 
         {conflicts.length > 0 && (
@@ -315,26 +408,41 @@ export function OutputsPanel() {
               </thead>
               <tbody>
                 {outputs.map((row, i) => {
-                  const hasConflict = row.function > 0 && outputs.some(
+                  const hasDuplicateFn = row.function > 0 && outputs.some(
                     (other, j) => j !== i && other.function === row.function
                   );
                   const n = i + 1;
                   const isGpio = gpioOutputs.has(n);
+                  const isTimerConflict = conflictDisabledOutputs.has(n);
+                  const timerGroup = boardProfile.timerGroups.length > 0
+                    ? getTimerGroupForOutput(boardProfile, n)
+                    : -1;
+                  const proto = getOutputProtocol(row.function, motPwmType);
                   const livePwm = liveServos[i];
                   const hasLivePwm = livePwm !== undefined && livePwm > 0;
                   return (
                     <tr
                       key={i}
                       className={`border-b border-border-default last:border-0 hover:bg-bg-tertiary/50 ${
-                        hasConflict ? "bg-status-error/5" : ""
+                        isTimerConflict ? "bg-status-error/10" : hasDuplicateFn ? "bg-status-error/5" : ""
                       } ${isGpio ? "opacity-40" : ""}`}
                     >
                       <td className="px-3 py-1.5 font-mono text-text-secondary">
                         <span className="flex items-center gap-1">
                           {n}
+                          {timerGroup >= 0 && (
+                            <span className="text-[7px] font-sans text-text-tertiary bg-bg-tertiary px-0.5 py-px" title={`Timer Group ${timerGroup + 1}`}>
+                              G{timerGroup + 1}
+                            </span>
+                          )}
                           {isGpio && (
                             <span className="text-[8px] font-sans text-text-tertiary bg-bg-tertiary px-1 py-px">
                               GPIO
+                            </span>
+                          )}
+                          {isTimerConflict && (
+                            <span className="text-[7px] font-sans text-status-error bg-status-error/10 px-0.5 py-px" title="Disabled by timer group conflict">
+                              CONFLICT
                             </span>
                           )}
                         </span>
@@ -344,7 +452,7 @@ export function OutputsPanel() {
                           value={String(row.function)}
                           onChange={(e) => setLocalValue(`SERVO${n}_FUNCTION`, Number(e.target.value))}
                           className={`w-full h-7 px-1.5 bg-bg-tertiary border text-xs text-text-primary appearance-none focus:outline-none focus:border-accent-primary ${
-                            hasConflict ? "border-status-error" : "border-border-default"
+                            isTimerConflict ? "border-status-error" : hasDuplicateFn ? "border-status-error" : "border-border-default"
                           }`}
                         >
                           {SERVO_FUNCTION_GROUPS.map((group) => (

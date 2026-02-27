@@ -29,7 +29,7 @@ const FIX_DATABASE: Record<string, string> = {
   "high magnetic interference": "Move vehicle away from metal objects",
   "check board voltage": "Check power supply voltage",
   "hardware safety switch": "Press safety switch on vehicle",
-  "on disabled channel": "A servo function is assigned to a channel with no PWM output. Go to Configure → Outputs and either move the function to an enabled channel (1-8) or increase BRD_PWM_COUNT in Parameters.",
+  "on disabled channel": "A servo function is assigned to an output disabled by a timer group protocol conflict. Outputs sharing a hardware timer must all use the same protocol (PWM or DShot). Go to Configure → Outputs to see the timer group diagram and move the conflicting function to a group without DShot motors.",
 };
 
 function findSuggestion(text: string): string {

@@ -247,6 +247,9 @@ export const useDroneManager = create<DroneManagerState>((set, get) => ({
       frameType: vehicleInfo.vehicleClass,
     });
 
+    // Background bulk param download — seeds paramCache for instant panel reads
+    protocol.getAllParameters().catch(() => {});
+
     // Auto-select if this is the first drone
     if (get().drones.size === 1) {
       get().selectDrone(id);
