@@ -1,4 +1,4 @@
-# Altnautica Command
+# Altnautica ADOS Mission Control
 
 **Open-source web-based Ground Control Station for autonomous drones**
 
