@@ -70,6 +70,7 @@ Download the latest release for your platform:
 |----------|----------|
 | macOS (Apple Silicon & Intel) | [`.dmg` from GitHub Releases](https://github.com/altnautica/ADOSMissionControl/releases/latest) |
 | Windows (x64) | [`.exe` installer from GitHub Releases](https://github.com/altnautica/ADOSMissionControl/releases/latest) |
+| Linux (x86_64) | [`.AppImage` from GitHub Releases](https://github.com/altnautica/ADOSMissionControl/releases/latest) |
 
 **macOS note:** The app is not code-signed yet. On first launch: right-click the app → Open → Open. This is standard for open-source projects (Betaflight Configurator, INAV Configurator ship the same way).
 
@@ -81,6 +82,7 @@ Download the latest release for your platform:
 npm install
 npm run desktop:build:mac   # macOS .dmg
 npm run desktop:build:win   # Windows .exe installer
+npm run desktop:build:linux # Linux .AppImage
 ```
 
 Output goes to `release/`.
