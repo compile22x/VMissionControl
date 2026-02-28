@@ -61,3 +61,8 @@ export function isDemoMode(): boolean {
 export function randomId(): string {
   return Math.random().toString(36).substring(2, 10);
 }
+
+/** Check if running inside the Electron desktop app. */
+export function isElectron(): boolean {
+  return typeof window !== "undefined" && (window as any).electronAPI?.isElectron === true;
+}

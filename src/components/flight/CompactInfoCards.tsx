@@ -167,12 +167,12 @@ export function CompactInfoCards({ drone }: CompactInfoCardsProps) {
 
   function startEdit(section: EditSection) {
     if (section === "vehicle") {
-      setEditCompute(metadata?.computeModule ?? "RPi CM4");
-      setEditWeight(metadata?.weightClass ?? "Micro");
+      setEditCompute(metadata?.computeModule ?? "");
+      setEditWeight(metadata?.weightClass ?? "");
       setEditSuite(metadata?.suiteType ?? "none");
     } else if (section === "identity") {
       setEditName(metadata?.displayName ?? drone.name);
-      setEditSerial(metadata?.serial ?? `ALT-${drone.id.toUpperCase()}`);
+      setEditSerial(metadata?.serial ?? "");
       setEditRegistration(metadata?.registration ?? "");
     } else if (section === "stats") {
       setEditFlights(String(metadata?.totalFlights ?? 0));
@@ -256,8 +256,8 @@ export function CompactInfoCards({ drone }: CompactInfoCardsProps) {
           <div className="grid grid-cols-2 gap-2">
             <MetricCell label="Frame" value={drone.frameType || "copter"} />
             <MetricCell label="Firmware" value={drone.firmwareVersion || "ArduCopter"} />
-            <MetricCell label="Compute" value={metadata?.computeModule ?? "RPi CM4"} />
-            <MetricCell label="Weight" value={metadata?.weightClass ?? "Micro"} />
+            <MetricCell label="Compute" value={metadata?.computeModule || "—"} />
+            <MetricCell label="Weight" value={metadata?.weightClass || "—"} />
             {(metadata?.suiteType) && (
               <MetricCell label="Suite" value={metadata.suiteType} />
             )}
@@ -285,8 +285,8 @@ export function CompactInfoCards({ drone }: CompactInfoCardsProps) {
           <div className="grid grid-cols-2 gap-2">
             <MetricCell label="Name" value={metadata?.displayName ?? drone.name} />
             <MetricCell label="ID" value={drone.id} />
-            <MetricCell label="Serial" value={metadata?.serial ?? `ALT-${drone.id.toUpperCase()}`} />
-            <MetricCell label={jConfig.registrationLabel} value={metadata?.registration || `${jConfig.name}-MICRO-001`} />
+            <MetricCell label="Serial" value={metadata?.serial || "—"} />
+            <MetricCell label={jConfig.registrationLabel} value={metadata?.registration || "—"} />
           </div>
         )}
       </Section>

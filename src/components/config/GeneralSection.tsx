@@ -39,6 +39,10 @@ export function GeneralSection() {
   const [telemetryRate, setTelemetryRate] = useState("10");
 
   const handleJurisdictionChange = (value: string) => {
+    if (value === "") {
+      setJurisdiction(null);
+      return;
+    }
     const j = value as Jurisdiction;
     setJurisdiction(j);
     setUnits(JURISDICTIONS[j].defaultUnits);
@@ -51,9 +55,10 @@ export function GeneralSection() {
       <Card>
         <div className="space-y-4">
           <Select
-            label="Regulatory Jurisdiction"
-            value={jurisdiction}
+            label="Regulatory Jurisdiction (optional)"
+            value={jurisdiction ?? ""}
             onChange={handleJurisdictionChange}
+            placeholder="— Not set"
             options={[
               { value: "dgca", label: `${JURISDICTIONS.dgca.flag}  DGCA — India` },
               { value: "faa", label: `${JURISDICTIONS.faa.flag}  FAA — United States` },
@@ -135,7 +140,7 @@ export function GeneralSection() {
       <Card title="Location">
         <div className="space-y-3">
           <Toggle
-            label="Share GCS Location"
+            label="Show My Position on Map"
             checked={locationEnabled}
             onChange={async (enabled) => {
               if (enabled && permission !== "granted") {
@@ -153,7 +158,7 @@ export function GeneralSection() {
             }}
           />
           <p className="text-[10px] text-text-tertiary pl-0.5">
-            Shows your position on all map views as a green crosshair marker.
+            Browser-local only. Displays your position on map views so you can see where you are relative to your drone. Never sent to any server.
           </p>
 
           {/* Permission status */}

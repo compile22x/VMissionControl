@@ -40,8 +40,8 @@ interface SettingsStoreState {
   saveCount: number;
   /** Whether the user has completed the welcome onboarding modal. */
   onboarded: boolean;
-  /** Regulatory jurisdiction. */
-  jurisdiction: Jurisdiction;
+  /** Regulatory jurisdiction (null = not set, user skipped selection). */
+  jurisdiction: Jurisdiction | null;
   /** Whether demo mode is active (gates mock data engine). */
   demoMode: boolean;
   /** True after IndexedDB hydration completes (prevents welcome modal flash). */
@@ -81,7 +81,7 @@ interface SettingsStoreState {
   dismissBanner: () => void;
   incrementSaveCount: () => void;
   setOnboarded: (onboarded: boolean) => void;
-  setJurisdiction: (jurisdiction: Jurisdiction) => void;
+  setJurisdiction: (jurisdiction: Jurisdiction | null) => void;
   setDemoMode: (demoMode: boolean) => void;
   setParamColumn: (col: ParamColumnId, visible: boolean) => void;
   setAudioEnabled: (enabled: boolean) => void;
@@ -107,7 +107,7 @@ export const useSettingsStore = create<SettingsStoreState>()(
       bannerDismissedAt: null,
       saveCount: 0,
       onboarded: false,
-      jurisdiction: "dgca",
+      jurisdiction: null,
       demoMode: true,
       _hasHydrated: false,
       paramColumns: { ...DEFAULT_PARAM_COLUMNS },
@@ -158,12 +158,12 @@ export const useSettingsStore = create<SettingsStoreState>()(
     {
       name: "altcmd:settings",
       storage: createJSONStorage(indexedDBStorage.storage),
-      version: 10,
+      version: 11,
       migrate: (persisted, version) => {
         const state = persisted as Record<string, unknown>;
         if (version < 2) {
           state.onboarded = false;
-          state.jurisdiction = "dgca";
+          state.jurisdiction = null;
           state.demoMode = true;
         }
         if (version < 5) {
@@ -200,6 +200,10 @@ export const useSettingsStore = create<SettingsStoreState>()(
         if (version < 10) {
           // v10: last active FC panel persistence
           state.lastActivePanel = "outputs";
+        }
+        if (version < 11) {
+          // v11: jurisdiction is now nullable — existing users keep their value
+          // (no change needed, their persisted value is preserved)
         }
         return state as unknown as SettingsStoreState;
       },

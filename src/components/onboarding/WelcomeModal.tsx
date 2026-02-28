@@ -32,7 +32,7 @@ export function WelcomeModal() {
   const requestPermission = useGcsLocationStore((s) => s.requestPermission);
   const isSupported = useGcsLocationStore((s) => s.isSupported);
 
-  const [jurisdiction, setLocalJurisdiction] = useState<Jurisdiction>("dgca");
+  const [jurisdiction, setLocalJurisdiction] = useState<Jurisdiction | "">("");
   const [units, setLocalUnits] = useState<UnitSystem>("metric");
   const [demoMode, setLocalDemoMode] = useState(true);
   const [audioEnabled, setLocalAudioEnabled] = useState(false);
@@ -42,8 +42,10 @@ export function WelcomeModal() {
 
   // Auto-set units when jurisdiction changes
   useEffect(() => {
-    const cfg = JURISDICTIONS[jurisdiction];
-    setLocalUnits(cfg.defaultUnits);
+    if (jurisdiction) {
+      const cfg = JURISDICTIONS[jurisdiction];
+      setLocalUnits(cfg.defaultUnits);
+    }
   }, [jurisdiction]);
 
   if (!hasHydrated || onboarded) return null;
@@ -64,7 +66,7 @@ export function WelcomeModal() {
   };
 
   const handleGetStarted = () => {
-    setJurisdiction(jurisdiction);
+    if (jurisdiction) setJurisdiction(jurisdiction);
     setUnits(units);
     setDemoMode(demoMode);
     setAudioEnabled(audioEnabled);
@@ -73,7 +75,7 @@ export function WelcomeModal() {
   };
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Welcome setup">
       <div className="bg-bg-secondary border border-border-default max-w-md w-full mx-4 p-8">
         {/* Branding */}
         <div className="text-center mb-8">
@@ -88,10 +90,14 @@ export function WelcomeModal() {
         {/* Welcome text */}
         <div className="text-center mb-6">
           <h2 className="text-lg font-display font-semibold text-text-primary">Welcome</h2>
-          <p className="text-sm text-text-secondary mt-1">Configure your environment</p>
+          <p className="text-sm text-text-secondary mt-1">Set your preferences below, or just hit Get Started to use defaults.</p>
           <span className="inline-block mt-3 px-3 py-1 text-[10px] font-medium uppercase tracking-widest text-text-tertiary border border-border-default rounded-full">
-            Open Beta — some bugs are expected. Help us improve.
+            Open Beta
           </span>
+          <p className="text-[10px] text-text-tertiary mt-2 flex items-center justify-center gap-1">
+            <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            Your data stays on this device. We don&apos;t collect or track anything.
+          </p>
         </div>
 
         {/* Form */}
@@ -99,13 +105,14 @@ export function WelcomeModal() {
           {/* Jurisdiction */}
           <div>
             <label className="block text-[11px] text-text-secondary mb-1.5 font-medium">
-              Regulatory Jurisdiction
+              Regulatory Jurisdiction <span className="text-text-tertiary font-normal">(optional)</span>
             </label>
             <select
               value={jurisdiction}
-              onChange={(e) => setLocalJurisdiction(e.target.value as Jurisdiction)}
+              onChange={(e) => setLocalJurisdiction(e.target.value as Jurisdiction | "")}
               className="w-full h-9 bg-bg-primary border border-border-default text-text-primary text-sm px-3 focus:outline-none focus:border-accent-primary"
             >
+              <option value="">—  Please select (optional)</option>
               {JURISDICTION_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
                   {opt.label}
@@ -182,9 +189,9 @@ export function WelcomeModal() {
           {/* Location toggle */}
           <div className="flex items-center justify-between pt-2 border-t border-border-default">
             <div>
-              <span className="text-sm text-text-primary">Share GCS Location</span>
+              <span className="text-sm text-text-primary">Show My Position on Map</span>
               <p className="text-[10px] text-text-tertiary mt-0.5">
-                Shows your position on all map views
+                Browser-local only. Displays your position on map views so you can see where you are relative to your drone. Never sent to any server.
               </p>
               {locationPermission === "granted" && locationEnabled && (
                 <p className="text-[10px] text-status-success mt-0.5">Location access granted</p>

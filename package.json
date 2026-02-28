@@ -4,13 +4,21 @@
   "private": false,
   "license": "GPL-3.0-only",
   "description": "Altnautica Command — Open-source Ground Control Station for autonomous drones",
+  "main": "dist-electron/main.js",
   "scripts": {
     "dev": "next dev --port 4000",
     "build": "next build",
     "start": "next start --port 4000",
     "demo": "NEXT_PUBLIC_DEMO_MODE=true next dev --port 4000",
     "lint": "eslint",
-    "cli": "tsx cli/index.ts"
+    "cli": "tsx cli/index.ts",
+    "electron:compile": "tsc -p electron/tsconfig.json",
+    "desktop:dev": "npm run build && npm run electron:compile && electron .",
+    "desktop:demo": "npm run build && npm run electron:compile && electron . --demo",
+    "desktop:build": "npm run build && npm run electron:compile && electron-builder",
+    "desktop:build:mac": "npm run build && npm run electron:compile && electron-builder --mac",
+    "desktop:build:win": "npm run build && npm run electron:compile && electron-builder --win",
+    "desktop:build:linux": "npm run build && npm run electron:compile && electron-builder --linux"
   },
   "dependencies": {
     "@convex-dev/auth": "^0.0.90",
@@ -37,6 +45,9 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "commander": "^13.1.0",
+    "electron": "^35.0.0",
+    "electron-builder": "^26.0.0",
+    "electron-updater": "^6.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
     "listr2": "^8.2.0",

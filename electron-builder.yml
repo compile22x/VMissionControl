@@ -1,0 +1,58 @@
+appId: com.altnautica.command
+productName: Altnautica Command
+
+directories:
+  output: release
+
+files:
+  - "dist-electron/**/*"
+  - "package.json"
+
+extraResources:
+  - from: ".next/standalone"
+    to: "standalone"
+  - from: ".next/static"
+    to: "standalone/.next/static"
+  - from: "public"
+    to: "standalone/public"
+
+mac:
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+  category: public.app-category.utilities
+  icon: electron/icons/icon.icns
+  darkModeSupport: true
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: electron/icons/icon.ico
+
+linux:
+  target:
+    - target: AppImage
+      arch:
+        - x64
+  category: Utility
+  icon: electron/icons/icon.png
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  artifactName: "AltnauticaCommand-${version}-Setup.${ext}"
+
+appImage:
+  artifactName: "AltnauticaCommand-${version}-${arch}.${ext}"
+
+dmg:
+  artifactName: "AltnauticaCommand-${version}-${arch}.${ext}"
+
+publish:
+  provider: github
+  owner: altnautica
+  repo: ADOSMissionControl

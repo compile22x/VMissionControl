@@ -14,9 +14,11 @@ interface SelectProps {
   value: string;
   onChange: (value: string) => void;
   className?: string;
+  /** Optional placeholder shown as the first option with value "". */
+  placeholder?: string;
 }
 
-export function Select({ label, options, value, onChange, className }: SelectProps) {
+export function Select({ label, options, value, onChange, className, placeholder }: SelectProps) {
   const selectId = label?.toLowerCase().replace(/\s+/g, "-");
   return (
     <div className="flex flex-col gap-1">
@@ -36,6 +38,7 @@ export function Select({ label, options, value, onChange, className }: SelectPro
             className
           )}
         >
+          {placeholder && <option value="">{placeholder}</option>}
           {options.map((opt) => (
             <option key={opt.value} value={opt.value}>
               {opt.label}

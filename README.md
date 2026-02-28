@@ -62,9 +62,34 @@ Run `npm run cli` with no arguments for an interactive menu:
 
 ---
 
+## Desktop App
+
+Download the latest release for your platform:
+
+| Platform | Download |
+|----------|----------|
+| macOS (Apple Silicon & Intel) | [`.dmg` from GitHub Releases](https://github.com/altnautica/ADOSMissionControl/releases/latest) |
+| Windows (x64) | [`.exe` installer from GitHub Releases](https://github.com/altnautica/ADOSMissionControl/releases/latest) |
+
+**macOS note:** The app is not code-signed yet. On first launch: right-click the app → Open → Open. This is standard for open-source projects (Betaflight Configurator, INAV Configurator ship the same way).
+
+**Windows note:** SmartScreen may warn on first run. Click "More info" → "Run anyway".
+
+### Build from source
+
+```bash
+npm install
+npm run desktop:build:mac   # macOS .dmg
+npm run desktop:build:win   # Windows .exe installer
+```
+
+Output goes to `release/`.
+
+---
+
 ## What Is This?
 
-Altnautica Command is a web GCS that runs in any browser — no installation, no desktop app. Connect to a flight controller over WebSocket or USB (WebSerial), configure it, plan missions, and fly. Works on tablets, laptops, and ground stations.
+Altnautica Command is a web GCS that runs in any browser — and also ships as a native desktop app (Electron). Connect to a flight controller over WebSocket or USB (WebSerial), configure it, plan missions, and fly. Works on tablets, laptops, and ground stations.
 
 It replaces desktop-only tools like QGroundControl and Mission Planner with a modern web stack: React 19, TypeScript strict, real-time Zustand stores with ring-buffered telemetry, and a custom binary MAVLink v2 parser.
 
