@@ -8,6 +8,8 @@ files:
   - "dist-electron/**/*"
   - "package.json"
 
+afterPack: scripts/afterPack.cjs
+
 extraResources:
   - from: ".next/standalone"
     to: "standalone"
@@ -17,6 +19,7 @@ extraResources:
     to: "standalone/public"
 
 mac:
+  artifactName: "AltnauticaCommand-${version}-${arch}.${ext}"
   target:
     - target: dmg
       arch:
@@ -50,7 +53,7 @@ appImage:
   artifactName: "AltnauticaCommand-${version}-${arch}.${ext}"
 
 dmg:
-  artifactName: "AltnauticaCommand-${version}-${arch}.${ext}"
+  title: "Altnautica Command"
 
 publish:
   provider: github

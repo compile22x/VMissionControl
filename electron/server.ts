@@ -84,6 +84,7 @@ export async function startServer(options: StartOptions = {}): Promise<number> {
   serverPort = await findFreePort(4000);
 
   const serverPath = getServerPath();
+
   const env: Record<string, string> = {
     ...process.env as Record<string, string>,
     PORT: String(serverPort),
