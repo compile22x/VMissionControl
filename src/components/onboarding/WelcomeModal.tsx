@@ -220,12 +220,12 @@ export function WelcomeModal() {
           Get Started
         </button>
         <a
-          href="https://discord.gg/uxbvuD4d5q"
+          href="https://command.altnautica.com/community"
           target="_blank"
           rel="noopener noreferrer"
           className="block text-center mt-3 text-xs text-text-tertiary hover:text-accent-primary transition-colors"
         >
-          Join our Discord
+          Join our Community
         </a>
       </div>
     </div>

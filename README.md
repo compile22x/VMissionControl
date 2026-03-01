@@ -2,7 +2,7 @@
 
 **Open-source web-based Ground Control Station for autonomous drones**
 
-![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-green.svg) ![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue.svg) ![Next.js 16](https://img.shields.io/badge/Next.js-16-black.svg) ![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg) [![Discord](https://img.shields.io/badge/Discord-Join-5865F2.svg?logo=discord&logoColor=white)](https://discord.gg/uxbvuD4d5q)
+![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-green.svg) ![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue.svg) ![Next.js 16](https://img.shields.io/badge/Next.js-16-black.svg) ![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg) [![Community](https://img.shields.io/badge/Community-Join-3A82FF.svg)](https://command.altnautica.com/community)
 
 <p align="center">
   <img src="public/screenshots/dashboard.png" alt="Fleet Dashboard" width="100%">
@@ -95,7 +95,7 @@ Altnautica Command is a web GCS that runs in any browser — and also ships as a
 
 It replaces desktop-only tools like QGroundControl and Mission Planner with a modern web stack: React 19, TypeScript strict, real-time Zustand stores with ring-buffered telemetry, and a custom binary MAVLink v2 parser.
 
-**[Live App](https://command.altnautica.com)** · **[Website](https://altnautica.com/command)** · **[Discord](https://discord.gg/uxbvuD4d5q)**
+**[Live App](https://command.altnautica.com)** · **[Website](https://altnautica.com/command)** · **[Community](https://command.altnautica.com/community)**
 
 ---
 
@@ -249,6 +249,6 @@ Free to use, modify, and distribute. Derivative works must also be GPL-3.0 — s
 
 - **Live app:** [command.altnautica.com](https://command.altnautica.com)
 - **Website:** [altnautica.com/command](https://altnautica.com/command)
-- **Discord:** [discord.gg/uxbvuD4d5q](https://discord.gg/uxbvuD4d5q)
+- **Community:** [command.altnautica.com/community](https://command.altnautica.com/community)
 - **Issues:** [github.com/altnautica/ADOSMissionControl/issues](https://github.com/altnautica/ADOSMissionControl/issues)
 - **SITL tool:** [`tools/sitl/`](tools/sitl/)

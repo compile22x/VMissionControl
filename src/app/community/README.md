@@ -2,7 +2,7 @@
 
 Optional community board built into Command GCS. Provides changelog, feature requests, a kanban board, roadmap, and a contact form.
 
-All community data lives on the Altnautica Convex backend. The hosted version at [altnautica.com](https://altnautica.com) runs it by default. Local builds have it disabled unless you configure your own backend.
+All community data lives on the Altnautica Convex backend. The hosted version at [command.altnautica.com/community](https://command.altnautica.com/community) runs it by default. Local builds have it disabled unless you configure your own backend.
 
 ## Enabling it
 

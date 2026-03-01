@@ -64,12 +64,12 @@ export default function CommunityLayout({
             Community data (changelog, roadmap, feature requests, contact) is
             live on the hosted version at{" "}
             <a
-              href="https://altnautica.com"
+              href="https://command.altnautica.com/community"
               target="_blank"
               rel="noopener noreferrer"
               className="text-accent-primary hover:underline"
             >
-              altnautica.com
+              command.altnautica.com/community
             </a>
           </p>
           <p className="text-text-tertiary text-xs">
