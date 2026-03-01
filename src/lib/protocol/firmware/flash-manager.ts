@@ -23,6 +23,7 @@ import type {
 } from "./types";
 import { STM32SerialFlasher } from "./stm32-serial";
 import { STM32DfuFlasher } from "./stm32-dfu";
+import { PX4SerialFlasher } from "./px4-serial";
 
 // ── Progress Phase Ranges ──────────────────────────────────
 //
@@ -167,7 +168,21 @@ export class FlashManager {
     }
   }
 
-  private async detectBootloader(method: "serial" | "dfu" | "auto"): Promise<FirmwareFlasher> {
+  private async detectBootloader(method: "serial" | "dfu" | "auto" | "px4-serial"): Promise<FirmwareFlasher> {
+    if (method === "px4-serial") {
+      let port: SerialPort | null = null;
+      if (this.transport && "getPort" in this.transport) {
+        port = (this.transport as { getPort(): SerialPort | null }).getPort();
+        if (port) {
+          await this.transport.disconnect();
+        }
+      }
+      if (!port) {
+        port = await PX4SerialFlasher.requestPort();
+      }
+      return new PX4SerialFlasher(port);
+    }
+
     if (method === "auto") {
       // Auto: check for already-permitted DFU devices first (no picker)
       if (STM32DfuFlasher.isSupported()) {

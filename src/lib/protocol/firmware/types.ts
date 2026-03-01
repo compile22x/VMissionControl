@@ -40,7 +40,10 @@ export interface FlashProgress {
 export type FlashProgressCallback = (progress: FlashProgress) => void;
 
 /** Flash method selection. */
-export type FlashMethod = "serial" | "dfu" | "auto";
+export type FlashMethod = "serial" | "dfu" | "auto" | "px4-serial";
+
+/** Firmware stack selection for the Flash Tool UI. */
+export type FirmwareStack = "ardupilot" | "betaflight" | "px4";
 
 // ── Chip / STM32 ───────────────────────────────────────────
 
@@ -191,6 +194,74 @@ export interface FirmwareManifest {
   firmwares: ManifestFirmware[];
   /** Manifest format version. */
   formatVersion?: number;
+}
+
+// ── Betaflight Types ───────────────────────────────────────
+
+/** A target board from the Betaflight Cloud Build API. */
+export interface BetaflightTarget {
+  target: string;
+  manufacturer: string;
+  mcu: string;
+  group: string;
+}
+
+/** A release version available for a Betaflight target. */
+export interface BetaflightRelease {
+  release: string;
+  label?: string;
+}
+
+/** Build info for a specific target + release. */
+export interface BetaflightBuildInfo {
+  file: string;
+  url: string;
+  key?: string;
+}
+
+/** Request body for a Betaflight Cloud Build. */
+export interface BetaflightBuildRequest {
+  target: string;
+  release: string;
+  options: string[];
+}
+
+/** Status of a Betaflight Cloud Build job. */
+export interface BetaflightBuildStatus {
+  key: string;
+  status: "queued" | "processing" | "success" | "error";
+  progress?: number;
+  timeOut?: number;
+  configuration?: Record<string, unknown>;
+  file?: string;
+  url?: string;
+}
+
+/** Available build options for a Betaflight release. */
+export interface BetaflightBuildOptions {
+  radioProtocols: string[];
+  telemetryProtocols: string[];
+  motorProtocols: string[];
+  osdOptions: string[];
+  otherOptions: string[];
+}
+
+// ── PX4 Types ──────────────────────────────────────────────
+
+/** A PX4 firmware release from GitHub. */
+export interface PX4Release {
+  tag: string;
+  name: string;
+  prerelease: boolean;
+  boards: PX4Board[];
+}
+
+/** A board firmware asset within a PX4 release. */
+export interface PX4Board {
+  name: string;
+  displayName: string;
+  assetUrl: string;
+  size: number;
 }
 
 // ── Flash Options ──────────────────────────────────────────

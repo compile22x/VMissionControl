@@ -7,7 +7,12 @@
 
 import { NextRequest, NextResponse } from "next/server";
 
-const ALLOWED_HOST = "firmware.ardupilot.org";
+const ALLOWED_HOSTS = [
+  "firmware.ardupilot.org",
+  "build.betaflight.com",
+  "github.com",
+  "objects.githubusercontent.com",
+];
 
 export async function GET(request: NextRequest) {
   const url = request.nextUrl.searchParams.get("url");
@@ -23,8 +28,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Invalid URL" }, { status: 400 });
   }
 
-  if (parsed.hostname !== ALLOWED_HOST) {
-    return NextResponse.json({ error: `Only ${ALLOWED_HOST} URLs allowed` }, { status: 403 });
+  if (!ALLOWED_HOSTS.includes(parsed.hostname)) {
+    return NextResponse.json({ error: `Only ${ALLOWED_HOSTS.join(", ")} URLs allowed` }, { status: 403 });
   }
 
   try {
