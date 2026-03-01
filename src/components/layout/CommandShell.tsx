@@ -113,17 +113,6 @@ export function CommandShell({ children }: { children: React.ReactNode }) {
             </Tooltip>
           )}
 
-          {/* Community */}
-          <Tooltip content="Community" position="bottom">
-            <Link
-              href="/community"
-              className="text-text-secondary hover:text-text-primary transition-colors"
-              aria-label="Community"
-            >
-              <MessageSquareText size={16} />
-            </Link>
-          </Tooltip>
-
           {/* Auth — sign in or user menu */}
           {isAuthenticated ? (
             <div className="relative">
@@ -183,6 +172,17 @@ export function CommandShell({ children }: { children: React.ReactNode }) {
             <kbd className="text-[10px] text-text-tertiary border border-border-default px-1 py-0.5 font-mono hidden sm:inline">
               ⌘K
             </kbd>
+          </Tooltip>
+
+          {/* Community */}
+          <Tooltip content="Community" position="bottom">
+            <Link
+              href="/community"
+              className="text-text-secondary hover:text-text-primary transition-colors"
+              aria-label="Community"
+            >
+              <MessageSquareText size={16} />
+            </Link>
           </Tooltip>
 
           {/* Flash Tool */}
