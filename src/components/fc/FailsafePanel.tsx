@@ -15,26 +15,26 @@ import { ShieldAlert, Battery, Radio, Gauge, Save, HardDrive, MapPin, SlidersHor
 const RC_CHANNEL_COUNT = 8;
 
 const RC_OPTION_VALUES = [
-  { value: "0", label: "0 — Do Nothing" },
-  { value: "2", label: "2 — Flip" },
-  { value: "3", label: "3 — Simple Mode" },
-  { value: "4", label: "4 — RTL" },
-  { value: "7", label: "7 — Save WP" },
-  { value: "9", label: "9 — Camera Trigger" },
-  { value: "10", label: "10 — RangeFinder" },
-  { value: "11", label: "11 — Fence" },
-  { value: "16", label: "16 — Auto" },
-  { value: "17", label: "17 — AutoTune" },
-  { value: "18", label: "18 — Land" },
-  { value: "21", label: "21 — Parachute Enable" },
-  { value: "22", label: "22 — Parachute Release" },
-  { value: "28", label: "28 — Relay1 On/Off" },
-  { value: "39", label: "39 — Motor Emergency Stop" },
-  { value: "40", label: "40 — Motor Interlock" },
-  { value: "41", label: "41 — Brake" },
-  { value: "55", label: "55 — Guided" },
-  { value: "56", label: "56 — Loiter" },
-  { value: "57", label: "57 — Follow" },
+  { value: "0", label: "0 — Do Nothing", description: "No action assigned to this channel" },
+  { value: "2", label: "2 — Flip", description: "Trigger a flip maneuver" },
+  { value: "3", label: "3 — Simple Mode", description: "Earth-frame heading control" },
+  { value: "4", label: "4 — RTL", description: "Return to launch point and land" },
+  { value: "7", label: "7 — Save WP", description: "Save current position as waypoint" },
+  { value: "9", label: "9 — Camera Trigger", description: "Trigger camera shutter" },
+  { value: "10", label: "10 — RangeFinder", description: "Enable/disable rangefinder" },
+  { value: "11", label: "11 — Fence", description: "Enable/disable geofence" },
+  { value: "16", label: "16 — Auto", description: "Switch to auto mission mode" },
+  { value: "17", label: "17 — AutoTune", description: "Start automatic PID tuning" },
+  { value: "18", label: "18 — Land", description: "Land at current position" },
+  { value: "21", label: "21 — Parachute Enable", description: "Arm the parachute release mechanism" },
+  { value: "22", label: "22 — Parachute Release", description: "Deploy parachute immediately" },
+  { value: "28", label: "28 — Relay1 On/Off", description: "Toggle relay output 1" },
+  { value: "39", label: "39 — Motor Emergency Stop", description: "Kill all motors immediately" },
+  { value: "40", label: "40 — Motor Interlock", description: "Motors only spin when switch is active" },
+  { value: "41", label: "41 — Brake", description: "Rapid stop and hold position" },
+  { value: "55", label: "55 — Guided", description: "Switch to GCS-guided flight" },
+  { value: "56", label: "56 — Loiter", description: "Hold GPS position and altitude" },
+  { value: "57", label: "57 — Follow", description: "Follow another vehicle or GCS" },
 ];
 
 // Vehicle-specific failsafe params
@@ -241,15 +241,12 @@ export function FailsafePanel() {
               return (
                 <div key={ch} className="flex items-center gap-2">
                   <span className="text-[10px] font-mono text-text-secondary w-6 text-right">CH{ch}</span>
-                  <select
+                  <Select
+                    options={RC_OPTION_VALUES}
                     value={p(paramName)}
-                    onChange={(e) => set(paramName, e.target.value)}
-                    className="flex-1 h-7 px-1.5 bg-bg-tertiary border border-border-default text-xs text-text-primary appearance-none focus:outline-none focus:border-accent-primary"
-                  >
-                    {RC_OPTION_VALUES.map((opt) => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
-                    ))}
-                  </select>
+                    onChange={(v) => set(paramName, v)}
+                    className="flex-1"
+                  />
                 </div>
               );
             })}

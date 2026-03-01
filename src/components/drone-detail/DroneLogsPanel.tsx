@@ -23,6 +23,7 @@ import {
   ChevronDown,
   ChevronRight,
 } from "lucide-react";
+import { Select } from "@/components/ui/select";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -199,17 +200,12 @@ export function DroneLogsPanel({ droneId }: DroneLogsPanelProps) {
       {/* ── Toolbar ──────────────────────────────────────────── */}
       <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border-default flex-wrap">
         {/* Severity filter */}
-        <select
-          value={minSeverity}
-          onChange={(e) => setMinSeverity(Number(e.target.value))}
-          className="bg-bg-tertiary text-text-primary text-[11px] px-1.5 py-1 border border-border-default focus:outline-none focus:border-accent-primary"
-        >
-          {SEVERITY_LABELS.map((label, i) => (
-            <option key={i} value={i}>
-              {label}
-            </option>
-          ))}
-        </select>
+        <Select
+          value={String(minSeverity)}
+          onChange={(v) => setMinSeverity(Number(v))}
+          options={SEVERITY_LABELS.map((label, i) => ({ value: String(i), label }))}
+          className="text-[11px]"
+        />
 
         <span className="text-[10px] text-text-tertiary font-mono">
           {filteredMessages.length} msgs

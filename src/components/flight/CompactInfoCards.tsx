@@ -128,15 +128,11 @@ function EditSelect({ label, value, onChange, options }: {
 }) {
   return (
     <div className="bg-bg-tertiary/50 rounded px-2 py-1.5">
-      <select
+      <Select
         value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full text-sm font-mono font-semibold text-text-primary bg-transparent outline-none border-b border-accent-primary/40 pb-0.5 cursor-pointer"
-      >
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>{o.label}</option>
-        ))}
-      </select>
+        onChange={onChange}
+        options={options}
+      />
       <p className="text-[10px] text-text-tertiary mt-0.5">{label}</p>
     </div>
   );

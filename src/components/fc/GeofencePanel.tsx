@@ -9,6 +9,7 @@ import { ArmedLockOverlay } from "@/components/indicators/ArmedLockOverlay";
 import { PanelHeader } from "./PanelHeader";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
+import { Select } from "@/components/ui/select";
 import { Shield, HardDrive, Save, MapPin, ArrowUp, Circle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -33,12 +34,12 @@ const FENCE_TYPE_BITS = {
 } as const;
 
 const FENCE_ACTION_OPTIONS = [
-  { value: 0, label: "Report Only" },
-  { value: 1, label: "RTL or Land" },
-  { value: 2, label: "Always Land" },
-  { value: 3, label: "Brake (Auto)" },
-  { value: 4, label: "SmartRTL or RTL" },
-  { value: 5, label: "SmartRTL or Land" },
+  { value: "0", label: "0 — Report Only" },
+  { value: "1", label: "1 — RTL or Land" },
+  { value: "2", label: "2 — Always Land" },
+  { value: "3", label: "3 — Brake (Auto)" },
+  { value: "4", label: "4 — SmartRTL or RTL" },
+  { value: "5", label: "5 — SmartRTL or Land" },
 ];
 
 // ── Component ────────────────────────────────────────────────
@@ -255,21 +256,13 @@ export function GeofencePanel() {
 
           {/* Breach Action */}
           <Card icon={<Shield size={14} />} title="Breach Action" description="Action taken when fence is breached">
-            <div className="flex flex-col gap-1">
-              <label className="text-xs text-text-secondary">{pl("FENCE_ACTION")}</label>
-              <select
-                value={String(fenceAction)}
-                onChange={(e) => setLocalValue("FENCE_ACTION", Number(e.target.value))}
-                disabled={isLocked}
-                className="h-7 px-1.5 bg-bg-tertiary border border-border-default text-xs text-text-primary appearance-none focus:outline-none focus:border-accent-primary"
-              >
-                {FENCE_ACTION_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={String(opt.value)}>
-                    {opt.value} — {opt.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <Select
+              label={pl("FENCE_ACTION")}
+              options={FENCE_ACTION_OPTIONS}
+              value={String(fenceAction)}
+              onChange={(v) => setLocalValue("FENCE_ACTION", Number(v))}
+              disabled={isLocked}
+            />
           </Card>
 
           {/* Save / Flash */}

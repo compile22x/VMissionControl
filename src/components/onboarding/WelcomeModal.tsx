@@ -12,6 +12,7 @@ import { useState, useEffect } from "react";
 import { useSettingsStore } from "@/stores/settings-store";
 import { useGcsLocationStore, type GeoPermission } from "@/stores/gcs-location-store";
 import { JURISDICTIONS, type Jurisdiction } from "@/lib/jurisdiction";
+import { Select } from "@/components/ui/select";
 import type { UnitSystem } from "@/stores/settings-store";
 
 const JURISDICTION_OPTIONS: { value: Jurisdiction; label: string }[] = [
@@ -104,36 +105,26 @@ export function WelcomeModal() {
         <div className="space-y-4">
           {/* Jurisdiction */}
           <div>
-            <label className="block text-[11px] text-text-secondary mb-1.5 font-medium">
-              Regulatory Jurisdiction <span className="text-text-tertiary font-normal">(optional)</span>
-            </label>
-            <select
+            <Select
+              label="Regulatory Jurisdiction (optional)"
               value={jurisdiction}
-              onChange={(e) => setLocalJurisdiction(e.target.value as Jurisdiction | "")}
-              className="w-full h-9 bg-bg-primary border border-border-default text-text-primary text-sm px-3 focus:outline-none focus:border-accent-primary"
-            >
-              <option value="">—  Please select (optional)</option>
-              {JURISDICTION_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
+              onChange={(v) => setLocalJurisdiction(v as Jurisdiction | "")}
+              placeholder="Please select (optional)"
+              options={JURISDICTION_OPTIONS}
+            />
           </div>
 
           {/* Units */}
           <div>
-            <label className="block text-[11px] text-text-secondary mb-1.5 font-medium">
-              Unit System
-            </label>
-            <select
+            <Select
+              label="Unit System"
               value={units}
-              onChange={(e) => setLocalUnits(e.target.value as UnitSystem)}
-              className="w-full h-9 bg-bg-primary border border-border-default text-text-primary text-sm px-3 focus:outline-none focus:border-accent-primary"
-            >
-              <option value="metric">Metric (m, km/h, °C)</option>
-              <option value="imperial">Imperial (ft, mph, °F)</option>
-            </select>
+              onChange={(v) => setLocalUnits(v as UnitSystem)}
+              options={[
+                { value: "metric", label: "Metric (m, km/h, °C)" },
+                { value: "imperial", label: "Imperial (ft, mph, °F)" },
+              ]}
+            />
           </div>
 
           {/* Demo mode toggle */}

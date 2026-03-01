@@ -15,6 +15,7 @@ import {
   type FrameLayout,
   type MotorPosition,
 } from "@/lib/motor-layouts";
+import { Select } from "@/components/ui/select";
 import { Save, HardDrive, Box, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -23,13 +24,13 @@ import { cn } from "@/lib/utils";
 const FRAME_PARAMS = ["FRAME_CLASS", "FRAME_TYPE"];
 
 const FRAME_CLASS_OPTIONS = Object.entries(FRAME_CLASS_NAMES).map(([value, label]) => ({
-  value: Number(value),
-  label,
+  value: String(Number(value)),
+  label: `${Number(value)} — ${label}`,
 }));
 
 const FRAME_TYPE_OPTIONS = Object.entries(FRAME_TYPE_NAMES).map(([value, label]) => ({
-  value: Number(value),
-  label,
+  value: String(Number(value)),
+  label: `${Number(value)} — ${label}`,
 }));
 
 // ── Component ────────────────────────────────────────────────
@@ -119,36 +120,20 @@ export function FramePanel() {
           {/* Frame Class & Type */}
           <Card icon={<Box size={14} />} title="Frame Selection" description="Select airframe class and configuration type">
             <div className="grid grid-cols-2 gap-3">
-              <div className="flex flex-col gap-1">
-                <label className="text-xs text-text-secondary">FRAME_CLASS</label>
-                <select
-                  value={String(frameClass)}
-                  onChange={(e) => setLocalValue("FRAME_CLASS", Number(e.target.value))}
-                  disabled={isLocked}
-                  className="h-7 px-1.5 bg-bg-tertiary border border-border-default text-xs text-text-primary appearance-none focus:outline-none focus:border-accent-primary"
-                >
-                  {FRAME_CLASS_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={String(opt.value)}>
-                      {opt.value} — {opt.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-xs text-text-secondary">FRAME_TYPE</label>
-                <select
-                  value={String(frameType)}
-                  onChange={(e) => setLocalValue("FRAME_TYPE", Number(e.target.value))}
-                  disabled={isLocked}
-                  className="h-7 px-1.5 bg-bg-tertiary border border-border-default text-xs text-text-primary appearance-none focus:outline-none focus:border-accent-primary"
-                >
-                  {FRAME_TYPE_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={String(opt.value)}>
-                      {opt.value} — {opt.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <Select
+                label="FRAME_CLASS"
+                options={FRAME_CLASS_OPTIONS}
+                value={String(frameClass)}
+                onChange={(v) => setLocalValue("FRAME_CLASS", Number(v))}
+                disabled={isLocked}
+              />
+              <Select
+                label="FRAME_TYPE"
+                options={FRAME_TYPE_OPTIONS}
+                value={String(frameType)}
+                onChange={(v) => setLocalValue("FRAME_TYPE", Number(v))}
+                disabled={isLocked}
+              />
             </div>
           </Card>
 

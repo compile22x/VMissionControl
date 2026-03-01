@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Settings, AlertTriangle, LogOut, CloudOff } from "lucide-react";
+import { Settings, AlertTriangle, LogOut, CloudOff, Zap } from "lucide-react";
+import { Tooltip } from "@/components/ui/tooltip";
 import { CommandNav } from "./CommandNav";
 import { DemoProvider } from "./DemoProvider";
 import { CommandPalette } from "@/components/shared/command-palette";
@@ -75,43 +76,47 @@ export function CommandShell({ children }: { children: React.ReactNode }) {
         {/* Right — Status indicators */}
         <div className={cn("flex items-center gap-3", isElectron && !isLinux && "[-webkit-app-region:no-drag]")}>
           {/* Connection dots: MAVLink / Video / MQTT */}
-          <div className="flex items-center gap-1.5">
-            <span className={`w-2 h-2 rounded-full ${mavConnected ? "bg-status-success" : "bg-text-tertiary"}`} title="MAVLink" />
-            <span className={`w-2 h-2 rounded-full ${videoStreaming ? "bg-status-success" : "bg-text-tertiary"}`} title="Video" />
-            <span className="w-2 h-2 rounded-full bg-text-tertiary" title="MQTT" />
+          <Tooltip content="Connection status" position="bottom">
+            <div className="flex items-center gap-1.5">
+              <span className={`w-2 h-2 rounded-full ${mavConnected ? "bg-status-success" : "bg-text-tertiary"}`} />
+              <span className={`w-2 h-2 rounded-full ${videoStreaming ? "bg-status-success" : "bg-text-tertiary"}`} />
+              <span className="w-2 h-2 rounded-full bg-text-tertiary" />
 
-            {/* Sync status dot — only when signed in */}
-            {isAuthenticated && (
-              <span
-                className={`w-2 h-2 rounded-full ${
-                  syncStatus === "synced" ? "bg-status-success" :
-                  syncStatus === "syncing" ? "bg-status-warning animate-pulse" :
-                  syncStatus === "error" ? "bg-status-error" :
-                  "bg-text-tertiary"
-                }`}
-                title={`Sync: ${syncStatus}${lastSyncedAt ? ` (${formatSyncTime(lastSyncedAt)})` : ""}`}
-              />
-            )}
-          </div>
+              {/* Sync status dot — only when signed in */}
+              {isAuthenticated && (
+                <span
+                  className={`w-2 h-2 rounded-full ${
+                    syncStatus === "synced" ? "bg-status-success" :
+                    syncStatus === "syncing" ? "bg-status-warning animate-pulse" :
+                    syncStatus === "error" ? "bg-status-error" :
+                    "bg-text-tertiary"
+                  }`}
+                />
+              )}
+            </div>
+          </Tooltip>
 
           {/* Alert count */}
           {alertCount > 0 && (
-            <div className="flex items-center gap-1 text-status-warning">
-              <AlertTriangle size={12} />
-              <span className="text-xs font-mono tabular-nums">{alertCount}</span>
-            </div>
+            <Tooltip content="Unacknowledged alerts" position="bottom">
+              <div className="flex items-center gap-1 text-status-warning">
+                <AlertTriangle size={12} />
+                <span className="text-xs font-mono tabular-nums">{alertCount}</span>
+              </div>
+            </Tooltip>
           )}
 
           {/* Auth — sign in or user menu */}
           {isAuthenticated ? (
             <div className="relative">
-              <button
-                onClick={() => setUserMenuOpen(!userMenuOpen)}
-                className="w-6 h-6 rounded-full bg-accent-primary/20 text-accent-primary flex items-center justify-center text-[10px] font-semibold uppercase"
-                title={user?.email}
-              >
-                {user?.name?.charAt(0) || user?.email?.charAt(0) || "U"}
-              </button>
+              <Tooltip content={user?.email || "Account"} position="bottom">
+                <button
+                  onClick={() => setUserMenuOpen(!userMenuOpen)}
+                  className="w-6 h-6 rounded-full bg-accent-primary/20 text-accent-primary flex items-center justify-center text-[10px] font-semibold uppercase"
+                >
+                  {user?.name?.charAt(0) || user?.email?.charAt(0) || "U"}
+                </button>
+              </Tooltip>
               {userMenuOpen && (
                 <div className="absolute right-0 top-8 bg-bg-secondary border border-border-default shadow-lg z-50 w-48 py-1">
                   <div className="px-3 py-2 border-b border-border-default">
@@ -134,28 +139,45 @@ export function CommandShell({ children }: { children: React.ReactNode }) {
               )}
             </div>
           ) : (
-            <button
-              onClick={() => setSignInOpen(true)}
-              className="flex items-center gap-1 text-[10px] text-text-tertiary hover:text-text-secondary transition-colors"
-            >
-              <CloudOff size={10} />
-              <span className="hidden sm:inline">Local only</span>
-            </button>
+            <Tooltip content="Sign in for cloud sync" position="bottom">
+              <button
+                onClick={() => setSignInOpen(true)}
+                className="flex items-center gap-1 text-[10px] text-text-tertiary hover:text-text-secondary transition-colors"
+              >
+                <CloudOff size={10} />
+                <span className="hidden sm:inline">Local only</span>
+              </button>
+            </Tooltip>
           )}
 
           {/* Cmd+K hint */}
-          <kbd className="text-[10px] text-text-tertiary border border-border-default px-1 py-0.5 font-mono hidden sm:inline">
-            ⌘K
-          </kbd>
+          <Tooltip content="Command palette" position="bottom">
+            <kbd className="text-[10px] text-text-tertiary border border-border-default px-1 py-0.5 font-mono hidden sm:inline">
+              ⌘K
+            </kbd>
+          </Tooltip>
+
+          {/* Flash Tool */}
+          <Tooltip content="Flash Tool" position="bottom">
+            <Link
+              href="/config/firmware"
+              className="text-text-secondary hover:text-text-primary transition-colors"
+              aria-label="Flash Tool"
+            >
+              <Zap size={16} />
+            </Link>
+          </Tooltip>
 
           {/* Settings */}
-          <Link
-            href="/config"
-            className="text-text-secondary hover:text-text-primary transition-colors"
-            aria-label="Settings"
-          >
-            <Settings size={16} />
-          </Link>
+          <Tooltip content="Settings" position="bottom">
+            <Link
+              href="/config"
+              className="text-text-secondary hover:text-text-primary transition-colors"
+              aria-label="Settings"
+            >
+              <Settings size={16} />
+            </Link>
+          </Tooltip>
         </div>
       </header>
 

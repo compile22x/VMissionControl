@@ -6,6 +6,7 @@ import { useTelemetryStore } from "@/stores/telemetry-store";
 import { VibrationGauges } from "@/components/indicators/VibrationGauges";
 import { EkfStatusBars } from "@/components/indicators/EkfStatusBars";
 import { Activity, Pause, Play } from "lucide-react";
+import { Select } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import type { ScaledImuCallback } from "@/lib/protocol/types";
 
@@ -28,6 +29,7 @@ interface ImuSample {
 }
 
 const TIME_WINDOWS: TimeWindow[] = [5, 15, 30, 60];
+const TIME_WINDOW_OPTIONS = TIME_WINDOWS.map((w) => ({ value: String(w), label: `${w}s` }));
 const MAX_SAMPLES = 1200; // enough for 60s at 20Hz
 
 const SOURCE_TABS: { key: SourceTab; label: string }[] = [
@@ -242,17 +244,12 @@ export function SensorGraphPanel() {
         </div>
 
         {/* Time window */}
-        <select
-          value={timeWindow}
-          onChange={(e) => setTimeWindow(Number(e.target.value) as TimeWindow)}
-          className="bg-bg-tertiary text-text-primary text-[10px] font-mono px-2 py-1 border border-border-default focus:outline-none focus:border-accent-primary cursor-pointer"
-        >
-          {TIME_WINDOWS.map((w) => (
-            <option key={w} value={w}>
-              {w}s
-            </option>
-          ))}
-        </select>
+        <Select
+          value={String(timeWindow)}
+          onChange={(v) => setTimeWindow(Number(v) as TimeWindow)}
+          options={TIME_WINDOW_OPTIONS}
+          className="text-[10px] font-mono"
+        />
 
         {/* Freeze / Resume */}
         <button

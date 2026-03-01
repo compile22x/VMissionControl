@@ -22,14 +22,15 @@ import type { UsbDeviceInfo } from "@/lib/usb-device-manager";
 import { FirmwareFlashProgress } from "./FirmwareFlashProgress";
 import { FirmwareBoardInfo } from "./FirmwareBoardInfo";
 import { FirmwareBackupRestore } from "./FirmwareBackupRestore";
+import { Select } from "@/components/ui/select";
 
 const manifest = new ArduPilotManifest();
 
 const VEHICLE_TYPES = [
-  { id: "Copter", label: "ArduCopter (Multirotor)" },
-  { id: "Plane", label: "ArduPlane (Fixed Wing)" },
-  { id: "Rover", label: "ArduRover (Ground Vehicle)" },
-  { id: "Sub", label: "ArduSub (Submarine)" },
+  { value: "Copter", label: "ArduCopter (Multirotor)" },
+  { value: "Plane", label: "ArduPlane (Fixed Wing)" },
+  { value: "Rover", label: "ArduRover (Ground Vehicle)" },
+  { value: "Sub", label: "ArduSub (Submarine)" },
 ];
 
 const FLASH_METHODS: { id: FlashMethod; label: string; icon: typeof Wifi; desc: string }[] = [
@@ -276,12 +277,86 @@ export function FirmwarePanel() {
       <div className="max-w-3xl mx-auto p-6 space-y-6">
         {/* Header */}
         <div className="flex items-center gap-3">
-          <Cpu size={20} className="text-accent-primary" />
+          <Zap size={20} className="text-accent-primary" />
           <div>
-            <h1 className="text-lg font-semibold text-text-primary">Firmware Update</h1>
-            <p className="text-xs text-text-tertiary">Flash ArduPilot firmware to your flight controller</p>
+            <h1 className="text-lg font-semibold text-text-primary">Flash Tool</h1>
+            <p className="text-xs text-text-tertiary">Flash ArduPilot firmware via USB DFU or serial bootloader</p>
           </div>
         </div>
+
+        {/* DFU status banner */}
+        {dfuDevices.length > 0 ? (
+          <div className="border border-status-success/40 bg-status-success/5 p-4 space-y-2">
+            <p className="text-xs text-status-success font-semibold">DFU Device Connected</p>
+            <p className="text-[10px] text-text-secondary">
+              {dfuDevices.map((d) => d.label).join(", ")} — ready to flash.
+            </p>
+          </div>
+        ) : selectedDroneId ? (
+          <div className="border border-status-warning/40 bg-status-warning/5 p-4 space-y-2">
+            <p className="text-xs text-status-warning font-semibold">FC Connected via MAVLink</p>
+            <p className="text-[10px] text-text-secondary">
+              Your FC is connected via MAVLink. For DFU flashing, disconnect and reconnect while holding the BOOT button.
+            </p>
+            {usbSupported && (
+              <button
+                onClick={handleDetectDfu}
+                disabled={isFlashing}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-semibold border border-border-default text-text-secondary hover:text-text-primary hover:bg-bg-tertiary disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+              >
+                <Usb size={12} />
+                Scan for DFU
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="border border-border-default bg-bg-secondary p-4 space-y-2">
+            <p className="text-xs text-text-secondary font-semibold">No Connection</p>
+            <p className="text-[10px] text-text-tertiary">
+              Connect your FC in DFU mode: hold BOOT while plugging in USB, then click Scan.
+            </p>
+            {usbSupported && (
+              <button
+                onClick={handleDetectDfu}
+                disabled={isFlashing}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-semibold border border-border-default text-text-secondary hover:text-text-primary hover:bg-bg-tertiary disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+              >
+                <Usb size={12} />
+                Scan for DFU
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* DFU info collapsible */}
+        <details className="bg-bg-secondary border border-border-default">
+          <summary className="px-4 py-2.5 text-xs text-text-secondary cursor-pointer hover:text-text-primary transition-colors">
+            What is DFU flashing?
+          </summary>
+          <div className="px-4 pb-3 space-y-2 text-[10px] text-text-tertiary">
+            <p>
+              <strong className="text-text-secondary">DFU (Device Firmware Upgrade)</strong> is a USB protocol that talks directly to the STM32 bootloader. It bypasses the serial bootloader entirely.
+            </p>
+            <p>
+              <strong className="text-text-secondary">Serial bootloader</strong> uses the FC&apos;s UART to flash firmware. This is the most common method and works with most boards.
+            </p>
+            <p>
+              <strong className="text-text-secondary">When to use DFU:</strong> Some H7-based boards (like Matek H743) work better with DFU. It&apos;s also useful when serial flashing fails or when you need to recover a bricked board.
+            </p>
+            <p>
+              To enter DFU mode, hold the BOOT button on your FC while plugging in the USB cable. The board will appear as a DFU device instead of a serial port.
+            </p>
+          </div>
+        </details>
+
+        {/* No-drone hint */}
+        {!drone && dfuDevices.length === 0 && (
+          <div className="bg-bg-secondary border border-border-default p-3">
+            <p className="text-[10px] text-text-tertiary">
+              No drone connected. Select your board and vehicle type manually, or connect a drone for automatic detection.
+            </p>
+          </div>
+        )}
 
         {/* Browser support warnings */}
         {!serialSupported && !usbSupported && (
@@ -323,17 +398,14 @@ export function FirmwarePanel() {
             </div>
           )}
 
-          <select
+          <Select
             value={selectedBoard}
-            onChange={(e) => setSelectedBoard(e.target.value)}
+            onChange={setSelectedBoard}
             disabled={manifestLoading || boards.length === 0}
-            className="w-full bg-bg-tertiary text-text-primary text-xs px-3 py-2 border border-border-default focus:outline-none focus:border-accent-primary disabled:opacity-50"
-          >
-            {boards.length === 0 && <option>Loading boards...</option>}
-            {boards.map((b) => (
-              <option key={b.name} value={b.name}>{b.name}</option>
-            ))}
-          </select>
+            placeholder="Loading boards..."
+            searchable
+            options={boards.map((b) => ({ value: b.name, label: b.name }))}
+          />
           <p className="text-[10px] text-text-tertiary">{boards.length} boards available from ArduPilot manifest</p>
         </div>
 
@@ -361,32 +433,21 @@ export function FirmwarePanel() {
 
           {!useCustom ? (
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-[10px] text-text-tertiary uppercase block mb-1">Vehicle Type</label>
-                <select
-                  value={selectedVehicleType}
-                  onChange={(e) => setSelectedVehicleType(e.target.value)}
-                  className="w-full bg-bg-tertiary text-text-primary text-xs px-3 py-2 border border-border-default focus:outline-none focus:border-accent-primary"
-                >
-                  {VEHICLE_TYPES.map((f) => (
-                    <option key={f.id} value={f.id}>{f.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="text-[10px] text-text-tertiary uppercase block mb-1">Version</label>
-                <select
-                  value={selectedVersion}
-                  onChange={(e) => setSelectedVersion(e.target.value)}
-                  disabled={versions.length === 0}
-                  className="w-full bg-bg-tertiary text-text-primary text-xs px-3 py-2 border border-border-default focus:outline-none focus:border-accent-primary disabled:opacity-50"
-                >
-                  {versions.length === 0 && <option>{manifestLoading ? "Loading..." : selectedBoard ? "No versions found" : "Select board first"}</option>}
-                  {versions.map((v) => (
-                    <option key={v} value={v}>{versionLabel(v)}</option>
-                  ))}
-                </select>
-              </div>
+              <Select
+                label="Vehicle Type"
+                value={selectedVehicleType}
+                onChange={setSelectedVehicleType}
+                options={VEHICLE_TYPES}
+              />
+              <Select
+                label="Version"
+                value={selectedVersion}
+                onChange={setSelectedVersion}
+                disabled={versions.length === 0}
+                placeholder={manifestLoading ? "Loading..." : selectedBoard ? "No versions found" : "Select board first"}
+                searchable
+                options={versions.map((v) => ({ value: v, label: versionLabel(v) }))}
+              />
             </div>
           ) : (
             <div>
@@ -431,26 +492,18 @@ export function FirmwarePanel() {
             })}
           </div>
 
-          {/* DFU device status + detect button */}
+          {/* DFU device status (scan button is in the banner above) */}
           {(flashMethod === "dfu" || flashMethod === "auto") && usbSupported && (
-            <div className="mt-3 space-y-2">
+            <div className="mt-2">
               {dfuDevices.length > 0 ? (
                 <p className="text-[10px] text-status-success">
-                  {dfuDevices.length} DFU device{dfuDevices.length > 1 ? "s" : ""} detected: {dfuDevices.map((d) => d.label).join(", ")}
+                  {dfuDevices.length} DFU device{dfuDevices.length > 1 ? "s" : ""} ready: {dfuDevices.map((d) => d.label).join(", ")}
                 </p>
               ) : (
                 <p className="text-[10px] text-text-tertiary">
-                  No DFU devices detected. Put FC in DFU mode (hold BOOT + plug USB).
+                  No DFU devices detected. Use the Scan button above to find one.
                 </p>
               )}
-              <button
-                onClick={handleDetectDfu}
-                disabled={isFlashing}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-semibold border border-border-default text-text-secondary hover:text-text-primary hover:bg-bg-tertiary disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
-              >
-                <Usb size={12} />
-                Detect DFU Device
-              </button>
             </div>
           )}
         </div>

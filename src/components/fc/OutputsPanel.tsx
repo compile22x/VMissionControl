@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Select } from "@/components/ui/select";
 import { Toggle } from "@/components/ui/toggle";
 import { useToast } from "@/components/ui/toast";
 import { useDroneManager } from "@/stores/drone-manager";
@@ -333,18 +334,12 @@ export function OutputsPanel() {
 
             {motorTestEnabled && (
               <div className="space-y-3">
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs text-text-secondary">Motor</label>
-                  <select
-                    value={testMotor}
-                    onChange={(e) => setTestMotor(e.target.value)}
-                    className="h-7 px-1.5 bg-bg-tertiary border border-border-default text-xs text-text-primary appearance-none focus:outline-none focus:border-accent-primary"
-                  >
-                    {motorOptions.map((o) => (
-                      <option key={o.value} value={o.value}>{o.label}</option>
-                    ))}
-                  </select>
-                </div>
+                <Select
+                  label="Motor"
+                  options={motorOptions}
+                  value={testMotor}
+                  onChange={setTestMotor}
+                />
 
                 <div className="flex flex-col gap-1">
                   <label className="text-xs text-text-secondary">

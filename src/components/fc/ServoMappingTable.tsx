@@ -1,6 +1,7 @@
 "use client";
 
 import { Card } from "@/components/ui/card";
+import { Select, type SelectOptionGroup } from "@/components/ui/select";
 import { SERVO_FUNCTION_GROUPS } from "@/lib/servo-functions";
 import {
   getTimerGroupForOutput,
@@ -17,6 +18,14 @@ export interface OutputRow {
 
 const PWM_ABS_MIN = 800;
 const PWM_ABS_MAX = 2200;
+
+const SERVO_FUNCTION_SELECT_GROUPS: SelectOptionGroup[] = SERVO_FUNCTION_GROUPS.map((group) => ({
+  label: group.label,
+  options: group.functions.map((fn) => ({
+    value: String(fn.value),
+    label: `${fn.value} — ${fn.label}`,
+  })),
+}));
 
 interface ServoMappingTableProps {
   outputs: OutputRow[];
@@ -91,23 +100,16 @@ export function ServoMappingTable({
                     </span>
                   </td>
                   <td className="px-3 py-1.5">
-                    <select
+                    <Select
+                      options={SERVO_FUNCTION_SELECT_GROUPS}
                       value={String(row.function)}
-                      onChange={(e) => setLocalValue(`SERVO${n}_FUNCTION`, Number(e.target.value))}
-                      className={`w-full h-7 px-1.5 bg-bg-tertiary border text-xs text-text-primary appearance-none focus:outline-none focus:border-accent-primary ${
-                        isTimerConflict ? "border-status-error" : hasDuplicateFn ? "border-status-error" : "border-border-default"
-                      }`}
-                    >
-                      {SERVO_FUNCTION_GROUPS.map((group) => (
-                        <optgroup key={group.label} label={group.label}>
-                          {group.functions.map((fn) => (
-                            <option key={fn.value} value={String(fn.value)}>
-                              {fn.value} — {fn.label}
-                            </option>
-                          ))}
-                        </optgroup>
-                      ))}
-                    </select>
+                      onChange={(v) => setLocalValue(`SERVO${n}_FUNCTION`, Number(v))}
+                      searchable={true}
+                      searchPlaceholder="Search functions..."
+                      className={
+                        isTimerConflict || hasDuplicateFn ? "border-status-error" : ""
+                      }
+                    />
                   </td>
                   <td className="px-3 py-1.5">
                     <input

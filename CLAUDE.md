@@ -66,6 +66,8 @@ These are non-negotiable. Violating any of these will break the codebase or wast
 
 10. **Zustand selectors — subscribe to what you need** — Use `useStore((s) => s.field)` selector pattern, not `useStore()` which re-renders on any state change. For protocol access: `useDroneManager((s) => s.getSelectedProtocol)`.
 
+11. **All dropdowns use `<Select>` from `@/components/ui/select`** — Never use native `<select>` elements. The custom component renders a portal dropdown with keyboard navigation, viewport-aware positioning, and dark theme styling. For large option lists (>15 items), enable `searchable`. For options that benefit from explanation, add `description` to option objects. For categorized options, use `SelectOptionGroup[]`. All option values must be strings.
+
 ---
 
 ## Checklist: New FC Panel

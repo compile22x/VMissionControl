@@ -5,6 +5,7 @@ import type { BoardProfile, TimerGroupConflict } from "@/lib/board-profiles";
 import { getOutputProtocol, UNKNOWN_BOARD, getBoardProfileList, getBoardProfileByName } from "@/lib/board-profiles";
 import { getServoFunctionLabel } from "@/lib/servo-functions";
 import { ChevronDown, ChevronRight, Cpu } from "lucide-react";
+import { Select } from "@/components/ui/select";
 
 interface TimerGroupDiagramProps {
   board: BoardProfile;
@@ -72,6 +73,7 @@ export function TimerGroupDiagram({
   onBoardOverride,
 }: TimerGroupDiagramProps) {
   const [expanded, setExpanded] = useState(true);
+  const [selectedBoardName, setSelectedBoardName] = useState("");
 
   const boardList = useMemo(() => getBoardProfileList(), []);
 
@@ -95,22 +97,19 @@ export function TimerGroupDiagram({
         <div className="flex items-center gap-1.5 text-[10px] text-text-tertiary">
           <Cpu size={10} />
           <span>Board not identified — select manually:</span>
-          <select
-            className="h-5 px-1 bg-bg-tertiary border border-border-default text-[10px] text-text-primary appearance-none focus:outline-none focus:border-accent-primary"
-            defaultValue=""
-            onChange={(e) => {
-              if (e.target.value && onBoardOverride) {
-                onBoardOverride(getBoardProfileByName(e.target.value));
+          <Select
+            value={selectedBoardName}
+            onChange={(v) => {
+              setSelectedBoardName(v);
+              if (v && onBoardOverride) {
+                onBoardOverride(getBoardProfileByName(v));
               }
             }}
-          >
-            <option value="" disabled>Select board…</option>
-            {boardList.map((b) => (
-              <option key={b.name} value={b.name}>
-                {b.vendor} — {b.name}
-              </option>
-            ))}
-          </select>
+            placeholder="Select board..."
+            searchable
+            options={boardList.map((b) => ({ value: b.name, label: `${b.vendor} — ${b.name}` }))}
+            className="text-[10px]"
+          />
         </div>
       </div>
     );

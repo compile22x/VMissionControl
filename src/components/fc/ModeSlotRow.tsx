@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { Select } from "@/components/ui/select";
 import { RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -32,6 +33,14 @@ export function ModeSlotRow({
 }: ModeSlotRowProps) {
   const description = MODE_DESCRIPTIONS[slot.mode as UnifiedFlightMode];
 
+  const modesWithDesc = useMemo(() =>
+    availableModes.map(m => ({
+      ...m,
+      description: MODE_DESCRIPTIONS[m.value as UnifiedFlightMode],
+    })),
+    [availableModes]
+  );
+
   return (
     <div
       className={cn(
@@ -60,7 +69,7 @@ export function ModeSlotRow({
           <Select
             value={slot.mode}
             onChange={(v) => onUpdate(index, { mode: v })}
-            options={availableModes}
+            options={modesWithDesc}
           />
         </div>
 

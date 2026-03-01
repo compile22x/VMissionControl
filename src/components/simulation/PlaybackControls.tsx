@@ -15,11 +15,18 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { useSimulationStore } from "@/stores/simulation-store";
+import { Select } from "@/components/ui/select";
 import { useThrottledElapsed } from "@/hooks/use-throttled-elapsed";
 import { formatEta } from "@/lib/simulation-utils";
 import type { Waypoint } from "@/lib/types";
 
-const SPEED_OPTIONS = [0.25, 0.5, 1, 2, 4];
+const SPEED_OPTIONS = [
+  { value: "0.25", label: "0.25x" },
+  { value: "0.5", label: "0.5x" },
+  { value: "1", label: "1x" },
+  { value: "2", label: "2x" },
+  { value: "4", label: "4x" },
+];
 
 interface PlaybackControlsProps {
   waypoints: Waypoint[];
@@ -112,18 +119,13 @@ export function PlaybackControls({ waypoints, totalDuration }: PlaybackControlsP
       />
 
       {/* Speed selector */}
-      <select
-        value={playbackSpeed}
-        onChange={(e) => setSpeed(Number(e.target.value))}
+      <Select
+        value={String(playbackSpeed)}
+        onChange={(v) => setSpeed(Number(v))}
         disabled={disabled}
-        className="text-[10px] font-mono bg-bg-secondary text-text-primary border border-border-default rounded px-1.5 py-0.5 cursor-pointer disabled:opacity-30"
-      >
-        {SPEED_OPTIONS.map((s) => (
-          <option key={s} value={s}>
-            {s}x
-          </option>
-        ))}
-      </select>
+        options={SPEED_OPTIONS}
+        className="text-[10px] font-mono"
+      />
     </div>
   );
 }
