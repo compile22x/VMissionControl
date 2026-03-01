@@ -1,10 +1,13 @@
 "use client";
 
-import { ReactNode, useMemo } from "react";
+import { ReactNode, createContext, useContext, useMemo } from "react";
 import { ConvexReactClient } from "convex/react";
 import { ConvexAuthNextjsProvider } from "@convex-dev/auth/nextjs";
 
 const CONVEX_URL = process.env.NEXT_PUBLIC_CONVEX_URL;
+
+const ConvexAvailableContext = createContext(false);
+export const useConvexAvailable = () => useContext(ConvexAvailableContext);
 
 export default function ConvexClientProvider({
   children,
@@ -18,12 +21,18 @@ export default function ConvexClientProvider({
 
   if (!client) {
     // Pure local mode — no Convex, no auth
-    return <>{children}</>;
+    return (
+      <ConvexAvailableContext.Provider value={false}>
+        {children}
+      </ConvexAvailableContext.Provider>
+    );
   }
 
   return (
-    <ConvexAuthNextjsProvider client={client}>
-      {children}
-    </ConvexAuthNextjsProvider>
+    <ConvexAvailableContext.Provider value={true}>
+      <ConvexAuthNextjsProvider client={client}>
+        {children}
+      </ConvexAuthNextjsProvider>
+    </ConvexAvailableContext.Provider>
   );
 }

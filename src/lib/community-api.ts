@@ -1,0 +1,39 @@
+/**
+ * @module community-api
+ * @description Typed Convex function references for the community board feature.
+ * Uses makeFunctionReference to reference functions deployed on the shared Convex backend
+ * without importing from website/convex/_generated/.
+ * @license GPL-3.0-only
+ */
+
+import { makeFunctionReference } from "convex/server";
+
+export const communityApi = {
+  changelog: {
+    list: makeFunctionReference<"query">("communityChangelog:list"),
+    getByVersion: makeFunctionReference<"query">("communityChangelog:getByVersion"),
+    create: makeFunctionReference<"mutation">("communityChangelog:create"),
+    update: makeFunctionReference<"mutation">("communityChangelog:update"),
+    remove: makeFunctionReference<"mutation">("communityChangelog:remove"),
+  },
+  items: {
+    list: makeFunctionReference<"query">("communityItems:list"),
+    get: makeFunctionReference<"query">("communityItems:get"),
+    listByStatus: makeFunctionReference<"query">("communityItems:listByStatus"),
+    myUpvotes: makeFunctionReference<"query">("communityItems:myUpvotes"),
+    create: makeFunctionReference<"mutation">("communityItems:create"),
+    update: makeFunctionReference<"mutation">("communityItems:update"),
+    updateStatus: makeFunctionReference<"mutation">("communityItems:updateStatus"),
+    remove: makeFunctionReference<"mutation">("communityItems:remove"),
+    upvote: makeFunctionReference<"mutation">("communityItems:upvote"),
+  },
+  comments: {
+    list: makeFunctionReference<"query">("comments:list"),
+    create: makeFunctionReference<"mutation">("comments:create"),
+    remove: makeFunctionReference<"mutation">("comments:remove"),
+    count: makeFunctionReference<"query">("comments:countByTarget"),
+  },
+  profiles: {
+    getMyProfile: makeFunctionReference<"query">("profiles:getMyProfile"),
+  },
+};

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Settings, AlertTriangle, LogOut, CloudOff, Zap } from "lucide-react";
+import { Settings, AlertTriangle, LogOut, CloudOff, Zap, MessageSquareText } from "lucide-react";
 import { Tooltip } from "@/components/ui/tooltip";
 import { CommandNav } from "./CommandNav";
 import { DemoProvider } from "./DemoProvider";
@@ -105,6 +105,17 @@ export function CommandShell({ children }: { children: React.ReactNode }) {
               </div>
             </Tooltip>
           )}
+
+          {/* Community */}
+          <Tooltip content="Community" position="bottom">
+            <Link
+              href="/community"
+              className="text-text-secondary hover:text-text-primary transition-colors"
+              aria-label="Community"
+            >
+              <MessageSquareText size={16} />
+            </Link>
+          </Tooltip>
 
           {/* Auth — sign in or user menu */}
           {isAuthenticated ? (
