@@ -172,7 +172,7 @@ const PX4_PARAM_MAP: Record<string, string> = {
   ARMING_REQUIRE: 'COM_ARM_AUTH_REQ',
   LAND_SPEED: 'MPC_LAND_SPEED',
   RTL_ALT: 'RTL_RETURN_ALT',
-  RTL_SPEED: 'RTL_RETURN_ALT',
+  // RTL_SPEED: no direct PX4 equivalent (PX4 uses MPC_XY_VEL_MAX for all horizontal speeds)
 }
 
 const PX4_REVERSE_MAP: Record<string, string> = Object.fromEntries(
