@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Toggle } from "@/components/ui/toggle";
+import { Button } from "@/components/ui/button";
 import { useSettingsStore } from "@/stores/settings-store";
 import { audioEngine } from "@/lib/audio-engine";
 import { Volume2 } from "lucide-react";
@@ -72,6 +73,9 @@ export function NotificationsSection() {
   const setBatteryWarningPct = useSettingsStore((s) => s.setBatteryWarningPct);
   const setBatteryCriticalPct = useSettingsStore((s) => s.setBatteryCriticalPct);
   const setAlertPopupDuration = useSettingsStore((s) => s.setAlertPopupDuration);
+  const changelogNotificationsEnabled = useSettingsStore((s) => s.changelogNotificationsEnabled);
+  const setChangelogNotificationsEnabled = useSettingsStore((s) => s.setChangelogNotificationsEnabled);
+  const clearSeenChangelog = useSettingsStore((s) => s.clearSeenChangelog);
 
   const alertLowBattery = useSettingsStore((s) => s.alertLowBattery);
   const alertGpsLost = useSettingsStore((s) => s.alertGpsLost);
@@ -203,6 +207,29 @@ export function NotificationsSection() {
               { value: "never", label: "Never dismiss" },
             ]}
           />
+        </div>
+      </Card>
+
+      {/* Card 4: Changelog Notifications */}
+      <Card title="Changelog Notifications">
+        <div className="space-y-4">
+          <Toggle
+            label="Show changelog notifications"
+            checked={changelogNotificationsEnabled}
+            onChange={setChangelogNotificationsEnabled}
+          />
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => {
+              clearSeenChangelog();
+            }}
+          >
+            Reset seen entries
+          </Button>
+          <p className="text-[10px] text-text-tertiary">
+            Get notified about new releases and updates when you open the app
+          </p>
         </div>
       </Card>
     </div>

@@ -16,6 +16,9 @@ export const communityApi = {
     create: makeFunctionReference<"mutation">("communityChangelog:create"),
     update: makeFunctionReference<"mutation">("communityChangelog:update"),
     remove: makeFunctionReference<"mutation">("communityChangelog:remove"),
+    react: makeFunctionReference<"mutation">("communityChangelog:react"),
+    reactionCounts: makeFunctionReference<"query">("communityChangelog:reactionCounts"),
+    myReactions: makeFunctionReference<"query">("communityChangelog:myReactions"),
   },
   items: {
     list: makeFunctionReference<"query">("communityItems:list"),

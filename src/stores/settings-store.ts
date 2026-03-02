@@ -83,6 +83,10 @@ interface SettingsStoreState {
   terrainExaggeration: number;
   /** Whether distance/altitude labels are shown on flight paths. */
   showPathLabels: boolean;
+  /** IDs of changelog entries the user has already seen. */
+  seenChangelogIds: string[];
+  /** Whether changelog notification modal is enabled on app load. */
+  changelogNotificationsEnabled: boolean;
 
   setMapTileSource: (source: MapTileSource) => void;
   setUnits: (units: UnitSystem) => void;
@@ -108,6 +112,9 @@ interface SettingsStoreState {
   setCesiumBuildingsEnabled: (enabled: boolean) => void;
   setTerrainExaggeration: (value: number) => void;
   setShowPathLabels: (show: boolean) => void;
+  markChangelogSeen: (ids: string[]) => void;
+  clearSeenChangelog: () => void;
+  setChangelogNotificationsEnabled: (enabled: boolean) => void;
 }
 
 export const useSettingsStore = create<SettingsStoreState>()(
@@ -143,6 +150,8 @@ export const useSettingsStore = create<SettingsStoreState>()(
       cesiumBuildingsEnabled: false,
       terrainExaggeration: 1,
       showPathLabels: false,
+      seenChangelogIds: [],
+      changelogNotificationsEnabled: true,
 
       setMapTileSource: (mapTileSource) => set({ mapTileSource }),
       setUnits: (units) => set({ units }),
@@ -174,11 +183,18 @@ export const useSettingsStore = create<SettingsStoreState>()(
       setCesiumBuildingsEnabled: (cesiumBuildingsEnabled) => set({ cesiumBuildingsEnabled }),
       setTerrainExaggeration: (terrainExaggeration) => set({ terrainExaggeration }),
       setShowPathLabels: (showPathLabels) => set({ showPathLabels }),
+      markChangelogSeen: (ids) =>
+        set((s) => ({
+          seenChangelogIds: [...new Set([...s.seenChangelogIds, ...ids])],
+        })),
+      clearSeenChangelog: () => set({ seenChangelogIds: [] }),
+      setChangelogNotificationsEnabled: (changelogNotificationsEnabled) =>
+        set({ changelogNotificationsEnabled }),
     }),
     {
       name: "altcmd:settings",
       storage: createJSONStorage(indexedDBStorage.storage),
-      version: 12,
+      version: 13,
       migrate: (persisted, version) => {
         const state = persisted as Record<string, unknown>;
         if (version < 2) {
@@ -231,6 +247,11 @@ export const useSettingsStore = create<SettingsStoreState>()(
           state.cesiumBuildingsEnabled = false;
           state.terrainExaggeration = 1;
           state.showPathLabels = false;
+        }
+        if (version < 13) {
+          // v13: Changelog notification tracking
+          state.seenChangelogIds = [];
+          state.changelogNotificationsEnabled = true;
         }
         return state as unknown as SettingsStoreState;
       },

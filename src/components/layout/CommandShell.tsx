@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Settings, AlertTriangle, LogOut, CloudOff, Zap, MessageSquareText } from "lucide-react";
+import { Settings, AlertTriangle, LogOut, CloudOff, Zap } from "lucide-react";
 import { Tooltip } from "@/components/ui/tooltip";
 import { CommandNav } from "./CommandNav";
 import { DemoProvider } from "./DemoProvider";
@@ -22,6 +22,8 @@ import { useAutoReconnect } from "@/hooks/use-auto-reconnect";
 import { useGcsLocation } from "@/hooks/use-gcs-location";
 import { usePlatform } from "@/hooks/use-platform";
 import { cn } from "@/lib/utils";
+import { ChangelogNotificationGate } from "@/components/changelog/ChangelogNotificationGate";
+import { ChangelogBadge } from "@/components/changelog/ChangelogBadge";
 import Link from "next/link";
 
 export function CommandShell({ children }: { children: React.ReactNode }) {
@@ -52,6 +54,9 @@ export function CommandShell({ children }: { children: React.ReactNode }) {
     <div className="flex flex-col h-dvh">
       {/* Welcome onboarding modal */}
       <WelcomeModal />
+
+      {/* Changelog "What's New" notification modal */}
+      <ChangelogNotificationGate />
 
       {/* Top bar */}
       <header className={cn(
@@ -175,15 +180,7 @@ export function CommandShell({ children }: { children: React.ReactNode }) {
           </Tooltip>
 
           {/* Community */}
-          <Tooltip content="Community" position="bottom">
-            <Link
-              href="/community"
-              className="text-text-secondary hover:text-text-primary transition-colors"
-              aria-label="Community"
-            >
-              <MessageSquareText size={16} />
-            </Link>
-          </Tooltip>
+          <ChangelogBadge />
 
           {/* Flash Tool */}
           <Tooltip content="Flash Tool" position="bottom">
