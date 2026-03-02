@@ -12,7 +12,12 @@ import { cn } from "@/lib/utils";
 
 interface CollapsibleSectionProps {
   title: string;
+  /** Initial open state (uncontrolled mode). Ignored when `open` is provided. */
   defaultOpen?: boolean;
+  /** Controlled open state. When provided, the component is fully controlled. */
+  open?: boolean;
+  /** Called when the section is toggled. Required for controlled mode. */
+  onToggle?: () => void;
   count?: number;
   trailing?: ReactNode;
   children: ReactNode;
@@ -22,20 +27,25 @@ interface CollapsibleSectionProps {
 export function CollapsibleSection({
   title,
   defaultOpen = false,
+  open: controlledOpen,
+  onToggle,
   count,
   trailing,
   children,
   className,
 }: CollapsibleSectionProps) {
-  const [open, setOpen] = useState(defaultOpen);
+  const [internalOpen, setInternalOpen] = useState(defaultOpen);
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : internalOpen;
+  const toggle = isControlled ? onToggle : () => setInternalOpen((v) => !v);
 
   return (
     <div className={cn("border-b border-border-default", className)}>
       <div
         role="button"
         tabIndex={0}
-        onClick={() => setOpen(!open)}
-        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpen(!open); } }}
+        onClick={() => toggle?.()}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle?.(); } }}
         className="w-full flex items-center gap-2 px-3 py-2 hover:bg-bg-tertiary transition-colors cursor-pointer"
       >
         {open ? (

@@ -7,6 +7,7 @@
  * @license GPL-3.0-only
  */
 
+import { useCallback, useState } from "react";
 import dynamic from "next/dynamic";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { MissionEditor } from "@/components/planner/MissionEditor";
@@ -44,6 +45,14 @@ export default function MissionPlannerPage() {
   const selectedWaypointIds = usePlannerStore((s) => s.selectedWaypointIds);
   const clearMultiSelection = usePlannerStore((s) => s.clearMultiSelection);
 
+  // Controlled open state for sections toggled by keyboard shortcuts
+  const [patternOpen, setPatternOpen] = useState(false);
+  const [validationOpen, setValidationOpen] = useState(true);
+  const [terrainOpen, setTerrainOpen] = useState(false);
+  const togglePattern = useCallback(() => setPatternOpen((v) => !v), []);
+  const toggleValidation = useCallback(() => setValidationOpen((v) => !v), []);
+  const toggleTerrain = useCallback(() => setTerrainOpen((v) => !v), []);
+
   useKeyboardShortcuts({
     activeTool: p.activeTool,
     setActiveTool: p.setActiveTool,
@@ -59,6 +68,8 @@ export default function MissionPlannerPage() {
     handleNewPlan: p.handleNewPlan,
     handleFocusSearch: p.handleFocusSearch,
     onToggleTerrain: p.toggleAltProfile,
+    onTogglePatternEditor: togglePattern,
+    onToggleValidation: toggleValidation,
   });
 
   // Resolve active plan name for the right panel header
@@ -163,7 +174,7 @@ export default function MissionPlannerPage() {
                   />
                 </CollapsibleSection>
 
-                <CollapsibleSection title="Flight Patterns">
+                <CollapsibleSection title="Flight Patterns" open={patternOpen} onToggle={togglePattern}>
                   <PatternEditor />
                 </CollapsibleSection>
 
@@ -235,7 +246,7 @@ export default function MissionPlannerPage() {
                   />
                 </CollapsibleSection>
 
-                <CollapsibleSection title="Terrain Profile">
+                <CollapsibleSection title="Terrain Profile" open={terrainOpen} onToggle={toggleTerrain}>
                   <TerrainProfileChart waypoints={p.waypoints} />
                 </CollapsibleSection>
 
@@ -243,7 +254,7 @@ export default function MissionPlannerPage() {
                   <TransformPanel />
                 </CollapsibleSection>
 
-                <CollapsibleSection title="Validation" defaultOpen={true}>
+                <CollapsibleSection title="Validation" open={validationOpen} onToggle={toggleValidation}>
                   <ValidationPanel
                     waypoints={p.waypoints}
                     geofenceEnabled={p.geofenceEnabled}

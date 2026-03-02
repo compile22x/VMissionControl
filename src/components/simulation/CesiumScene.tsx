@@ -216,18 +216,29 @@ export default function CesiumScene({
     };
   }, [imageryMode]);
 
-  // Effect 4: Buildings toggle
+  // Effect 4: Buildings toggle (imagery-mode-aware styling)
   useEffect(() => {
     const viewer = viewerRef.current;
     if (!viewer || viewer.isDestroyed()) return;
 
     let cancelled = false;
 
+    // Remove existing tileset before adding new one (handles imagery mode change)
+    if (tilesetRef.current) {
+      viewer.scene.primitives.remove(tilesetRef.current);
+      tilesetRef.current = null;
+    }
+
     if (buildingsEnabled) {
+      const buildingColor =
+        imageryMode === "satellite"
+          ? "color('rgba(30, 35, 50, 0.75)')"
+          : "color('rgba(58, 130, 255, 0.12)')";
+
       Cesium3DTileset.fromIonAssetId(96188).then((tileset) => {
         if (cancelled || !viewer || viewer.isDestroyed()) return;
         tileset.style = new Cesium3DTileStyle({
-          color: "color('#2a2a3a')",
+          color: buildingColor,
         });
         viewer.scene.primitives.add(tileset);
         tilesetRef.current = tileset;
@@ -236,12 +247,7 @@ export default function CesiumScene({
         // Silently ignore — buildings are a non-critical enhancement
       });
     } else {
-      // Remove existing tileset if present
-      if (tilesetRef.current) {
-        viewer.scene.primitives.remove(tilesetRef.current);
-        tilesetRef.current = null;
-        viewer.scene.requestRender();
-      }
+      viewer.scene.requestRender();
     }
 
     return () => {
@@ -251,7 +257,7 @@ export default function CesiumScene({
         tilesetRef.current = null;
       }
     };
-  }, [buildingsEnabled]);
+  }, [buildingsEnabled, imageryMode]);
 
   // Effect 5: Terrain exaggeration
   useEffect(() => {

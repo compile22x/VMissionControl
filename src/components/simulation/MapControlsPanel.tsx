@@ -26,7 +26,7 @@ export function MapControlsPanel({ hasIonToken }: MapControlsPanelProps) {
   const setShowLabels = useSettingsStore((s) => s.setShowPathLabels);
 
   const satDisabled = !hasIonToken;
-  const buildingsDisabled = !hasIonToken || imageryMode === "dark";
+  const buildingsDisabled = !hasIonToken;
 
   return (
     <div className="absolute top-[180px] left-4 z-10 flex flex-col gap-2 p-2 bg-bg-primary/70 backdrop-blur-md border border-border-default rounded-lg">
@@ -69,9 +69,7 @@ export function MapControlsPanel({ hasIonToken }: MapControlsPanelProps) {
         )}
         title={
           buildingsDisabled
-            ? hasIonToken
-              ? "Switch to satellite mode first"
-              : "Requires Cesium Ion token"
+            ? "Requires Cesium Ion token"
             : "Toggle 3D buildings"
         }
       >
