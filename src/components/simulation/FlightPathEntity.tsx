@@ -36,6 +36,8 @@ interface FlightPathEntityProps {
   terrainHeights?: number[];
   /** Show distance and altitude labels at waypoints. Default: true. */
   showLabels?: boolean;
+  /** True while terrain provider is loading or resolution is in progress. */
+  isResolving?: boolean;
 }
 
 /** Format distance as km or m depending on magnitude. */
@@ -51,6 +53,7 @@ export function FlightPathEntity({
   waypointIndices,
   terrainHeights,
   showLabels = true,
+  isResolving = false,
 }: FlightPathEntityProps) {
   useEffect(() => {
     if (!viewer || viewer.isDestroyed() || waypoints.length < 2) return;
@@ -145,16 +148,25 @@ export function FlightPathEntity({
         }
       }
     } else {
-      // ── Fallback: original clamped-to-ground path ────────────
+      // ── Fallback: clamped-to-ground path ────────────────────
+      // When resolving: dashed + low opacity as a loading indicator.
+      // Don't pass wp.alt as the third arg to fromDegrees — without
+      // terrain context, AGL values become absolute-above-ellipsoid
+      // which places the path underground in elevated areas.
       const positions = waypoints.map((wp) =>
-        Cartesian3.fromDegrees(wp.lon, wp.lat, wp.alt)
+        Cartesian3.fromDegrees(wp.lon, wp.lat)
       );
 
       const pathEntity = viewer.entities.add({
         polyline: {
           positions,
-          width: 3,
-          material: accentColor.withAlpha(0.9),
+          width: isResolving ? 2 : 3,
+          material: isResolving
+            ? new PolylineDashMaterialProperty({
+                color: accentColor.withAlpha(0.4),
+                dashLength: 16,
+              })
+            : accentColor.withAlpha(0.9),
           clampToGround: true,
         },
       });
@@ -166,7 +178,7 @@ export function FlightPathEntity({
         if (!viewer.isDestroyed()) viewer.entities.remove(entity);
       }
     };
-  }, [viewer, waypoints, resolvedPositions, waypointIndices, terrainHeights, showLabels]);
+  }, [viewer, waypoints, resolvedPositions, waypointIndices, terrainHeights, showLabels, isResolving]);
 
   return null;
 }

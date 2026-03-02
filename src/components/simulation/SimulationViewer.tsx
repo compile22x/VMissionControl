@@ -21,6 +21,7 @@ import { useSettingsStore } from "@/stores/settings-store";
 import { useSimClock } from "@/hooks/use-sim-clock";
 import { useSimCamera } from "@/hooks/use-sim-camera";
 import { useSimCompletion } from "@/hooks/use-sim-completion";
+import { useTerrainReady } from "@/hooks/use-terrain-ready";
 import { useConvexAvailable } from "@/app/ConvexClientProvider";
 import { communityApi } from "@/lib/community-api";
 
@@ -72,29 +73,48 @@ export function SimulationViewer({ waypoints, defaultSpeed }: SimulationViewerPr
     [waypoints, defaultSpeed]
   );
 
+  // ── Terrain readiness — wait for real provider before sampling ──
+  const { isReady: terrainReady, version: terrainVersion } = useTerrainReady(viewer);
+
   // ── Terrain-resolved positions for 3D flight path ──────────
   const [resolvedPath, setResolvedPath] = useState<ResolvedPath | null>(null);
+  const [terrainResolving, setTerrainResolving] = useState(false);
 
   useEffect(() => {
     if (!viewer || viewer.isDestroyed() || waypoints.length < 2) {
       setResolvedPath(null);
+      setTerrainResolving(false);
+      return;
+    }
+
+    // Don't sample while terrain provider is still the flat ellipsoid —
+    // it returns height=0 everywhere, placing the path underground.
+    if (!terrainReady) {
+      setTerrainResolving(true);
       return;
     }
 
     let cancelled = false;
+    setTerrainResolving(true);
     const terrainProvider = viewer.scene.globe.terrainProvider;
 
     resolveAGLToAbsolute(waypoints, terrainProvider)
       .then((result) => {
-        if (!cancelled) setResolvedPath(result);
+        if (!cancelled) {
+          setResolvedPath(result);
+          setTerrainResolving(false);
+        }
       })
       .catch(() => {
         // Terrain sampling failed — FlightPathEntity falls back to clamped path
-        if (!cancelled) setResolvedPath(null);
+        if (!cancelled) {
+          setResolvedPath(null);
+          setTerrainResolving(false);
+        }
       });
 
     return () => { cancelled = true; };
-  }, [viewer, waypoints]);
+  }, [viewer, waypoints, terrainReady, terrainVersion]);
 
   // Extract waypoint-only resolved positions for drone sampled properties
   const waypointPositions = useMemo(() => {
@@ -146,6 +166,7 @@ export function SimulationViewer({ waypoints, defaultSpeed }: SimulationViewerPr
         waypointIndices={resolvedPath?.waypointIndices}
         terrainHeights={resolvedPath?.terrainHeights}
         showLabels={showPathLabels}
+        isResolving={terrainResolving}
       />
       <WaypointEntities viewer={viewer} waypoints={waypoints} />
       <DroneEntity
