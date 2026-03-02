@@ -178,9 +178,29 @@ export function usePlanner() {
   }, [waypoints, missionName]);
 
   // ── Map handlers ──────────────────────────────────────────
+  const TOOL_COMMAND_MAP: Record<string, Waypoint["command"]> = {
+    waypoint: "WAYPOINT",
+    takeoff: "TAKEOFF",
+    land: "LAND",
+    loiter: "LOITER",
+    roi: "ROI",
+  };
+
   const handleMapClick = useCallback(
     (lat: number, lon: number) => {
-      // Rally point placement mode
+      // Rally point tool — route to rally store, not mission waypoints
+      if (activeTool === "rally") {
+        addRallyPoint({
+          id: randomId(),
+          lat: clampLat(lat),
+          lon: clampLon(lon),
+          alt: clampAlt(defaultAlt),
+        });
+        toast("Rally point placed", "success");
+        return;
+      }
+
+      // Legacy rally toggle from panel (keep backward-compatible)
       if (addingRallyPoint) {
         addRallyPoint({
           id: randomId(),
@@ -191,21 +211,27 @@ export function usePlanner() {
         setAddingRallyPoint(false);
         return;
       }
+
+      // Placement tools — create waypoint with appropriate command
+      const command = TOOL_COMMAND_MAP[activeTool];
+      if (!command) return; // select, polygon, circle, measure — no waypoint
+
       if (!activePlanId) {
         toast("Create or select a flight plan first", "info");
         return;
       }
+
       const wp: Waypoint = {
         id: randomId(),
         lat: clampLat(lat),
         lon: clampLon(lon),
-        alt: clampAlt(defaultAlt),
+        alt: command === "LAND" ? 0 : clampAlt(defaultAlt),
         speed: defaultSpeed,
-        command: "WAYPOINT",
+        command,
       };
       addWaypoint(wp);
     },
-    [activePlanId, addWaypoint, addRallyPoint, addingRallyPoint, defaultAlt, defaultSpeed, toast]
+    [activePlanId, activeTool, addWaypoint, addRallyPoint, addingRallyPoint, defaultAlt, defaultSpeed, toast]
   );
 
   const handleMapRightClick = useCallback(
@@ -454,8 +480,6 @@ export function usePlanner() {
   /** Handle a completed drawing shape (polygon or circle). */
   const handleDrawingComplete = useCallback(
     (shape: DrawnPolygon | DrawnCircle) => {
-      setActiveTool("select");
-
       const patternStore = usePatternStore.getState();
       const patternType = patternStore.activePatternType;
       const geoStore = useGeofenceStore.getState();
@@ -484,7 +508,7 @@ export function usePlanner() {
         }
       }
     },
-    [setActiveTool, geofenceEnabled, toast]
+    [geofenceEnabled, toast]
   );
 
   /** Apply generated pattern waypoints to the mission. */

@@ -29,7 +29,9 @@ export type WaypointCommand =
   | "DO_AUX_FUNCTION";
 
 /** Available tools in the map toolbar. */
-export type PlannerTool = "select" | "waypoint" | "polygon" | "circle" | "measure";
+export type PlannerTool =
+  | "select" | "waypoint" | "polygon" | "circle" | "measure"
+  | "takeoff" | "land" | "loiter" | "roi" | "rally";
 
 /** Altitude reference frame for waypoints. */
 export type AltitudeFrame = "relative" | "absolute" | "terrain";

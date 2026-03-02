@@ -10,6 +10,7 @@
 import {
   MousePointer2, MapPin, Pentagon, Circle, Ruler,
   Undo2, Redo2, Trash2,
+  ArrowUpFromLine, ArrowDownToLine, CircleDot, Crosshair, Flag,
 } from "lucide-react";
 import { Tooltip } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -25,13 +26,28 @@ interface MapToolbarProps {
   onClearAll: () => void;
 }
 
-const tools: { id: PlannerTool; icon: typeof MapPin; label: string; shortcut: string }[] = [
+type ToolDef = { id: PlannerTool; icon: typeof MapPin; label: string; shortcut?: string };
+
+const navTools: ToolDef[] = [
   { id: "select", icon: MousePointer2, label: "Select", shortcut: "V" },
+];
+
+const placementTools: ToolDef[] = [
   { id: "waypoint", icon: MapPin, label: "Waypoint", shortcut: "W" },
+  { id: "takeoff", icon: ArrowUpFromLine, label: "Takeoff" },
+  { id: "land", icon: ArrowDownToLine, label: "Land" },
+  { id: "loiter", icon: CircleDot, label: "Loiter" },
+  { id: "roi", icon: Crosshair, label: "ROI" },
+  { id: "rally", icon: Flag, label: "Rally" },
+];
+
+const drawingTools: ToolDef[] = [
   { id: "polygon", icon: Pentagon, label: "Polygon", shortcut: "P" },
   { id: "circle", icon: Circle, label: "Circle", shortcut: "C" },
   { id: "measure", icon: Ruler, label: "Measure", shortcut: "M" },
 ];
+
+const toolGroups: ToolDef[][] = [navTools, placementTools, drawingTools];
 
 function ToolButton({
   active,
@@ -76,15 +92,20 @@ export function MapToolbar({
 }: MapToolbarProps) {
   return (
     <div className="absolute top-3 left-3 z-[1000] flex flex-col bg-bg-secondary/95 border border-border-default">
-      {tools.map((t) => (
-        <ToolButton
-          key={t.id}
-          active={activeTool === t.id}
-          onClick={() => onToolChange(t.id)}
-          tooltip={`${t.label} (${t.shortcut})`}
-        >
-          <t.icon size={16} />
-        </ToolButton>
+      {toolGroups.map((group, gi) => (
+        <div key={gi}>
+          {gi > 0 && <div className="h-px bg-border-default" />}
+          {group.map((t) => (
+            <ToolButton
+              key={t.id}
+              active={activeTool === t.id}
+              onClick={() => onToolChange(t.id)}
+              tooltip={t.shortcut ? `${t.label} (${t.shortcut})` : t.label}
+            >
+              <t.icon size={16} />
+            </ToolButton>
+          ))}
+        </div>
       ))}
 
       <div className="h-px bg-border-default" />

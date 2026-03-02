@@ -15,7 +15,7 @@ import { usePatternStore } from "@/stores/pattern-store";
 import { useDrawingStore } from "@/stores/drawing-store";
 import { formatDistance, formatArea } from "@/lib/drawing/geo-utils";
 import { CAMERA_PROFILES, computeGSD, computeLineSpacing, computeTriggerDistance } from "@/lib/patterns/gsd-calculator";
-import { Grid3X3, Circle, Route, Play, Trash2, Search, Building, Camera, AlertTriangle } from "lucide-react";
+import { Grid3X3, Circle, Route, Play, Trash2, Search, Building, Camera, AlertTriangle, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const PATTERN_TYPE_OPTIONS = [
@@ -52,7 +52,11 @@ const CAMERA_OPTIONS = [
 
 const VALID_PATTERN_TYPES = new Set(PATTERN_TYPE_OPTIONS.map((o) => o.value));
 
-export function PatternEditor() {
+interface PatternEditorProps {
+  onApply?: () => void;
+}
+
+export function PatternEditor({ onApply }: PatternEditorProps) {
   const activeType = usePatternStore((s) => s.activePatternType);
   const setPatternType = usePatternStore((s) => s.setPatternType);
   const surveyConfig = usePatternStore((s) => s.surveyConfig);
@@ -658,6 +662,21 @@ export function PatternEditor() {
             )}
           </div>
         </div>
+      )}
+
+      {/* Apply to Mission button */}
+      {patternResult && onApply && (
+        <button
+          onClick={onApply}
+          className={cn(
+            "w-full flex items-center justify-center gap-1.5 py-2 text-xs font-mono font-semibold",
+            "bg-accent-lime/20 text-accent-lime border border-accent-lime/30",
+            "hover:bg-accent-lime/30 transition-colors cursor-pointer"
+          )}
+        >
+          <Check size={12} />
+          Apply to Mission ({patternResult.waypoints.length} WP)
+        </button>
       )}
     </div>
   );

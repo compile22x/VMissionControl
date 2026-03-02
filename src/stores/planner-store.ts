@@ -51,7 +51,7 @@ interface PlannerStoreState {
 export const usePlannerStore = create<PlannerStoreState>()(
   persist(
     (set) => ({
-  activeTool: "waypoint",
+  activeTool: "select",
   panelCollapsed: false,
   altProfileCollapsed: true,
   expandedWaypointId: null,

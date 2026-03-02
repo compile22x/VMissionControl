@@ -102,6 +102,7 @@ export default function MissionPlannerPage() {
               onWaypointClick={p.handleWaypointClick}
               onWaypointDragEnd={p.handleWaypointDragEnd}
               onWaypointRightClick={p.handleWaypointRightClick}
+              onDrawingComplete={p.handleDrawingComplete}
             />
 
             <MapToolbar
@@ -175,7 +176,7 @@ export default function MissionPlannerPage() {
                 </CollapsibleSection>
 
                 <CollapsibleSection title="Flight Patterns" open={patternOpen} onToggle={togglePattern}>
-                  <PatternEditor />
+                  <PatternEditor onApply={p.handlePatternApply} />
                 </CollapsibleSection>
 
                 <CollapsibleSection

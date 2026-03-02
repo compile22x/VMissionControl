@@ -12,6 +12,7 @@ import { useEffect, useCallback, useMemo, useState, useRef } from "react";
 import dynamic from "next/dynamic";
 import type { Waypoint, PlannerTool } from "@/lib/types";
 import type { RallyPoint } from "@/stores/rally-store";
+import type { DrawnPolygon, DrawnCircle } from "@/lib/drawing/types";
 import { haversineDistance, bearing } from "@/lib/telemetry-utils";
 import { DEFAULT_CENTER, MAP_COLORS } from "@/lib/map-constants";
 import { DrawingManager } from "@/lib/drawing/drawing-manager";
@@ -91,13 +92,37 @@ function formatDist(m: number): string {
   return m >= 1000 ? `${(m / 1000).toFixed(1)}km` : `${Math.round(m)}m`;
 }
 
+const PLACEMENT_TOOLS: PlannerTool[] = ["waypoint", "takeoff", "land", "loiter", "roi", "rally"];
+
 const TOOL_CURSORS: Record<PlannerTool, string> = {
   select: "default",
   waypoint: "crosshair",
+  takeoff: "crosshair",
+  land: "crosshair",
+  loiter: "crosshair",
+  roi: "crosshair",
+  rally: "crosshair",
   polygon: "crosshair",
   circle: "crosshair",
   measure: "help",
 };
+
+const TOOL_INSTRUCTIONS: Partial<Record<PlannerTool, string>> = {
+  takeoff: "Click map to place takeoff point",
+  land: "Click map to place landing point",
+  loiter: "Click map to place loiter point",
+  roi: "Click map to set region of interest",
+  rally: "Click map to place rally point",
+};
+
+function makeMeasureLabel(text: string): L.DivIcon {
+  return L.divIcon({
+    className: "",
+    iconSize: [120, 20],
+    iconAnchor: [60, -4],
+    html: `<div style="font-size:10px;font-family:JetBrains Mono,monospace;color:${MAP_COLORS.foreground};white-space:nowrap;text-align:center;background:rgba(10,10,15,0.85);padding:2px 6px;border:1px solid ${MAP_COLORS.muted}">${text}</div>`,
+  });
+}
 
 interface PlannerMapProps {
   waypoints: Waypoint[];
@@ -110,6 +135,7 @@ interface PlannerMapProps {
   onWaypointClick: (id: string) => void;
   onWaypointDragEnd: (id: string, lat: number, lon: number) => void;
   onWaypointRightClick: (id: string, x: number, y: number) => void;
+  onDrawingComplete?: (shape: DrawnPolygon | DrawnCircle) => void;
 }
 
 export function PlannerMap({
@@ -123,6 +149,7 @@ export function PlannerMap({
   onWaypointClick,
   onWaypointDragEnd,
   onWaypointRightClick,
+  onDrawingComplete,
 }: PlannerMapProps) {
   const [mapInstance, setMapInstance] = useState<L.Map | null>(null);
   const [zoom, setZoom] = useState(13);
@@ -134,6 +161,7 @@ export function PlannerMap({
   const addCircle = useDrawingStore((s) => s.addCircle);
   const setMeasureLine = useDrawingStore((s) => s.setMeasureLine);
   const setActiveDrawingVertices = useDrawingStore((s) => s.setActiveDrawingVertices);
+  const measureLine = useDrawingStore((s) => s.measureLine);
 
   const isDrawingTool = DRAWING_TOOLS.includes(activeTool);
 
@@ -159,13 +187,17 @@ export function PlannerMap({
       onPolygonComplete: (vertices) => {
         const id = randomId();
         const area = polygonArea(vertices);
-        addPolygon({ id, vertices, area });
+        const shape: DrawnPolygon = { id, vertices, area };
+        addPolygon(shape);
+        onDrawingComplete?.(shape);
         setDrawingMode(null);
         setActiveDrawingVertices([]);
       },
       onCircleComplete: (center, radius) => {
         const id = randomId();
-        addCircle({ id, center, radius });
+        const shape: DrawnCircle = { id, center, radius };
+        addCircle(shape);
+        onDrawingComplete?.(shape);
         setDrawingMode(null);
       },
       onMeasureUpdate: (points, segmentDistances, totalDistance) => {
@@ -179,7 +211,7 @@ export function PlannerMap({
         setActiveDrawingVertices([]);
       },
     });
-  }, [addPolygon, addCircle, setMeasureLine, setDrawingMode, setActiveDrawingVertices]);
+  }, [addPolygon, addCircle, setMeasureLine, setDrawingMode, setActiveDrawingVertices, onDrawingComplete]);
 
   // Route activeTool changes to DrawingManager
   useEffect(() => {
@@ -197,7 +229,7 @@ export function PlannerMap({
       setMeasureLine(null);
       manager.startMeasure();
     } else {
-      // select or waypoint: cancel any active drawing
+      // select, placement tools: cancel any active drawing
       if (manager.getMode() !== null) {
         manager.cancelDraw();
         setDrawingMode(null);
@@ -206,18 +238,34 @@ export function PlannerMap({
     }
   }, [activeTool, setDrawingMode, setMeasureLine, setActiveDrawingVertices]);
 
+  // Auto-restart drawing when previous draw completes but tool is still active
+  useEffect(() => {
+    const manager = drawingManagerRef.current;
+    if (!manager || drawingMode !== null) return;
+    if (activeTool === "polygon") {
+      setDrawingMode("polygon");
+      manager.startPolygonDraw();
+    } else if (activeTool === "circle") {
+      setDrawingMode("circle");
+      manager.startCircleDraw();
+    }
+    // Measure: don't auto-restart (single measurement is the typical use)
+  }, [drawingMode, activeTool, setDrawingMode]);
+
   // Map click handler: only fire for waypoint tool (not drawing tools)
   useEffect(() => {
     if (!mapInstance) return;
 
     const clickHandler = (e: L.LeafletMouseEvent) => {
-      if (activeTool === "waypoint") {
+      if (PLACEMENT_TOOLS.includes(activeTool)) {
         onMapClick(e.latlng.lat, e.latlng.lng);
       }
       // Drawing tools handle their own click events via DrawingManager
     };
 
     const contextHandler = (e: L.LeafletMouseEvent) => {
+      // Suppress context menu during drawing
+      if (DRAWING_TOOLS.includes(activeTool)) return;
       e.originalEvent.preventDefault();
       const point = mapInstance.latLngToContainerPoint(e.latlng);
       const rect = mapInstance.getContainer().getBoundingClientRect();
@@ -337,10 +385,49 @@ export function PlannerMap({
             interactive={false}
           />
         ))}
+
+        {/* Measure line overlay */}
+        {measureLine && measureLine.points.length >= 2 && (
+          <>
+            <Polyline
+              positions={measureLine.points.map((p) => [p[0], p[1]] as [number, number])}
+              pathOptions={{ color: MAP_COLORS.muted, weight: 2, dashArray: "4 4" }}
+            />
+            {measureLine.points.map((pt, i) =>
+              i > 0 ? (
+                <Marker
+                  key={`meas-seg-${i}`}
+                  position={[
+                    (pt[0] + measureLine.points[i - 1][0]) / 2,
+                    (pt[1] + measureLine.points[i - 1][1]) / 2,
+                  ]}
+                  icon={makeSegmentLabel(formatDist(measureLine.segmentDistances[i - 1]))}
+                  interactive={false}
+                />
+              ) : null
+            )}
+            <Marker
+              position={measureLine.points[measureLine.points.length - 1]}
+              icon={makeMeasureLabel(`Total: ${formatDist(measureLine.totalDistance)}`)}
+              interactive={false}
+            />
+          </>
+        )}
       </MapContainer>
 
-      {/* Instructions overlay */}
-      {waypoints.length === 0 && !isDrawingTool && (
+      {/* Instructions overlay — placement tools */}
+      {TOOL_INSTRUCTIONS[activeTool] && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] pointer-events-none">
+          <div className="bg-bg-secondary/90 border border-accent-primary/30 px-3 py-1.5">
+            <span className="text-xs text-accent-primary font-mono">
+              {TOOL_INSTRUCTIONS[activeTool]}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Instructions overlay — default (no waypoints, no special tool) */}
+      {waypoints.length === 0 && !isDrawingTool && !TOOL_INSTRUCTIONS[activeTool] && (
         <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] pointer-events-none">
           <div className="bg-bg-secondary/90 border border-border-default px-3 py-1.5">
             <span className="text-xs text-text-secondary font-mono">
