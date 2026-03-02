@@ -22,6 +22,8 @@ interface DroneEntityProps {
   viewer: CesiumViewer | null;
   positionProperty: SampledPositionProperty | null;
   headingProperty: SampledProperty | null;
+  /** When true, positions are absolute (terrain-resolved). Use HeightReference.NONE. */
+  useAbsoluteAlt?: boolean;
 }
 
 const DRONE_ENTITY_ID = "sim-drone";
@@ -31,7 +33,7 @@ const ARROW_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32
 </svg>`;
 const ARROW_DATA_URL = `data:image/svg+xml;base64,${typeof window !== "undefined" ? btoa(ARROW_SVG) : ""}`;
 
-export function DroneEntity({ viewer, positionProperty, headingProperty }: DroneEntityProps) {
+export function DroneEntity({ viewer, positionProperty, headingProperty, useAbsoluteAlt = false }: DroneEntityProps) {
   const droneRef = useRef<Entity | null>(null);
 
   useEffect(() => {
@@ -47,7 +49,7 @@ export function DroneEntity({ viewer, positionProperty, headingProperty }: Drone
         // SampledProperty IS a Property — CesiumJS evaluates it natively
         rotation: headingProperty ?? undefined,
         alignedAxis: Cartesian3.UNIT_Z,
-        heightReference: HeightReference.RELATIVE_TO_GROUND,
+        heightReference: useAbsoluteAlt ? HeightReference.NONE : HeightReference.RELATIVE_TO_GROUND,
         disableDepthTestDistance: Number.POSITIVE_INFINITY,
       },
     });

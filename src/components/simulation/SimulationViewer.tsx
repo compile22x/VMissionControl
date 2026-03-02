@@ -15,13 +15,16 @@ import type { Viewer as CesiumViewer } from "cesium";
 import type { Waypoint } from "@/lib/types";
 import { computeFlightPlan } from "@/lib/simulation-utils";
 import { buildSampledProperties } from "@/lib/build-sampled-properties";
+import { resolveAGLToAbsolute, type ResolvedPath } from "@/lib/terrain-utils";
 import { useSimulationStore } from "@/stores/simulation-store";
+import { useSettingsStore } from "@/stores/settings-store";
 import { useSimClock } from "@/hooks/use-sim-clock";
 import { useSimCamera } from "@/hooks/use-sim-camera";
 import { useSimCompletion } from "@/hooks/use-sim-completion";
 import { useConvexAvailable } from "@/app/ConvexClientProvider";
 import { communityApi } from "@/lib/community-api";
 
+import { MapPin } from "lucide-react";
 import CesiumScene from "./CesiumScene";
 import { FlightPathEntity } from "./FlightPathEntity";
 import { WaypointEntities } from "./WaypointEntities";
@@ -30,6 +33,7 @@ import { GcsEntity } from "./GcsEntity";
 import { PlaybackControls } from "./PlaybackControls";
 import { SimulationHUD } from "./SimulationHUD";
 import { CameraModeSelector } from "./CameraModeSelector";
+import { MapControlsPanel } from "./MapControlsPanel";
 
 /** Fetches Cesium Ion token from Convex. Only mount when Convex is available. */
 function ConvexCesiumToken({ onToken }: { onToken: (token: string | null) => void }) {
@@ -57,14 +61,52 @@ export function SimulationViewer({ waypoints, defaultSpeed }: SimulationViewerPr
     setCesiumToken(t ?? undefined);
   }, []);
 
+  // Map control settings
+  const cesiumImageryMode = useSettingsStore((s) => s.cesiumImageryMode);
+  const cesiumBuildingsEnabled = useSettingsStore((s) => s.cesiumBuildingsEnabled);
+  const terrainExaggeration = useSettingsStore((s) => s.terrainExaggeration);
+  const showPathLabels = useSettingsStore((s) => s.showPathLabels);
+
   const flightPlan = useMemo(
     () => computeFlightPlan(waypoints, defaultSpeed),
     [waypoints, defaultSpeed]
   );
 
+  // ── Terrain-resolved positions for 3D flight path ──────────
+  const [resolvedPath, setResolvedPath] = useState<ResolvedPath | null>(null);
+
+  useEffect(() => {
+    if (!viewer || viewer.isDestroyed() || waypoints.length < 2) {
+      setResolvedPath(null);
+      return;
+    }
+
+    let cancelled = false;
+    const terrainProvider = viewer.scene.globe.terrainProvider;
+
+    resolveAGLToAbsolute(waypoints, terrainProvider)
+      .then((result) => {
+        if (!cancelled) setResolvedPath(result);
+      })
+      .catch(() => {
+        // Terrain sampling failed — FlightPathEntity falls back to clamped path
+        if (!cancelled) setResolvedPath(null);
+      });
+
+    return () => { cancelled = true; };
+  }, [viewer, waypoints]);
+
+  // Extract waypoint-only resolved positions for drone sampled properties
+  const waypointPositions = useMemo(() => {
+    if (!resolvedPath) return undefined;
+    return resolvedPath.waypointIndices.map((idx) => resolvedPath.positions[idx]);
+  }, [resolvedPath]);
+
+  const hasAbsolutePositions = !!waypointPositions;
+
   const sampled = useMemo(
-    () => buildSampledProperties(waypoints, flightPlan),
-    [waypoints, flightPlan]
+    () => buildSampledProperties(waypoints, flightPlan, waypointPositions),
+    [waypoints, flightPlan, waypointPositions]
   );
 
   // Reset simulation when waypoints change
@@ -79,7 +121,7 @@ export function SimulationViewer({ waypoints, defaultSpeed }: SimulationViewerPr
   }, [flightPlan.totalDuration]);
 
   // Hooks handle all CesiumJS lifecycle
-  useSimClock(viewer, sampled, flightPlan.totalDuration);
+  useSimClock(viewer, sampled, flightPlan.totalDuration, hasAbsolutePositions);
   useSimCamera(viewer, waypoints, flightPlan);
   useSimCompletion(waypoints);
 
@@ -88,20 +130,46 @@ export function SimulationViewer({ waypoints, defaultSpeed }: SimulationViewerPr
   return (
     <div className="flex-1 relative min-w-0 h-full">
       {convexAvailable && <ConvexCesiumToken onToken={handleCesiumToken} />}
-      <CesiumScene cesiumToken={cesiumToken} onReady={handleViewerReady} onError={(e) => setViewerError(e.message)} />
+      <CesiumScene
+        cesiumToken={cesiumToken}
+        onReady={handleViewerReady}
+        onError={(e) => setViewerError(e.message)}
+        imageryMode={cesiumImageryMode}
+        buildingsEnabled={cesiumBuildingsEnabled}
+        terrainExaggeration={terrainExaggeration}
+      />
 
-      <FlightPathEntity viewer={viewer} waypoints={waypoints} />
+      <FlightPathEntity
+        viewer={viewer}
+        waypoints={waypoints}
+        resolvedPositions={resolvedPath?.positions ?? null}
+        waypointIndices={resolvedPath?.waypointIndices}
+        terrainHeights={resolvedPath?.terrainHeights}
+        showLabels={showPathLabels}
+      />
       <WaypointEntities viewer={viewer} waypoints={waypoints} />
       <DroneEntity
         viewer={viewer}
         positionProperty={sampled?.sampledPosition ?? null}
         headingProperty={sampled?.sampledHeading ?? null}
+        useAbsoluteAlt={hasAbsolutePositions}
       />
       <GcsEntity viewer={viewer} />
 
       <CameraModeSelector />
+      <MapControlsPanel hasIonToken={!!cesiumToken} />
       <SimulationHUD />
       <PlaybackControls waypoints={waypoints} totalDuration={flightPlan.totalDuration} />
+
+      {/* Loading state */}
+      {!viewer && !viewerError && (
+        <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-8 h-8 border-2 border-accent-primary/30 border-t-accent-primary rounded-full animate-spin" />
+            <p className="text-sm text-text-secondary">Initializing 3D view...</p>
+          </div>
+        </div>
+      )}
 
       {/* Error state */}
       {viewerError && (
@@ -113,11 +181,13 @@ export function SimulationViewer({ waypoints, defaultSpeed }: SimulationViewerPr
       )}
 
       {/* Empty state */}
-      {waypoints.length < 2 && !viewerError && (
+      {waypoints.length < 2 && !viewerError && viewer && (
         <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
-          <div className="bg-bg-primary/80 backdrop-blur-md rounded-lg px-6 py-4 border border-border-default text-center">
-            <p className="text-sm text-text-secondary">
-              Add at least 2 waypoints in the Plan tab to simulate
+          <div className="bg-bg-primary/80 backdrop-blur-md rounded-lg px-8 py-6 border border-border-default text-center max-w-xs">
+            <MapPin size={32} className="text-text-tertiary mx-auto mb-3" />
+            <p className="text-sm font-semibold text-text-primary mb-1">No flight plan loaded</p>
+            <p className="text-xs text-text-tertiary">
+              Add at least 2 waypoints in the Plan tab or load a plan from the library
             </p>
           </div>
         </div>

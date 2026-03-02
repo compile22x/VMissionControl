@@ -61,7 +61,12 @@ function seekClock(seconds: number) {
       seconds,
       _scratchJulian
     );
+    requestRender();
   }
+}
+
+function requestRender() {
+  if (_viewer && !_viewer.isDestroyed()) _viewer.scene.requestRender();
 }
 
 export const useSimulationStore = create<SimulationStoreState>()((set, get) => ({
@@ -136,7 +141,7 @@ export const useSimulationStore = create<SimulationStoreState>()((set, get) => (
       _viewer.clock.stopTime = JulianDate.addSeconds(
         _startJulian,
         totalDuration,
-        new JulianDate()
+        _scratchJulian
       );
     }
   },

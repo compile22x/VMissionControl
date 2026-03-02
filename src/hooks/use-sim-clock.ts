@@ -24,6 +24,9 @@ import {
 } from "@/stores/simulation-store";
 import type { SampledProperties } from "@/lib/build-sampled-properties";
 
+/** Distance threshold for terrain cache invalidation (~10m in radians). */
+const CACHE_THRESHOLD_RAD = 10 / 6_371_000;
+
 /**
  * Manage CesiumJS Clock lifecycle: configure start/stop times,
  * bind to store, sync elapsed per tick, drive follow camera.
@@ -31,11 +34,18 @@ import type { SampledProperties } from "@/lib/build-sampled-properties";
 export function useSimClock(
   viewer: CesiumViewer | null,
   sampled: SampledProperties | null,
-  totalDuration: number
+  totalDuration: number,
+  /** When true, sampled positions are absolute — skip terrain adjustment in follow cam. */
+  useAbsolutePositions = false
 ): void {
   // Refs for onTick callback (avoids stale closures)
   const sampledRef = useRef(sampled);
   sampledRef.current = sampled;
+  const absoluteRef = useRef(useAbsolutePositions);
+  absoluteRef.current = useAbsolutePositions;
+
+  // Terrain height cache — avoids per-frame globe.getHeight() calls
+  const terrainCache = useRef({ lon: 0, lat: 0, height: 0 });
 
   // Effect 1: Configure Clock + bind to store
   useEffect(() => {
@@ -74,12 +84,34 @@ export function useSimClock(
         const pos = s.sampledPosition.getValue(clock.currentTime);
         const hdg = s.sampledHeading.getValue(clock.currentTime);
         if (pos) {
-          // Terrain-adjust: pos altitude is AGL above ellipsoid, offset by terrain height
-          const carto = Cartographic.fromCartesian(pos);
-          const terrainH = viewer.scene.globe.getHeight(carto);
-          const adjustedPos = terrainH !== undefined
-            ? Cartesian3.fromRadians(carto.longitude, carto.latitude, carto.height + terrainH)
-            : pos;
+          let adjustedPos: Cartesian3;
+
+          if (absoluteRef.current) {
+            // Positions are already absolute — no terrain adjustment needed
+            adjustedPos = pos;
+          } else {
+            // AGL mode: offset by terrain height with caching
+            const carto = Cartographic.fromCartesian(pos);
+            const cache = terrainCache.current;
+            const dLon = Math.abs(carto.longitude - cache.lon);
+            const dLat = Math.abs(carto.latitude - cache.lat);
+
+            if (dLon > CACHE_THRESHOLD_RAD || dLat > CACHE_THRESHOLD_RAD) {
+              const h = viewer.scene.globe.getHeight(carto);
+              if (h !== undefined) {
+                cache.lon = carto.longitude;
+                cache.lat = carto.latitude;
+                cache.height = h;
+              }
+            }
+
+            adjustedPos = Cartesian3.fromRadians(
+              carto.longitude,
+              carto.latitude,
+              carto.height + cache.height
+            );
+          }
+
           const transform = Transforms.eastNorthUpToFixedFrame(adjustedPos);
           const rawRange = Cartesian3.magnitude(viewer.camera.position);
           const range = Math.max(20, Math.min(10000, rawRange > 0 ? rawRange : 200));
@@ -93,6 +125,9 @@ export function useSimClock(
           );
         }
       }
+
+      // 3. Request render for requestRenderMode support
+      viewer.scene.requestRender();
     };
 
     viewer.clock.onTick.addEventListener(onTick);

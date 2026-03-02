@@ -75,6 +75,14 @@ interface SettingsStoreState {
   locationEnabled: boolean;
   /** Last active FC configure panel ID (persisted for QoL). */
   lastActivePanel: string;
+  /** Cesium 3D viewer imagery mode. */
+  cesiumImageryMode: "dark" | "satellite";
+  /** Whether Cesium OSM Buildings 3D tileset is enabled. */
+  cesiumBuildingsEnabled: boolean;
+  /** Terrain exaggeration factor (1 = normal). */
+  terrainExaggeration: number;
+  /** Whether distance/altitude labels are shown on flight paths. */
+  showPathLabels: boolean;
 
   setMapTileSource: (source: MapTileSource) => void;
   setUnits: (units: UnitSystem) => void;
@@ -96,6 +104,10 @@ interface SettingsStoreState {
   setAutoConnectOnLoad: (enabled: boolean) => void;
   setLocationEnabled: (enabled: boolean) => void;
   setLastActivePanel: (panelId: string) => void;
+  setCesiumImageryMode: (mode: "dark" | "satellite") => void;
+  setCesiumBuildingsEnabled: (enabled: boolean) => void;
+  setTerrainExaggeration: (value: number) => void;
+  setShowPathLabels: (show: boolean) => void;
 }
 
 export const useSettingsStore = create<SettingsStoreState>()(
@@ -127,6 +139,10 @@ export const useSettingsStore = create<SettingsStoreState>()(
       autoConnectOnLoad: true,
       locationEnabled: false,
       lastActivePanel: "outputs",
+      cesiumImageryMode: "dark",
+      cesiumBuildingsEnabled: false,
+      terrainExaggeration: 1,
+      showPathLabels: false,
 
       setMapTileSource: (mapTileSource) => set({ mapTileSource }),
       setUnits: (units) => set({ units }),
@@ -154,11 +170,15 @@ export const useSettingsStore = create<SettingsStoreState>()(
       setAutoConnectOnLoad: (autoConnectOnLoad) => set({ autoConnectOnLoad }),
       setLocationEnabled: (locationEnabled) => set({ locationEnabled }),
       setLastActivePanel: (lastActivePanel) => set({ lastActivePanel }),
+      setCesiumImageryMode: (cesiumImageryMode) => set({ cesiumImageryMode }),
+      setCesiumBuildingsEnabled: (cesiumBuildingsEnabled) => set({ cesiumBuildingsEnabled }),
+      setTerrainExaggeration: (terrainExaggeration) => set({ terrainExaggeration }),
+      setShowPathLabels: (showPathLabels) => set({ showPathLabels }),
     }),
     {
       name: "altcmd:settings",
       storage: createJSONStorage(indexedDBStorage.storage),
-      version: 11,
+      version: 12,
       migrate: (persisted, version) => {
         const state = persisted as Record<string, unknown>;
         if (version < 2) {
@@ -204,6 +224,13 @@ export const useSettingsStore = create<SettingsStoreState>()(
         if (version < 11) {
           // v11: jurisdiction is now nullable — existing users keep their value
           // (no change needed, their persisted value is preserved)
+        }
+        if (version < 12) {
+          // v12: Cesium 3D viewer settings
+          state.cesiumImageryMode = "dark";
+          state.cesiumBuildingsEnabled = false;
+          state.terrainExaggeration = 1;
+          state.showPathLabels = false;
         }
         return state as unknown as SettingsStoreState;
       },

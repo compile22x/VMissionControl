@@ -182,16 +182,26 @@ Connect your FC via USB, open Command in Chrome 89+, click connect → WebSerial
 
 ## Environment Variables
 
-All optional. Command works standalone with zero config.
+All optional. Command works standalone with zero config. Use `npm run cli config` to set these interactively, or create `.env.local` manually.
+
+### Local (`.env.local`)
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `NEXT_PUBLIC_DEMO_MODE` | `false` | 5 simulated drones with full mock MAVLink |
+| `NEXT_PUBLIC_DEMO_DRONE_COUNT` | `5` | Number of simulated drones in demo mode (1, 3, 5, or 10) |
 | `NEXT_PUBLIC_CONVEX_URL` | — | Convex backend for cloud fleet management |
+| `GITHUB_TOKEN` | — | Raises PX4 releases API from 60 to 5000 req/hr |
 
-For 3D simulation with Cesium World Terrain, set `CESIUM_ION_TOKEN` in the Convex dashboard (Settings > Environment Variables). Get a free token at [ion.cesium.com](https://ion.cesium.com). Without it, the simulation view falls back to ArcGIS elevation data.
+### Convex Server (set via dashboard or `npx convex env set`)
 
-Use `npm run cli config` to set these interactively, or create `.env.local` manually.
+These run inside Convex functions, not in Next.js. Only needed if you use cloud features.
+
+| Variable | Description |
+|----------|-------------|
+| `CESIUM_ION_TOKEN` | 3D terrain for simulation. Free at [ion.cesium.com](https://ion.cesium.com). Without it, simulation falls back to ArcGIS elevation. |
+| `GROQ_API_KEY` | AI changelog summaries from commits. Free at [console.groq.com](https://console.groq.com). |
+| `GITHUB_TOKEN` | GitHub API auth for changelog sync (5000 req/hr vs 60 unauthenticated). |
 
 ---
 

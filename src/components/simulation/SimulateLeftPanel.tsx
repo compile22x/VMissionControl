@@ -14,6 +14,7 @@ import { WaypointInspector } from "./WaypointInspector";
 import { CameraPresetsSection } from "./CameraPresetsSection";
 import { SimQuickActions } from "./SimQuickActions";
 import { SimulationHistory } from "./SimulationHistory";
+import { KeyboardShortcuts } from "./KeyboardShortcuts";
 
 interface SimulateLeftPanelProps {
   onPlanLoaded?: (plan: { name: string; droneId?: string; suiteType?: string }) => void;
@@ -51,6 +52,7 @@ export function SimulateLeftPanel({ onPlanLoaded }: SimulateLeftPanelProps) {
         <CameraPresetsSection />
         <SimQuickActions />
         <SimulationHistory />
+        <KeyboardShortcuts />
       </div>
     </div>
   );

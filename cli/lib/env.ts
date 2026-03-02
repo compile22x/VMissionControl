@@ -4,6 +4,7 @@ import { ENV_FILE, ENV_EXAMPLE } from './paths.js';
 export const ENV_KEYS = [
   'NEXT_PUBLIC_DEMO_MODE',
   'NEXT_PUBLIC_CONVEX_URL',
+  'GITHUB_TOKEN',
 ] as const;
 
 export type EnvKey = (typeof ENV_KEYS)[number];
@@ -11,6 +12,7 @@ export type EnvKey = (typeof ENV_KEYS)[number];
 export const ENV_DESCRIPTIONS: Record<EnvKey, string> = {
   NEXT_PUBLIC_DEMO_MODE: 'Demo mode — mock flight engine with simulated drones',
   NEXT_PUBLIC_CONVEX_URL: 'Convex backend URL (optional — cloud fleet management)',
+  GITHUB_TOKEN: 'GitHub token (optional — raises PX4 firmware API to 5000 req/hr)',
 };
 
 export function readEnvFile(filePath = ENV_FILE): Map<string, string> {

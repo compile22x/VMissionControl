@@ -15,6 +15,7 @@ import { useSimulationStore } from "@/stores/simulation-store";
 import { useInterpolatedPosition } from "@/hooks/use-interpolated-position";
 import { usePlannerStore } from "@/stores/planner-store";
 import { cn } from "@/lib/utils";
+import { AltitudeProfile } from "./AltitudeProfile";
 
 interface SimulationPanelProps {
   waypoints: Waypoint[];
@@ -66,6 +67,14 @@ export function SimulationPanel({
           <span className="text-[10px] font-mono text-text-tertiary">State</span>
           <p className="text-xs font-mono text-text-primary capitalize">{playbackState}</p>
         </div>
+      </div>
+
+      {/* Altitude profile */}
+      <div className="px-3 py-2 border-b border-border-default">
+        <h3 className="text-[10px] font-mono text-text-tertiary uppercase tracking-wider mb-1">
+          Altitude Profile
+        </h3>
+        <AltitudeProfile waypoints={waypoints} flightPlan={flightPlan} />
       </div>
 
       {/* Waypoint progress list */}

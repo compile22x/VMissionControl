@@ -17,6 +17,8 @@ export async function configCommand(): Promise<void> {
         { value: 'view', label: 'View current config' },
         { value: 'demo', label: 'Toggle demo mode' },
         { value: 'convex', label: 'Set Convex URL' },
+        { value: 'github', label: 'Set GitHub token', hint: 'PX4 releases API rate limit' },
+        { value: 'convex-env', label: 'Convex server variables', hint: 'info only' },
         { value: 'reset', label: 'Reset to defaults', hint: 'from .env.example' },
         { value: 'done', label: 'Done' },
       ],
@@ -73,6 +75,40 @@ export async function configCommand(): Promise<void> {
         }
         writeEnvFile(ENV_FILE, env);
         p.log.success('Convex URL updated');
+        break;
+      }
+
+      case 'github': {
+        const current = env.get('GITHUB_TOKEN') ?? '';
+        const value = await p.text({
+          message: 'Enter GitHub personal access token (no scopes needed):',
+          placeholder: 'ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+          initialValue: current,
+        });
+        if (p.isCancel(value)) break;
+        if (value) {
+          env.set('GITHUB_TOKEN', value);
+        } else {
+          env.delete('GITHUB_TOKEN');
+        }
+        writeEnvFile(ENV_FILE, env);
+        p.log.success(value ? 'GitHub token saved' : 'GitHub token cleared');
+        break;
+      }
+
+      case 'convex-env': {
+        p.note(
+          [
+            'These variables run inside Convex functions, not in Next.js.',
+            'Set them via the Convex dashboard (Settings > Environment Variables)',
+            'or CLI: npx convex env set KEY value',
+            '',
+            `${pc.bold('CESIUM_ION_TOKEN')}    3D terrain for simulation`,
+            `${pc.bold('GROQ_API_KEY')}        AI changelog summaries`,
+            `${pc.bold('GITHUB_TOKEN')}        GitHub API auth for changelog sync`,
+          ].join('\n'),
+          'Convex Server Variables'
+        );
         break;
       }
 

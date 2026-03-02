@@ -71,6 +71,21 @@ export async function setupCommand(): Promise<void> {
     await configCommand();
   }
 
+  // Convex server variables info
+  p.note(
+    [
+      'If you plan to use cloud features (fleet sync, auth, community),',
+      'you\'ll also need Convex server variables. Set them via:',
+      '',
+      `  ${pc.cyan('npx convex env set CESIUM_ION_TOKEN <token>')}`,
+      `  ${pc.cyan('npx convex env set GROQ_API_KEY <key>')}`,
+      `  ${pc.cyan('npx convex env set GITHUB_TOKEN <token>')}`,
+      '',
+      'See .env.example for details on each variable.',
+    ].join('\n'),
+    'Convex Server Variables (optional)'
+  );
+
   // Quick start guide
   p.note(
     [
