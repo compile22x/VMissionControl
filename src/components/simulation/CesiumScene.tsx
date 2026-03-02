@@ -232,8 +232,8 @@ export default function CesiumScene({
     if (buildingsEnabled) {
       const buildingColor =
         imageryMode === "satellite"
-          ? "color('rgba(30, 35, 50, 0.75)')"
-          : "color('rgba(58, 130, 255, 0.12)')";
+          ? "color('rgba(200, 210, 230, 0.85)')"
+          : "color('rgba(30, 42, 71, 1.0)')";
 
       Cesium3DTileset.fromIonAssetId(96188).then((tileset) => {
         if (cancelled || !viewer || viewer.isDestroyed()) return;

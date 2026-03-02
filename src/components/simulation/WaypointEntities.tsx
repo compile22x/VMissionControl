@@ -32,11 +32,13 @@ import { usePlannerStore } from "@/stores/planner-store";
 interface WaypointEntitiesProps {
   viewer: CesiumViewer | null;
   waypoints: Waypoint[];
+  /** Pre-resolved absolute positions from terrain sampling (matches flight path exactly). */
+  resolvedPositions?: Cartesian3[];
 }
 
 const WP_ENTITY_PREFIX = "sim-wp-";
 
-export function WaypointEntities({ viewer, waypoints }: WaypointEntitiesProps) {
+export function WaypointEntities({ viewer, waypoints, resolvedPositions }: WaypointEntitiesProps) {
   const selectedWaypointId = usePlannerStore((s) => s.selectedWaypointId);
   const entityMapRef = useRef<Map<string, Entity>>(new Map());
 
@@ -46,19 +48,30 @@ export function WaypointEntities({ viewer, waypoints }: WaypointEntitiesProps) {
 
     const entityMap = new Map<string, Entity>();
 
+    // Use resolved positions when available and lengths match, otherwise fall back
+    const useResolved =
+      resolvedPositions && resolvedPositions.length === waypoints.length;
+
     for (let i = 0; i < waypoints.length; i++) {
       const wp = waypoints[i];
       const bgColor = Color.fromCssColorString(MAP_COLORS.accentPrimary);
 
+      const position = useResolved
+        ? resolvedPositions[i]
+        : Cartesian3.fromDegrees(wp.lon, wp.lat, wp.alt);
+      const heightRef = useResolved
+        ? HeightReference.NONE
+        : HeightReference.RELATIVE_TO_GROUND;
+
       const entity = viewer.entities.add({
         id: `${WP_ENTITY_PREFIX}${wp.id}`,
-        position: Cartesian3.fromDegrees(wp.lon, wp.lat, wp.alt),
+        position,
         point: {
           pixelSize: 10,
           color: bgColor,
           outlineColor: Color.WHITE,
           outlineWidth: 1,
-          heightReference: HeightReference.RELATIVE_TO_GROUND,
+          heightReference: heightRef,
           disableDepthTestDistance: Number.POSITIVE_INFINITY,
         },
         label: {
@@ -71,7 +84,7 @@ export function WaypointEntities({ viewer, waypoints }: WaypointEntitiesProps) {
           verticalOrigin: VerticalOrigin.BOTTOM,
           horizontalOrigin: HorizontalOrigin.CENTER,
           pixelOffset: new Cartesian2(0, -16),
-          heightReference: HeightReference.RELATIVE_TO_GROUND,
+          heightReference: heightRef,
           disableDepthTestDistance: Number.POSITIVE_INFINITY,
           showBackground: true,
           backgroundColor: bgColor.withAlpha(0.8),
@@ -91,7 +104,7 @@ export function WaypointEntities({ viewer, waypoints }: WaypointEntitiesProps) {
       }
       entityMapRef.current = new Map();
     };
-  }, [viewer, waypoints]);
+  }, [viewer, waypoints, resolvedPositions]);
 
   // Effect 2 — Selection styling (in-place property updates, no entity recreation)
   useEffect(() => {

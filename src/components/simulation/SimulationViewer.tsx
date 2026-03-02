@@ -173,7 +173,7 @@ export function SimulationViewer({ waypoints, defaultSpeed }: SimulationViewerPr
         showLabels={showPathLabels}
         isResolving={terrainResolving}
       />
-      <WaypointEntities viewer={viewer} waypoints={waypoints} />
+      <WaypointEntities viewer={viewer} waypoints={waypoints} resolvedPositions={waypointPositions} />
       <DroneEntity
         viewer={viewer}
         positionProperty={sampled?.sampledPosition ?? null}
