@@ -20,6 +20,7 @@ import {
   PLANE_AXES, COPTER_AXES, ACRO_PARAMS, FILTER_PARAMS, COPTER_PRESETS,
 } from "./pid-constants";
 import { useParamLabel } from "@/hooks/use-param-label";
+import { PidAnalysisSection } from "./PidAnalysisSection";
 
 export function PidTuningPanel() {
   const getSelectedProtocol = useDroneManager((s) => s.getSelectedProtocol);
@@ -388,6 +389,14 @@ export function PidTuningPanel() {
             )}
           </div>
         )}
+
+        {/* ── AI Analysis & Tuning (expandable) ── */}
+        <PidAnalysisSection
+          vehicleType={vehicleType}
+          params={params}
+          setLocalValue={setLocalValue}
+          connected={connected}
+        />
 
         {/* ── Live PID Response Graph ── */}
         <div className="border border-border-default bg-bg-secondary p-4">
