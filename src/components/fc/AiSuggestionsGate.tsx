@@ -31,6 +31,7 @@ function requestSignIn() {
 
 export function AiSuggestionsGate({ onRequestAi, connected }: AiSuggestionsGateProps) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const isLoading = useAuthStore((s) => s.isLoading);
   const convexAvailable = useConvexAvailable();
 
   const aiRemainingUses = usePidAnalysisStore((s) => s.aiRemainingUses);
@@ -63,6 +64,15 @@ export function AiSuggestionsGate({ onRequestAi, connected }: AiSuggestionsGateP
         onClick={onRequestAi}
         disabled={!connected}
       >
+        Get AI Suggestions
+      </Button>
+    );
+  }
+
+  // Auth still resolving — show disabled button (no sign-in flash)
+  if (isLoading) {
+    return (
+      <Button variant="primary" size="sm" icon={<Sparkles size={12} />} disabled>
         Get AI Suggestions
       </Button>
     );

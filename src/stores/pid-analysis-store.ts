@@ -281,6 +281,14 @@ export const usePidAnalysisStore = create<PidAnalysisState & PidAnalysisActions>
           return;
         }
 
+        if (res.status === 503) {
+          set({
+            error: "AI analysis is not configured on this server. Set GROQ_API_KEY to enable it.",
+            aiLoading: false,
+          });
+          return;
+        }
+
         const data: AiAnalysisResponse = await res.json();
 
         if (res.status === 429) {

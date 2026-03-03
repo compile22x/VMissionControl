@@ -142,7 +142,7 @@ export async function POST(request: NextRequest) {
       error:
         "AI analysis requires GROQ_API_KEY. Set it as an environment variable.",
     };
-    return NextResponse.json(response);
+    return NextResponse.json(response, { status: 503 });
   }
 
   // ── Auth gate ────────────────────────────────────────────────
