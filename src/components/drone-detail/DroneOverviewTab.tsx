@@ -3,6 +3,7 @@
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import { TelemetryReadout } from "@/components/flight/TelemetryReadout";
+import { ActionsPanel } from "@/components/flight/ActionsPanel";
 import { CompactInfoCards } from "@/components/flight/CompactInfoCards";
 import { FlightControlsBar } from "@/components/flight/FlightControlsBar";
 import { OsdOverlay } from "@/components/flight/OsdOverlay";
@@ -53,6 +54,9 @@ export function DroneOverviewTab({ drone }: DroneOverviewTabProps) {
 
         {/* Telemetry readout */}
         <TelemetryReadout />
+
+        {/* Flight actions */}
+        <ActionsPanel />
 
         {/* Drone info cards */}
         <CompactInfoCards drone={drone} />
