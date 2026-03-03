@@ -446,7 +446,7 @@ function DroneScene({ layout }: { layout: FrameLayout }) {
       <pointLight position={[0, 3, 0]} intensity={0.15} color={COLOR_CW} />
 
       {/* Environment for metallic reflections */}
-      <Environment preset="night" />
+      <Environment preset="night" background={false} />
 
       {/* Shadow disc */}
       <ShadowDisc />
@@ -564,11 +564,11 @@ class WebGLErrorBoundary extends Component<
 export function MotorDiagram3D({ layout }: { layout: FrameLayout }) {
   return (
     <WebGLErrorBoundary>
-      <div className="relative h-[360px] w-full min-h-[360px] max-h-[500px]">
+      <div className="relative h-[360px] w-full min-h-[360px] max-h-[500px] bg-[#0a0a0a]">
         <Canvas
           camera={{ position: [4, 3.5, 4], fov: 45 }}
-          gl={{ alpha: true, antialias: true }}
-          style={{ background: "transparent" }}
+          gl={{ antialias: true }}
+          onCreated={({ gl }) => { gl.setClearColor(0x0a0a0a, 1); }}
         >
           <DroneScene layout={layout} />
         </Canvas>

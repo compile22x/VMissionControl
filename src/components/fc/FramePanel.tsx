@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { usePanelParams } from "@/hooks/use-panel-params";
 import { useUnsavedGuard } from "@/hooks/use-unsaved-guard";
 import { useArmedLock } from "@/hooks/use-armed-lock";
+import { useFirmwareCapabilities } from "@/hooks/use-firmware-capabilities";
 import { useDroneManager } from "@/stores/drone-manager";
 import { ArmedLockOverlay } from "@/components/indicators/ArmedLockOverlay";
 import { PanelHeader } from "./PanelHeader";
@@ -38,7 +39,8 @@ const MotorDiagram3D = dynamic(
 
 // ── Constants ────────────────────────────────────────────────
 
-const FRAME_PARAMS = ["FRAME_CLASS", "FRAME_TYPE"];
+const COPTER_FRAME_PARAMS = ["FRAME_CLASS", "FRAME_TYPE"];
+const PLANE_FRAME_PARAMS = ["Q_FRAME_CLASS", "Q_FRAME_TYPE"];
 
 const FRAME_CLASS_OPTIONS = Object.entries(FRAME_CLASS_NAMES).map(([value, label]) => ({
   value: String(Number(value)),
@@ -68,10 +70,29 @@ const LOG_TYPE_COLORS: Record<ConfigLogEntry["type"], string> = {
 export function FramePanel() {
   const { toast } = useToast();
   const { isLocked } = useArmedLock();
+  const { firmwareType } = useFirmwareCapabilities();
 
   // Derive connected state from protocol (like other panels)
   const getSelectedProtocol = useDroneManager((s) => s.getSelectedProtocol);
   const connected = !!getSelectedProtocol();
+
+  // Firmware-aware parameter names
+  const isPlane = firmwareType === "ardupilot-plane";
+  const isCopter = firmwareType === "ardupilot-copter";
+  const isRover = firmwareType === "ardupilot-rover";
+  const isSub = firmwareType === "ardupilot-sub";
+
+  const paramNames = useMemo(() => {
+    if (isPlane) return PLANE_FRAME_PARAMS;
+    return COPTER_FRAME_PARAMS;
+  }, [isPlane]);
+
+  // On plane, QuadPlane params are optional (not all planes have VTOL motors).
+  // On unknown firmware, params are optional too — fail silently.
+  const optionalParams = useMemo(() => {
+    if (isPlane || (!isCopter && !isRover && !isSub)) return paramNames;
+    return [];
+  }, [isPlane, isCopter, isRover, isSub, paramNames]);
 
   // Config log state
   const [logEntries, setLogEntries] = useState<ConfigLogEntry[]>([]);
@@ -105,12 +126,14 @@ export function FramePanel() {
     hasRamWrites,
     loadProgress,
     hasLoaded,
+    missingOptional,
     refresh,
     setLocalValue,
     saveAllToRam,
     commitToFlash,
   } = usePanelParams({
-    paramNames: FRAME_PARAMS,
+    paramNames,
+    optionalParams,
     panelId: "frame",
     onEvent: addLogEntry,
   });
@@ -119,10 +142,16 @@ export function FramePanel() {
   const [saving, setSaving] = useState(false);
   const [committing, setCommitting] = useState(false);
 
+  // ── Fixed-wing without QuadPlane check ─────────────────────
+
+  const isFixedWingOnly = isPlane && hasLoaded && paramNames.every((p) => missingOptional.has(p));
+
   // ── Derived state ──────────────────────────────────────────
 
-  const frameClass = params.get("FRAME_CLASS") ?? 1;
-  const frameType = params.get("FRAME_TYPE") ?? 1;
+  const classParam = isPlane ? "Q_FRAME_CLASS" : "FRAME_CLASS";
+  const typeParam = isPlane ? "Q_FRAME_TYPE" : "FRAME_TYPE";
+  const frameClass = params.get(classParam) ?? 1;
+  const frameType = params.get(typeParam) ?? 1;
   const hasDirty = dirtyParams.size > 0;
 
   // Deduplicated type options for the selected class
@@ -154,15 +183,15 @@ export function FramePanel() {
     return uniqueTypes[0]?.value ?? 0;
   }, [uniqueTypes, frameType]);
 
-  // Auto-reset FRAME_TYPE when the selected class changes and current type is invalid
+  // Auto-reset frame type when the selected class changes and current type is invalid
   useEffect(() => {
     if (uniqueTypes.length > 0) {
       const isValid = uniqueTypes.some((ut) => ut.duplicateTypes.includes(frameType));
       if (!isValid) {
-        setLocalValue("FRAME_TYPE", uniqueTypes[0].value);
+        setLocalValue(typeParam, uniqueTypes[0].value);
       }
     }
-  }, [frameClass, frameType, uniqueTypes, setLocalValue]);
+  }, [frameClass, frameType, uniqueTypes, setLocalValue, typeParam]);
 
   const layout = useMemo(
     () => getMotorLayout(frameClass, frameType),
@@ -183,14 +212,14 @@ export function FramePanel() {
   const handleLocalChange = useCallback(
     (name: string, value: number) => {
       setLocalValue(name, value);
-      if (name === "FRAME_CLASS") {
+      if (name === classParam) {
         const clsName = FRAME_CLASS_NAMES[value] ?? "Unknown";
         addLogEntry({ type: "info", message: `Set ${name} = ${value} (${clsName})` });
       } else {
         addLogEntry({ type: "info", message: `Set ${name} = ${value} (local)` });
       }
     },
-    [setLocalValue, addLogEntry],
+    [setLocalValue, addLogEntry, classParam],
   );
 
   // ── Save / Flash ───────────────────────────────────────────
@@ -237,22 +266,37 @@ export function FramePanel() {
               error={error}
             />
 
+            {/* Fixed-wing only message */}
+            {isFixedWingOnly && (
+              <Card icon={<Box size={14} />} title="Frame Configuration" description="Not applicable for this vehicle type">
+                <div className="py-6 text-center space-y-2">
+                  <p className="text-xs text-text-secondary">
+                    Frame configuration is not applicable for fixed-wing aircraft.
+                  </p>
+                  <p className="text-[10px] text-text-tertiary">
+                    QuadPlane frame settings (Q_FRAME_CLASS) are available when your plane has VTOL motors configured.
+                  </p>
+                </div>
+              </Card>
+            )}
+
             {/* Frame Class & Type */}
+            {!isFixedWingOnly && (
             <Card icon={<Box size={14} />} title="Frame Selection" description="Select airframe class and configuration type">
               <div className="grid grid-cols-2 gap-3">
                 <Select
-                  label="FRAME_CLASS"
+                  label={classParam}
                   options={FRAME_CLASS_OPTIONS}
                   value={String(frameClass)}
-                  onChange={(v) => handleLocalChange("FRAME_CLASS", Number(v))}
+                  onChange={(v) => handleLocalChange(classParam, Number(v))}
                   disabled={isLocked}
                   searchable
                 />
                 <Select
-                  label="FRAME_TYPE"
+                  label={typeParam}
                   options={frameTypeOptions}
                   value={String(effectiveFrameType)}
-                  onChange={(v) => handleLocalChange("FRAME_TYPE", Number(v))}
+                  onChange={(v) => handleLocalChange(typeParam, Number(v))}
                   disabled={isLocked}
                 />
               </div>
@@ -270,8 +314,10 @@ export function FramePanel() {
                 </div>
               )}
             </Card>
+            )}
 
             {/* Motor Layout Diagram — 3D only */}
+            {!isFixedWingOnly && (
             <Card
               icon={<Zap size={14} />}
               title="Motor Layout"
@@ -292,14 +338,16 @@ export function FramePanel() {
                   </p>
                   {classDescription && frameClass !== 0 && (
                     <p className="text-[10px] text-text-tertiary">
-                      {classDescription}. FRAME_CLASS will still be sent to the flight controller.
+                      {classDescription}. {classParam} will still be sent to the flight controller.
                     </p>
                   )}
                 </div>
               )}
             </Card>
+            )}
 
             {/* Info Row */}
+            {!isFixedWingOnly && (
             <div className="flex items-center gap-4 text-xs text-text-secondary">
               <div>
                 <span className="text-text-tertiary">Motors: </span>
@@ -314,8 +362,10 @@ export function FramePanel() {
                 <span className="font-mono text-text-primary">{typeName}</span>
               </div>
             </div>
+            )}
 
             {/* Save / Flash */}
+            {!isFixedWingOnly && (
             <div className="flex items-center gap-3 pt-2 pb-4">
               <Button
                 variant="primary"
@@ -342,6 +392,7 @@ export function FramePanel() {
                 <span className="text-[10px] text-status-warning">Unsaved changes</span>
               )}
             </div>
+            )}
           </div>
         </div>
 

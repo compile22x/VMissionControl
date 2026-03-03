@@ -17,6 +17,7 @@ import { haversineDistance, bearing } from "@/lib/telemetry-utils";
 import { DEFAULT_CENTER, MAP_COLORS } from "@/lib/map-constants";
 import { DrawingManager } from "@/lib/drawing/drawing-manager";
 import { useDrawingStore } from "@/stores/drawing-store";
+import { usePlannerStore } from "@/stores/planner-store";
 import { polygonArea } from "@/lib/drawing/geo-utils";
 import { randomId } from "@/lib/utils";
 import L from "leaflet";
@@ -163,6 +164,8 @@ export function PlannerMap({
   const setActiveDrawingVertices = useDrawingStore((s) => s.setActiveDrawingVertices);
   const measureLine = useDrawingStore((s) => s.measureLine);
 
+  const setActiveTool = usePlannerStore((s) => s.setActiveTool);
+
   const isDrawingTool = DRAWING_TOOLS.includes(activeTool);
 
   // Initialize DrawingManager when map is ready
@@ -264,9 +267,18 @@ export function PlannerMap({
     };
 
     const contextHandler = (e: L.LeafletMouseEvent) => {
-      // Suppress context menu during drawing
-      if (DRAWING_TOOLS.includes(activeTool)) return;
       e.originalEvent.preventDefault();
+      if (DRAWING_TOOLS.includes(activeTool)) {
+        // Right-click exits drawing tool
+        const manager = drawingManagerRef.current;
+        if (manager && manager.getMode() !== null) {
+          manager.cancelDraw();
+          setDrawingMode(null);
+          setActiveDrawingVertices([]);
+        }
+        setActiveTool("select");
+        return;
+      }
       const point = mapInstance.latLngToContainerPoint(e.latlng);
       const rect = mapInstance.getContainer().getBoundingClientRect();
       onMapRightClick(e.latlng.lat, e.latlng.lng, rect.left + point.x, rect.top + point.y);
@@ -283,7 +295,7 @@ export function PlannerMap({
       mapInstance.off("contextmenu", contextHandler);
       mapInstance.off("zoomend", zoomHandler);
     };
-  }, [mapInstance, activeTool, onMapClick, onMapRightClick]);
+  }, [mapInstance, activeTool, onMapClick, onMapRightClick, setActiveTool, setDrawingMode, setActiveDrawingVertices]);
 
   // Set cursor based on tool
   useEffect(() => {
@@ -444,9 +456,9 @@ export function PlannerMap({
         <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] pointer-events-none">
           <div className="bg-bg-secondary/90 border border-accent-primary/30 px-3 py-1.5">
             <span className="text-xs text-accent-primary font-mono">
-              {activeTool === "polygon" && "Click to place vertices, double-click to close. Esc to cancel."}
-              {activeTool === "circle" && "Click and drag to draw circle. Esc to cancel."}
-              {activeTool === "measure" && "Click to add points, double-click or Esc to finish."}
+              {activeTool === "polygon" && "Click to place vertices, double-click to close. Right-click to cancel."}
+              {activeTool === "circle" && "Click and drag to draw circle. Right-click to cancel."}
+              {activeTool === "measure" && "Click to add points, double-click to finish. Right-click to cancel."}
             </span>
           </div>
         </div>

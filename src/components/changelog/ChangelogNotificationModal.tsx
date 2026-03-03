@@ -1,14 +1,15 @@
 /**
  * @module ChangelogNotificationModal
  * @description "What's New" modal shown when unseen changelog entries exist.
- * Uses the existing Modal component. Scrollable entry list with "Don't show again"
- * checkbox and "Got it" dismiss button.
+ * Uses the existing Modal component. Scrollable entry list with "Go to Community"
+ * link and "Got it" dismiss button.
  * @license GPL-3.0-only
  */
 
 "use client";
 
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { useQuery } from "convex/react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
@@ -23,10 +24,9 @@ export function ChangelogNotificationModal() {
     modalOpen,
     setModalOpen,
     dismissAll,
-    disableAndDismiss,
   } = useChangelogNotifications();
 
-  const [dontShowAgain, setDontShowAgain] = useState(false);
+  const router = useRouter();
 
   const changelogIds = useMemo(
     () => allEntries.map((entry: ChangelogEntry) => entry._id as never),
@@ -41,12 +41,12 @@ export function ChangelogNotificationModal() {
   const entriesToShow = unseenEntries.length > 0 ? unseenEntries : allEntries;
 
   const handleDismiss = () => {
-    if (dontShowAgain) {
-      disableAndDismiss();
-    } else {
-      dismissAll();
-    }
-    setDontShowAgain(false);
+    dismissAll();
+  };
+
+  const handleGoToCommunity = () => {
+    dismissAll();
+    router.push("/community");
   };
 
   return (
@@ -57,15 +57,12 @@ export function ChangelogNotificationModal() {
       className="max-w-xl"
       footer={
         <div className="flex items-center justify-between w-full">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={dontShowAgain}
-              onChange={(evt) => setDontShowAgain(evt.target.checked)}
-              className="w-3.5 h-3.5 accent-accent-primary"
-            />
-            <span className="text-xs text-text-secondary">Don&apos;t show again</span>
-          </label>
+          <button
+            onClick={handleGoToCommunity}
+            className="text-xs text-accent-primary hover:text-accent-primary/80 transition-colors cursor-pointer"
+          >
+            Go to Community &rarr;
+          </button>
           <Button variant="primary" size="sm" onClick={handleDismiss}>
             Got it
           </Button>

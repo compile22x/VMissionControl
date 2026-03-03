@@ -19,7 +19,7 @@ export function ArmedLockOverlay({
   const { isLocked, lockMessage } = useArmedLock();
 
   return (
-    <div className={cn("relative", className)}>
+    <div className={cn("relative flex-1 flex flex-col min-h-0", className)}>
       {children}
       {isLocked && (
         <div className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-bg-primary/80 backdrop-blur-sm">

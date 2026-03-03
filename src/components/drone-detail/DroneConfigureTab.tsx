@@ -195,7 +195,7 @@ export function DroneConfigureTab({ droneId, droneName, isConnected }: DroneConf
       </nav>
 
       {/* Content */}
-      <div className="flex-1 min-w-0 overflow-y-auto">
+      <div className="flex-1 min-w-0 min-h-0 overflow-hidden flex flex-col">
         {!isConnected ? (
           <FcDisconnectedPlaceholder droneName={droneName} />
         ) : (

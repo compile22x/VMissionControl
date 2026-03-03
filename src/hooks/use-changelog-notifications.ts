@@ -22,6 +22,7 @@ export interface ChangelogEntry {
   publishedAt: number;
   tags?: string[];
   authorName: string;
+  repo?: string;
 }
 
 export function useChangelogNotifications() {

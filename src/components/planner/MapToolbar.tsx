@@ -68,7 +68,7 @@ function ToolButton({
         onClick={onClick}
         disabled={disabled}
         className={cn(
-          "w-8 h-8 flex items-center justify-center transition-colors cursor-pointer",
+          "w-8 h-8 flex items-center justify-center rounded-md transition-colors cursor-pointer",
           "disabled:opacity-30 disabled:cursor-not-allowed",
           active
             ? "bg-accent-primary/20 text-accent-primary"
@@ -91,9 +91,9 @@ export function MapToolbar({
   onClearAll,
 }: MapToolbarProps) {
   return (
-    <div className="absolute top-3 left-3 z-[1000] flex flex-col bg-bg-secondary/95 border border-border-default">
+    <div className="absolute top-3 left-3 z-[1000] flex flex-col gap-1 p-1 bg-bg-secondary/90 backdrop-blur-sm border border-border-default rounded-lg">
       {toolGroups.map((group, gi) => (
-        <div key={gi}>
+        <div key={gi} className="flex flex-col">
           {gi > 0 && <div className="h-px bg-border-default" />}
           {group.map((t) => (
             <ToolButton

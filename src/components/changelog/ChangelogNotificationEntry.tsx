@@ -17,8 +17,16 @@ interface ChangelogNotificationEntryProps {
     body: string;
     publishedAt: number;
     tags?: string[];
+    repo?: string;
   };
   reactionCount: number;
+}
+
+function repoLabel(repo: string): string {
+  const labels: Record<string, string> = {
+    ADOSMissionControl: "Mission Control",
+  };
+  return labels[repo] ?? repo;
 }
 
 function timeAgo(ts: number): string {
@@ -44,6 +52,11 @@ export function ChangelogNotificationEntry({ entry, reactionCount }: ChangelogNo
             <span className="px-1.5 py-0.5 text-[10px] font-mono font-medium bg-accent-primary/10 text-accent-primary rounded">
               {entry.version}
             </span>
+            {entry.repo && (
+              <span className="px-1.5 py-0.5 text-[10px] font-medium bg-status-success/10 text-status-success rounded">
+                {repoLabel(entry.repo)}
+              </span>
+            )}
             <span className="text-[10px] text-text-tertiary">{timeAgo(entry.publishedAt)}</span>
           </div>
 

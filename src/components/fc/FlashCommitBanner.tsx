@@ -35,7 +35,7 @@ export function FlashCommitBanner() {
 
   return (
     <div className={cn(
-      "mx-3 mb-2 rounded border px-3 py-2 text-xs",
+      "mx-3 mb-2 rounded border px-3 py-2 text-xs shrink-0",
       hasCritical
         ? "border-status-error/50 bg-status-error/10 animate-pulse"
         : "border-status-warning/50 bg-status-warning/10"
