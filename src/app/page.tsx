@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useDroneManager } from "@/stores/drone-manager";
 import { useFleetStore } from "@/stores/fleet-store";
 import { useUiStore } from "@/stores/ui-store";
@@ -44,18 +44,18 @@ export default function DashboardPage() {
         <>
           <DroneDetailPanel droneId={selectedDroneId} onClose={() => selectDrone(null)} />
           {!immersiveMode && logsCollapsed && (
-            <button
-              onClick={() => setLogsCollapsed(false)}
-              className="w-10 shrink-0 flex flex-col items-center justify-center h-full border-l border-border-default bg-bg-secondary hover:bg-bg-tertiary transition-colors cursor-pointer group"
-              title="Expand logs panel"
-            >
-              <span
-                className="text-[10px] font-semibold uppercase tracking-widest text-text-tertiary group-hover:text-text-secondary transition-colors"
-                style={{ writingMode: "vertical-rl" }}
+            <div className="w-10 shrink-0 flex flex-col h-full border-l border-border-default bg-bg-secondary">
+              <button
+                onClick={() => setLogsCollapsed(false)}
+                className="flex flex-col items-center gap-1 px-1 py-2 border-b border-border-default hover:bg-bg-tertiary transition-colors cursor-pointer group"
+                title="Expand logs panel"
               >
-                Flight Logs
-              </span>
-            </button>
+                <span className="text-[9px] font-semibold uppercase tracking-wider text-text-tertiary group-hover:text-text-secondary transition-colors">
+                  Logs
+                </span>
+                <ChevronLeft size={12} className="text-text-tertiary group-hover:text-text-secondary" />
+              </button>
+            </div>
           )}
           {!immersiveMode && (
             <div className={`w-[384px] shrink-0 flex flex-col h-full border-l border-border-default bg-bg-secondary ${logsCollapsed ? "hidden" : ""}`}>

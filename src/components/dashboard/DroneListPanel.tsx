@@ -5,7 +5,8 @@ import { useFleetStore } from "@/stores/fleet-store";
 import { useDroneManager } from "@/stores/drone-manager";
 import { DroneCard } from "@/components/shared/drone-card";
 import { useConnectDialogStore } from "@/stores/connect-dialog-store";
-import { Plus, Search, ChevronLeft } from "lucide-react";
+import { Plus, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { DroneTile } from "@/components/shared/drone-tile";
 
 interface DroneListPanelProps {
   collapsed: boolean;
@@ -33,18 +34,45 @@ export function DroneListPanel({ collapsed, onToggleCollapse }: DroneListPanelPr
 
   if (collapsed) {
     return (
-      <button
-        onClick={onToggleCollapse}
-        className="w-10 shrink-0 flex flex-col items-center justify-center h-full border-r border-border-default bg-bg-secondary hover:bg-bg-tertiary transition-colors cursor-pointer group"
-        title="Expand fleet panel"
-      >
-        <span
-          className="text-[10px] font-semibold uppercase tracking-widest text-text-tertiary group-hover:text-text-secondary transition-colors"
-          style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
-        >
-          Fleet
-        </span>
-      </button>
+      <div className="w-12 shrink-0 flex flex-col h-full border-r border-border-default bg-bg-secondary">
+        {/* Header: label + add + expand */}
+        <div className="flex flex-col items-center gap-1.5 px-1 py-2 border-b border-border-default">
+          <span className="text-[9px] font-semibold uppercase tracking-wider text-text-tertiary">
+            Fleet
+          </span>
+          <button
+            onClick={(e) => { e.stopPropagation(); openDialog(); }}
+            className="w-full aspect-square flex items-center justify-center bg-accent-primary/10 hover:bg-accent-primary transition-colors cursor-pointer group"
+            title="Add drone"
+          >
+            <Plus size={12} className="text-accent-primary group-hover:text-bg-primary transition-colors" />
+          </button>
+          <button
+            onClick={onToggleCollapse}
+            className="w-full aspect-square flex items-center justify-center hover:bg-bg-tertiary transition-colors cursor-pointer group"
+            title="Expand fleet panel"
+          >
+            <ChevronRight size={12} className="text-text-tertiary group-hover:text-text-secondary transition-colors" />
+          </button>
+        </div>
+
+        {/* Drone tiles */}
+        <div className="flex-1 overflow-auto flex flex-col items-center gap-1 py-1.5">
+          {drones.map((drone) => (
+            <DroneTile
+              key={drone.id}
+              drone={drone}
+              selected={drone.id === selectedDroneId}
+              onClick={selectDrone}
+            />
+          ))}
+        </div>
+
+        {/* Count */}
+        <div className="text-center py-1 border-t border-border-default">
+          <span className="text-[9px] text-text-tertiary font-mono">{drones.length}</span>
+        </div>
+      </div>
     );
   }
 
