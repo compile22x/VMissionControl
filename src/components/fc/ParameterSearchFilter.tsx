@@ -9,6 +9,7 @@ import {
   Search,
   Download,
   Upload,
+  GitCompareArrows,
   PenLine,
   RotateCcw,
   RotateCw,
@@ -38,6 +39,7 @@ interface ParameterSearchFilterProps {
   error: string | null;
   onDismissError: () => void;
   onExport: () => void;
+  onCompare: () => void;
   onImport: (e: ChangeEvent<HTMLInputElement>) => void;
   onRevert: () => void;
   onResetDefaults: () => void;
@@ -65,6 +67,7 @@ export function ParameterSearchFilter({
   error,
   onDismissError,
   onExport,
+  onCompare,
   onImport,
   onRevert,
   onResetDefaults,
@@ -145,6 +148,7 @@ export function ParameterSearchFilter({
           <Button variant="secondary" size="sm" icon={<Download size={12} />} onClick={onExport} disabled={paramCount === 0}>Export</Button>
           <Button variant="secondary" size="sm" icon={<Upload size={12} />} onClick={() => fileInputRef.current?.click()} disabled={paramCount === 0}>Import</Button>
           <input ref={fileInputRef} type="file" accept=".param,.txt" className="hidden" onChange={onImport} />
+          <Button variant="secondary" size="sm" icon={<GitCompareArrows size={12} />} onClick={onCompare} disabled={paramCount === 0}>Compare</Button>
 
           <div className="w-px h-5 bg-border-default" />
 

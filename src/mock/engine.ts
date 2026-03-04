@@ -297,6 +297,17 @@ class MockFlightEngine {
         const modePwmTable = [1000, 1295, 1425, 1555, 1685, 1875];
         const ch5Pwm = modePwmTable[modePhase];
 
+        // Gentle random variation on stick channels (CH1-4) for RC calibration demo
+        const stickJitter = () => Math.round((Math.random() - 0.5) * 40);
+        const rcChannels = [
+          1500 + stickJitter(), // CH1 Roll
+          1538 + stickJitter(), // CH2 Pitch
+          1500 + stickJitter(), // CH3 Throttle
+          1500 + stickJitter(), // CH4 Yaw
+          ch5Pwm, 1000, 1000, 1000,
+          1500, 1500, 1500, 1500, 1500, 1500, 1500, 1500,
+        ];
+
         telemetryStore.pushBatch({
           attitude: {
             timestamp: now,
@@ -322,13 +333,13 @@ class MockFlightEngine {
           },
           rc: {
             timestamp: now,
-            channels: [1500, 1538, 1500, 1500, ch5Pwm, 1000, 1000, 1000, 1500, 1500, 1500, 1500, 1500, 1500, 1500, 1500],
+            channels: rcChannels,
             rssi: 200 + Math.floor(Math.random() * 55),
           },
         });
 
         // Feed RC channel values to protocol for pre-arm checks
-        state.protocol.setRcChannelValues([1500, 1538, 1500, 1500, ch5Pwm, 1000, 1000, 1000, 1500, 1500, 1500, 1500, 1500, 1500, 1500, 1500]);
+        state.protocol.setRcChannelValues(rcChannels);
 
         // ── Protocol-emitted telemetry (via callbacks → bridgeTelemetry) ──
 

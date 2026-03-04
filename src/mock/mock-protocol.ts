@@ -654,8 +654,7 @@ export class MockProtocol implements DroneProtocol {
       }, 250);
       this.compassCalTimers.push(iv);
     } else if (type === "rc") {
-      // RC calibration not supported via single command — return error
-      return { success: false, resultCode: -1, message: "RC calibration requires the Receiver panel (channel bars + manual stick movement)" };
+      return { success: true, resultCode: 0, message: "RC calibration ready — follow on-screen instructions" };
     } else if (type === "esc") {
       // ESC cal simulation — longer with motor warning
       this.emitStatusText(3, "WARNING: ESC calibration will spin motors! Remove props!");

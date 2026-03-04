@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import {
   CalibrationWizard,
   type CalibrationStatus,
@@ -9,6 +9,7 @@ import {
 } from "./CalibrationWizard";
 import { useToast } from "@/components/ui/toast";
 import { useDroneManager } from "@/stores/drone-manager";
+import { useTelemetryStore } from "@/stores/telemetry-store";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { CalibrationRebootBanner } from "./CalibrationRebootBanner";
@@ -19,10 +20,420 @@ import {
   type CalibrationLogEntry,
   INITIAL_STATE,
   ACCEL_STEPS, GYRO_STEPS, COMPASS_STEPS, LEVEL_STEPS,
-  AIRSPEED_STEPS, BARO_STEPS, RC_CAL_STEPS, ESC_CAL_STEPS, COMPASSMOT_STEPS,
+  AIRSPEED_STEPS, BARO_STEPS, ESC_CAL_STEPS, COMPASSMOT_STEPS,
   TYPE_KEYWORDS, MAG_CAL_FAIL_MESSAGES, LOG_KEYWORDS,
   CAL_TIMEOUTS, MAX_LOG_ENTRIES,
 } from "./calibration-types";
+
+// ── RC Calibration Constants ─────────────────────────────
+
+const RC_CHANNEL_COUNT = 8;
+const RC_CHANNEL_LABELS = ["Roll", "Pitch", "Throttle", "Yaw", "Aux 1", "Aux 2", "Aux 3", "Aux 4"];
+const RC_PWM_MIN = 800;
+const RC_PWM_MAX = 2200;
+const RC_CENTER_TOLERANCE = 100; // ±100 from 1500 is considered "centered"
+const RC_CENTER_VALUE = 1500;
+
+type RcCalStep = "idle" | "center" | "move" | "confirm" | "saving" | "done" | "error";
+
+interface RcChannelCapture {
+  min: number;
+  max: number;
+  trim: number;
+}
+
+function defaultCapture(): RcChannelCapture {
+  return { min: RC_PWM_MAX, max: RC_PWM_MIN, trim: RC_CENTER_VALUE };
+}
+
+// ── RC Channel Bar ──────────────────────────────────────
+
+function RcChannelBar({
+  label,
+  channel,
+  value,
+  capturedMin,
+  capturedMax,
+  capturedTrim,
+  showCaptures,
+}: {
+  label: string;
+  channel: number;
+  value: number;
+  capturedMin: number;
+  capturedMax: number;
+  capturedTrim: number;
+  showCaptures: boolean;
+}) {
+  const range = RC_PWM_MAX - RC_PWM_MIN;
+  const pct = ((value - RC_PWM_MIN) / range) * 100;
+  const minPct = ((capturedMin - RC_PWM_MIN) / range) * 100;
+  const maxPct = ((capturedMax - RC_PWM_MIN) / range) * 100;
+  const trimPct = ((capturedTrim - RC_PWM_MIN) / range) * 100;
+
+  const barColor = value < 1000 || value > 2000
+    ? "bg-status-warning"
+    : "bg-accent-primary";
+
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-[10px] font-mono text-text-secondary w-16 shrink-0">
+        CH{channel} <span className="text-text-tertiary">{label}</span>
+      </span>
+      <div className="relative h-4 bg-bg-tertiary flex-1">
+        {/* Fill bar from left to current value */}
+        <div
+          className={cn("absolute top-0 left-0 h-full transition-all duration-100", barColor)}
+          style={{ width: `${Math.min(100, Math.max(0, pct))}%` }}
+        />
+        {/* Captured markers */}
+        {showCaptures && capturedMin < RC_PWM_MAX && (
+          <div
+            className="absolute top-0 h-full w-[2px] bg-status-error"
+            style={{ left: `${Math.min(100, Math.max(0, minPct))}%` }}
+            title={`Min: ${capturedMin}`}
+          />
+        )}
+        {showCaptures && capturedMax > RC_PWM_MIN && (
+          <div
+            className="absolute top-0 h-full w-[2px] bg-status-error"
+            style={{ left: `${Math.min(100, Math.max(0, maxPct))}%` }}
+            title={`Max: ${capturedMax}`}
+          />
+        )}
+        {showCaptures && (
+          <div
+            className="absolute top-0 h-full w-[2px] bg-status-success"
+            style={{ left: `${Math.min(100, Math.max(0, trimPct))}%` }}
+            title={`Trim: ${capturedTrim}`}
+          />
+        )}
+      </div>
+      <span className="text-[10px] font-mono text-text-tertiary w-10 text-right shrink-0">
+        {value}
+      </span>
+    </div>
+  );
+}
+
+// ── RC Calibration Wizard Component ─────────────────────
+
+function RcCalibrationWizard({ connected }: { connected: boolean }) {
+  const getSelectedProtocol = useDroneManager((s) => s.getSelectedProtocol);
+  const rcBuffer = useTelemetryStore((s) => s.rc);
+  const telVersion = useTelemetryStore((s) => s._version);
+  const { toast } = useToast();
+
+  const [step, setStep] = useState<RcCalStep>("idle");
+  const [captures, setCaptures] = useState<RcChannelCapture[]>(() =>
+    Array.from({ length: RC_CHANNEL_COUNT }, defaultCapture)
+  );
+  const [errorMsg, setErrorMsg] = useState("");
+  const capturesRef = useRef(captures);
+  capturesRef.current = captures;
+
+  // Get latest RC channel values from telemetry ring buffer
+  const latestRc = useMemo(() => {
+    const latest = rcBuffer.latest();
+    return latest?.channels ?? Array(16).fill(0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rcBuffer, telVersion]);
+
+  // Track min/max during "move" step
+  useEffect(() => {
+    if (step !== "move") return;
+    setCaptures((prev) => {
+      const next = [...prev];
+      let changed = false;
+      for (let i = 0; i < RC_CHANNEL_COUNT; i++) {
+        const val = latestRc[i] ?? 0;
+        if (val === 0) continue; // no data
+        const ch = { ...next[i] };
+        if (val < ch.min) { ch.min = val; changed = true; }
+        if (val > ch.max) { ch.max = val; changed = true; }
+        next[i] = ch;
+      }
+      return changed ? next : prev;
+    });
+  }, [step, latestRc]);
+
+  const handleStart = useCallback(() => {
+    setStep("center");
+    setCaptures(Array.from({ length: RC_CHANNEL_COUNT }, defaultCapture));
+    setErrorMsg("");
+  }, []);
+
+  const handleCenterConfirm = useCallback(() => {
+    // Validate channels are near center
+    const offCenter: number[] = [];
+    for (let i = 0; i < RC_CHANNEL_COUNT; i++) {
+      const val = latestRc[i] ?? 0;
+      if (val === 0) continue;
+      if (Math.abs(val - RC_CENTER_VALUE) > RC_CENTER_TOLERANCE) {
+        offCenter.push(i + 1);
+      }
+    }
+    if (offCenter.length > 0 && latestRc[0] !== 0) {
+      toast(`Channels ${offCenter.join(", ")} not centered. Center all sticks and try again.`, "error");
+      return;
+    }
+    // Capture trim values from current position
+    setCaptures((prev) => {
+      const next = [...prev];
+      for (let i = 0; i < RC_CHANNEL_COUNT; i++) {
+        const val = latestRc[i] ?? RC_CENTER_VALUE;
+        if (val === 0) continue;
+        next[i] = { ...next[i], trim: val };
+      }
+      return next;
+    });
+    setStep("move");
+  }, [latestRc, toast]);
+
+  const handleMoveComplete = useCallback(() => {
+    // Validate that we captured some reasonable range for the first 4 channels
+    const caps = capturesRef.current;
+    const narrow: number[] = [];
+    for (let i = 0; i < 4; i++) {
+      const range = caps[i].max - caps[i].min;
+      if (range < 200) {
+        narrow.push(i + 1);
+      }
+    }
+    if (narrow.length > 0) {
+      toast(`Channels ${narrow.join(", ")} have narrow range (<200). Move sticks to full extent.`, "error");
+      return;
+    }
+    setStep("confirm");
+  }, [toast]);
+
+  const handleSave = useCallback(async () => {
+    const protocol = getSelectedProtocol();
+    if (!protocol) return;
+
+    setStep("saving");
+    try {
+      // Write RC params via protocol
+      for (let i = 0; i < RC_CHANNEL_COUNT; i++) {
+        const ch = capturesRef.current[i];
+        const idx = i + 1;
+        await protocol.setParameter(`RC${idx}_MIN`, ch.min);
+        await protocol.setParameter(`RC${idx}_MAX`, ch.max);
+        await protocol.setParameter(`RC${idx}_TRIM`, ch.trim);
+      }
+      // Commit to flash
+      await protocol.commitParamsToFlash();
+      setStep("done");
+      toast("RC calibration saved to flash", "success");
+    } catch {
+      setStep("error");
+      setErrorMsg("Failed to write RC parameters");
+      toast("Failed to write RC parameters", "error");
+    }
+  }, [getSelectedProtocol, toast]);
+
+  const handleCancel = useCallback(() => {
+    setStep("idle");
+    setCaptures(Array.from({ length: RC_CHANNEL_COUNT }, defaultCapture));
+    setErrorMsg("");
+  }, []);
+
+  const statusBadge = {
+    idle: { label: "Ready", className: "bg-bg-tertiary text-text-tertiary" },
+    center: { label: "Step 1/3", className: "bg-accent-primary/20 text-accent-primary" },
+    move: { label: "Step 2/3", className: "bg-accent-primary/20 text-accent-primary" },
+    confirm: { label: "Step 3/3", className: "bg-status-warning/20 text-status-warning" },
+    saving: { label: "Saving", className: "bg-accent-primary/20 text-accent-primary" },
+    done: { label: "Complete", className: "bg-status-success/20 text-status-success" },
+    error: { label: "Failed", className: "bg-status-error/20 text-status-error" },
+  } as const;
+
+  const badge = statusBadge[step];
+  const showCaptures = step === "move" || step === "confirm" || step === "done";
+
+  return (
+    <div className="border border-border-default bg-bg-secondary p-4">
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <div>
+          <h3 className="text-sm font-medium text-text-primary">Radio Calibration</h3>
+          <p className="text-xs text-text-tertiary mt-0.5">
+            Calibrate RC transmitter stick endpoints and trims. Move all sticks and switches to full extent.
+          </p>
+        </div>
+        <span className={cn("text-[10px] font-mono px-2 py-0.5 shrink-0", badge.className)}>
+          {badge.label}
+        </span>
+      </div>
+
+      {/* Pre-calibration tips */}
+      {step === "idle" && (
+        <div className="mb-4 bg-bg-tertiary/50 px-3 py-2.5">
+          <p className="text-[10px] font-medium text-text-secondary mb-1.5">Before you start</p>
+          <ol className="space-y-1">
+            <li className="text-[10px] text-text-tertiary flex gap-1.5">
+              <span className="text-text-secondary shrink-0">1.</span>
+              Turn on RC transmitter and verify binding before starting
+            </li>
+            <li className="text-[10px] text-text-tertiary flex gap-1.5">
+              <span className="text-text-secondary shrink-0">2.</span>
+              Ensure all trims on transmitter are centered (no sub-trim)
+            </li>
+            <li className="text-[10px] text-text-tertiary flex gap-1.5">
+              <span className="text-text-secondary shrink-0">3.</span>
+              You will need to move ALL sticks and switches to their extremes
+            </li>
+          </ol>
+        </div>
+      )}
+
+      {/* Step instructions */}
+      {step === "center" && (
+        <div className="mb-3 border border-accent-primary/20 bg-accent-primary/5 px-3 py-2.5">
+          <p className="text-[10px] font-medium text-accent-primary">Step 1: Center all sticks and switches</p>
+          <p className="text-[10px] text-text-tertiary mt-0.5">
+            Move all sticks to center position and all switches to default. Click Next when ready.
+          </p>
+        </div>
+      )}
+      {step === "move" && (
+        <div className="mb-3 border border-accent-primary/20 bg-accent-primary/5 px-3 py-2.5">
+          <p className="text-[10px] font-medium text-accent-primary">Step 2: Move all sticks to full extent</p>
+          <p className="text-[10px] text-text-tertiary mt-0.5">
+            Move every stick and switch to its minimum and maximum positions. The red markers show captured extremes.
+          </p>
+        </div>
+      )}
+      {step === "confirm" && (
+        <div className="mb-3 border border-status-warning/20 bg-status-warning/5 px-3 py-2.5">
+          <p className="text-[10px] font-medium text-status-warning">Step 3: Review and save</p>
+          <p className="text-[10px] text-text-tertiary mt-0.5">
+            Review captured values below. Click Save to write RC parameters to the flight controller.
+          </p>
+        </div>
+      )}
+
+      {/* Channel bars — visible during all active steps */}
+      {step !== "idle" && (
+        <div className="mb-4 space-y-1.5">
+          {Array.from({ length: RC_CHANNEL_COUNT }, (_, i) => (
+            <RcChannelBar
+              key={i}
+              label={RC_CHANNEL_LABELS[i]}
+              channel={i + 1}
+              value={latestRc[i] ?? 0}
+              capturedMin={captures[i].min}
+              capturedMax={captures[i].max}
+              capturedTrim={captures[i].trim}
+              showCaptures={showCaptures}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Summary table in confirm/done state */}
+      {(step === "confirm" || step === "done") && (
+        <div className="mb-3 overflow-x-auto">
+          <table className="w-full text-[10px] font-mono">
+            <thead>
+              <tr className="text-text-tertiary">
+                <th className="text-left px-1 py-0.5">CH</th>
+                <th className="text-right px-1 py-0.5">Min</th>
+                <th className="text-right px-1 py-0.5">Trim</th>
+                <th className="text-right px-1 py-0.5">Max</th>
+                <th className="text-right px-1 py-0.5">Range</th>
+              </tr>
+            </thead>
+            <tbody>
+              {captures.map((ch, i) => {
+                const range = ch.max - ch.min;
+                const rangeOk = range >= 200;
+                return (
+                  <tr key={i} className="border-t border-border-default/50">
+                    <td className="text-left px-1 py-0.5 text-text-secondary">
+                      CH{i + 1} {RC_CHANNEL_LABELS[i]}
+                    </td>
+                    <td className="text-right px-1 py-0.5 text-text-primary">{ch.min}</td>
+                    <td className="text-right px-1 py-0.5 text-status-success">{ch.trim}</td>
+                    <td className="text-right px-1 py-0.5 text-text-primary">{ch.max}</td>
+                    <td className={cn("text-right px-1 py-0.5", rangeOk ? "text-status-success" : "text-status-warning")}>
+                      {range}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Status messages */}
+      {step === "done" && (
+        <p className="text-[10px] font-mono text-status-success mb-3">
+          RC calibration complete. Parameters saved to flash.
+        </p>
+      )}
+      {step === "error" && (
+        <p className="text-[10px] font-mono text-status-error mb-3">
+          {errorMsg}
+        </p>
+      )}
+      {step === "saving" && (
+        <p className="text-[10px] font-mono text-text-tertiary mb-3">
+          Writing RC parameters to flight controller...
+        </p>
+      )}
+
+      {/* Action buttons */}
+      <div className="flex gap-2">
+        {step === "idle" && (
+          <Button variant="primary" size="sm" onClick={handleStart} disabled={!connected}>
+            Start
+          </Button>
+        )}
+        {step === "center" && (
+          <>
+            <Button variant="primary" size="sm" onClick={handleCenterConfirm}>
+              Next
+            </Button>
+            <Button variant="danger" size="sm" onClick={handleCancel}>
+              Cancel
+            </Button>
+          </>
+        )}
+        {step === "move" && (
+          <>
+            <Button variant="primary" size="sm" onClick={handleMoveComplete}>
+              Next
+            </Button>
+            <Button variant="danger" size="sm" onClick={handleCancel}>
+              Cancel
+            </Button>
+          </>
+        )}
+        {step === "confirm" && (
+          <>
+            <Button variant="primary" size="sm" onClick={handleSave}>
+              Save
+            </Button>
+            <Button variant="danger" size="sm" onClick={handleCancel}>
+              Cancel
+            </Button>
+          </>
+        )}
+        {step === "saving" && (
+          <Button variant="secondary" size="sm" loading disabled>
+            Saving...
+          </Button>
+        )}
+        {(step === "done" || step === "error") && (
+          <Button variant="primary" size="sm" onClick={handleStart}>
+            {step === "done" ? "Re-calibrate" : "Retry"}
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export function CalibrationPanel() {
   const getSelectedProtocol = useDroneManager((s) => s.getSelectedProtocol);
@@ -35,7 +446,6 @@ export function CalibrationPanel() {
   const [level, setLevel] = useState<CalibrationState>(INITIAL_STATE);
   const [airspeed, setAirspeed] = useState<CalibrationState>(INITIAL_STATE);
   const [baro, setBaro] = useState<CalibrationState>(INITIAL_STATE);
-  const [rc, setRc] = useState<CalibrationState>(INITIAL_STATE);
   const [esc, setEsc] = useState<CalibrationState>(INITIAL_STATE);
   const [compassmot, setCompassmot] = useState<CalibrationState>(INITIAL_STATE);
   const [logEntries, setLogEntries] = useState<CalibrationLogEntry[]>([]);
@@ -853,23 +1263,7 @@ export function CalibrationPanel() {
           />
 
           {/* Radio Calibration */}
-          <CalibrationWizard
-            title="Radio Calibration"
-            description="Calibrate RC transmitter stick endpoints and trims. Move all sticks and switches to full extent."
-            steps={RC_CAL_STEPS}
-            currentStep={rc.currentStep}
-            status={rc.status}
-            progress={rc.progress}
-            statusMessage={rc.message}
-            unsupportedNotice="RC calibration requires live channel visualization — use the Receiver panel to verify RC endpoints and set trims."
-            preTips={[
-              "Turn on RC transmitter and verify binding before starting",
-              "Ensure all trims on transmitter are centered (no sub-trim)",
-              "You will need to move ALL sticks and switches to their extremes",
-            ]}
-            onStart={() => startCalibration("rc", setRc, RC_CAL_STEPS.length)}
-            onCancel={() => cancelCalibration("rc", setRc)}
-          />
+          <RcCalibrationWizard connected={connected} />
 
           {/* ESC Calibration */}
           <CalibrationWizard

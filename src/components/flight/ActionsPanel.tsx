@@ -10,14 +10,19 @@ import {
   Play,
   XOctagon,
   Skull,
+  ClipboardCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Modal } from "@/components/ui/modal";
 import { FlightModeSelector } from "@/components/shared/flight-mode-selector";
+import { PreFlightChecklist } from "@/components/flight/PreFlightChecklist";
 import { useDroneStore } from "@/stores/drone-store";
 import { useDroneManager } from "@/stores/drone-manager";
+import { useChecklistStore } from "@/stores/checklist-store";
 import { useFlightShortcuts } from "@/hooks/use-flight-shortcuts";
+import { cn } from "@/lib/utils";
 
 
 export function ActionsPanel() {
@@ -34,6 +39,9 @@ export function ActionsPanel() {
   const [showKillFinal, setShowKillFinal] = useState(false);
   const [killCountdown, setKillCountdown] = useState(3);
   const [takeoffAlt, setTakeoffAlt] = useState("10");
+  const [showChecklist, setShowChecklist] = useState(false);
+  const checklistReady = useChecklistStore((s) => s.isReadyToArm());
+  const checklistProgress = useChecklistStore((s) => s.getProgress());
 
   const isArmed = armState === "armed";
   const protocol = getProtocol();
@@ -59,6 +67,25 @@ export function ActionsPanel() {
   return (
     <>
       <div className="px-3 pt-3 pb-1.5 border-t border-border-default bg-bg-secondary flex flex-col gap-1.5">
+        {/* Pre-Flight Checklist button */}
+        <Tooltip content="Open pre-flight checklist" position="right">
+          <button
+            onClick={() => setShowChecklist(true)}
+            className={cn(
+              "w-full flex items-center gap-2 px-2 py-1.5 text-[11px] font-medium transition-colors border",
+              checklistReady
+                ? "bg-status-success/10 border-status-success/30 text-status-success hover:bg-status-success/20"
+                : "bg-bg-tertiary border-border-default text-text-secondary hover:bg-bg-tertiary/80",
+            )}
+          >
+            <ClipboardCheck size={12} />
+            <span className="flex-1 text-left">Pre-Flight Check</span>
+            <span className="text-[10px] font-mono">
+              {checklistProgress.checked}/{checklistProgress.total}
+            </span>
+          </button>
+        </Tooltip>
+
         <div className="flex items-center gap-1.5">
           {/* ARM / DISARM */}
           <div className="flex-1 [&>*]:w-full">
@@ -290,6 +317,16 @@ export function ActionsPanel() {
         variant="danger"
         confirmDisabled={killCountdown > 0}
       />
+
+      {/* Pre-Flight Checklist Modal */}
+      <Modal
+        open={showChecklist}
+        onClose={() => setShowChecklist(false)}
+        title="Pre-Flight Checklist"
+        className="max-w-md max-h-[80vh] flex flex-col"
+      >
+        <PreFlightChecklist className="max-h-[60vh] -mx-4 -my-4" />
+      </Modal>
     </>
   );
 }

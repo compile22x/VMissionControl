@@ -32,8 +32,18 @@ const statusToDot: Record<DroneStatus, "online" | "idle" | "warning" | "error" |
   offline: "offline",
 };
 
+const gpsFixLabel: Record<number, string> = {
+  0: "No Fix",
+  2: "2D",
+  3: "3D",
+};
+
 export function DroneCard({ drone, selected, onClick }: DroneCardProps) {
   const displayName = useDroneMetadataStore((s) => s.profiles[drone.id]?.displayName) ?? drone.name;
+  const sats = drone.gps?.satellites ?? 0;
+  const fixType = drone.gps?.fixType ?? 0;
+  const lowSats = sats < 6 && fixType > 0;
+
   return (
     <Card className={cn(selected && "border-accent-primary bg-accent-primary/5")} onClick={() => onClick?.(drone.id)}>
       <div className="flex items-start justify-between mb-2">
@@ -41,12 +51,24 @@ export function DroneCard({ drone, selected, onClick }: DroneCardProps) {
           <StatusDot status={statusToDot[drone.status]} />
           <span className="text-sm font-semibold text-text-primary">{displayName}</span>
         </div>
-        <Badge variant={statusToBadgeVariant[drone.status]}>{drone.status.replace("_", " ")}</Badge>
+        <div className="flex items-center gap-1.5">
+          <Badge variant={drone.armState === "armed" ? "warning" : "neutral"}>
+            {drone.armState}
+          </Badge>
+          <Badge variant={statusToBadgeVariant[drone.status]}>{drone.status.replace("_", " ")}</Badge>
+        </div>
       </div>
       <BatteryBar percentage={drone.battery?.remaining ?? 0} className="mb-2" />
       <div className="flex items-center justify-between text-[10px] text-text-tertiary">
         <span className="font-mono">{drone.flightMode}</span>
-        {drone.suiteName && <span className="truncate ml-2">{drone.suiteName}</span>}
+        <div className="flex items-center gap-2">
+          {drone.gps && (
+            <span className={cn("font-mono", lowSats ? "text-status-warning" : "text-text-tertiary")}>
+              {gpsFixLabel[fixType] ?? `Fix ${fixType}`} {sats} sats
+            </span>
+          )}
+          {drone.suiteName && <span className="truncate ml-1">{drone.suiteName}</span>}
+        </div>
       </div>
     </Card>
   );

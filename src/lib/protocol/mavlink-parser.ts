@@ -114,12 +114,12 @@ const PAYLOAD_LENGTHS: ReadonlyMap<number, number> = new Map([
   [30, 28],   // ATTITUDE
   [33, 28],   // GLOBAL_POSITION_INT
   [41, 4],    // MISSION_SET_CURRENT
-  [44, 4],    // MISSION_COUNT
-  [47, 3],    // MISSION_ACK
-  [51, 4],    // MISSION_REQUEST_INT
+  [44, 5],    // MISSION_COUNT (4 base + 1 missionType extension)
+  [47, 4],    // MISSION_ACK (3 base + 1 missionType extension)
+  [51, 5],    // MISSION_REQUEST_INT (4 base + 1 missionType extension)
   [65, 42],   // RC_CHANNELS
   [69, 11],   // MANUAL_CONTROL
-  [73, 37],   // MISSION_ITEM_INT
+  [73, 38],   // MISSION_ITEM_INT (37 base + 1 missionType extension)
   [74, 20],   // VFR_HUD
   [75, 35],   // COMMAND_INT
   [76, 33],   // COMMAND_LONG
@@ -128,8 +128,8 @@ const PAYLOAD_LENGTHS: ReadonlyMap<number, number> = new Map([
   [147, 36],  // BATTERY_STATUS
   [253, 54],  // STATUSTEXT (severity + 50 chars + 3 id bytes)
   [42, 2],    // MISSION_CURRENT
-  [43, 2],    // MISSION_REQUEST_LIST
-  [45, 2],    // MISSION_CLEAR_ALL
+  [43, 3],    // MISSION_REQUEST_LIST (2 base + 1 missionType extension)
+  [45, 3],    // MISSION_CLEAR_ALL (2 base + 1 missionType extension)
   [46, 2],    // MISSION_ITEM_REACHED
   [109, 9],   // RADIO_STATUS
   [36, 21],   // SERVO_OUTPUT_RAW

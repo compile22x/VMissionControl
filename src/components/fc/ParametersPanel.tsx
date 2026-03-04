@@ -3,9 +3,11 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Modal } from "@/components/ui/modal";
 import { ParameterGrid } from "./ParameterGrid";
 import { WriteConfirmDialog } from "./WriteConfirmDialog";
 import { ParameterSearchFilter } from "./ParameterSearchFilter";
+import { ParamCompare } from "./ParamCompare";
 import { useToast } from "@/components/ui/toast";
 import { useDroneManager } from "@/stores/drone-manager";
 import { useSettingsStore } from "@/stores/settings-store";
@@ -51,6 +53,7 @@ export function ParametersPanel() {
   const [showRebootPrompt, setShowRebootPrompt] = useState(false);
   const [showCommitButton, setShowCommitButton] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [showCompare, setShowCompare] = useState(false);
   const columnVisibility = useSettingsStore((s) => s.paramColumns);
   const favoriteParams = useSettingsStore((s) => s.favoriteParams);
 
@@ -244,6 +247,20 @@ export function ParametersPanel() {
     }
   }, [downloadParams]);
 
+  const fcParamMap = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const p of parameters) {
+      map.set(p.name, modified.has(p.name) ? modified.get(p.name)! : p.value);
+    }
+    return map;
+  }, [parameters, modified]);
+
+  const handleCompareApplied = useCallback(() => {
+    setShowCompare(false);
+    // Refresh params from FC to pick up applied changes
+    downloadParams();
+  }, [downloadParams]);
+
   const handleExport = useCallback(() => {
     const lines = parameters.map((p) => {
       const val = modified.has(p.name) ? modified.get(p.name)! : p.value;
@@ -325,6 +342,7 @@ export function ParametersPanel() {
         error={error}
         onDismissError={() => setError(null)}
         onExport={handleExport}
+        onCompare={() => setShowCompare(true)}
         onImport={handleImport}
         onRevert={handleRevert}
         onResetDefaults={handleResetDefaults}
@@ -413,6 +431,16 @@ export function ParametersPanel() {
         confirmLabel="Reset All Parameters"
         variant="danger"
       />
+
+      {/* Parameter compare modal */}
+      <Modal
+        open={showCompare}
+        onClose={() => setShowCompare(false)}
+        title="Parameter Compare"
+        className="max-w-3xl"
+      >
+        <ParamCompare fcParams={fcParamMap} onApplied={handleCompareApplied} />
+      </Modal>
 
       {/* Reboot prompt */}
       <ConfirmDialog

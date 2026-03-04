@@ -5,6 +5,7 @@ import { FleetStatusCard } from "@/components/dashboard/FleetStatusCard";
 import { ActiveMissionsCard } from "@/components/dashboard/ActiveMissionsCard";
 import { AvgBatteryCard } from "@/components/dashboard/AvgBatteryCard";
 import { AlertsCountCard } from "@/components/dashboard/AlertsCountCard";
+import { FleetTelemetryCard } from "@/components/dashboard/FleetTelemetryCard";
 import { AlertFeed } from "@/components/dashboard/AlertFeed";
 import { QuickActionsBar } from "@/components/dashboard/QuickActionsBar";
 
@@ -26,6 +27,9 @@ export function DashboardOverview() {
           <AlertsCountCard />
         </div>
       </div>
+
+      {/* Fleet telemetry summary */}
+      <FleetTelemetryCard />
 
       {/* Alert feed */}
       <AlertFeed />

@@ -958,7 +958,7 @@ export class MAVLinkAdapter implements DroneProtocol {
 
     // RC calibration is a multi-step parameter-based workflow, not a single command
     if (type === 'rc') {
-      return { success: false, resultCode: -1, message: 'RC calibration requires the Receiver panel (channel bars + manual stick movement)' }
+      return { success: true, resultCode: 0, message: 'RC calibration ready — follow on-screen instructions' }
     }
 
     // CompassMot uses MAV_CMD_PREFLIGHT_CALIBRATION (241) with param6=1
