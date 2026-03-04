@@ -50,7 +50,7 @@ const CAMERA_MODES: { id: CameraMode; label: string; key: string; title: string 
 const SHORTCUTS = [
   { key: "Space", action: "Play / Pause" },
   { key: "Esc", action: "Stop" },
-  { key: "R", action: "Reset" },
+  { key: "R", action: "Reset all" },
   { key: "\u2192", action: "Step forward 1s" },
   { key: "\u2190", action: "Step back 1s" },
   { key: "T", action: "Top-down camera" },

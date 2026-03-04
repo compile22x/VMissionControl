@@ -84,7 +84,7 @@ export function useSimulationKeyboard(active: boolean) {
           break;
         case "r":
           e.preventDefault();
-          store.stop();
+          store.reset();
           break;
         default: {
           // Number keys 1-9: seek to proportional position in the flight

@@ -12,6 +12,7 @@ import {
   CallbackProperty,
   Cartesian3,
   Color,
+  JulianDate,
   type Viewer as CesiumViewer,
   type Entity,
   type SampledPositionProperty,
@@ -49,9 +50,21 @@ export function DroneTrailEntity({ viewer, positionProperty }: DroneTrailEntityP
       },
     });
 
-    // Sample position at regular intervals
+    // Sample position at regular intervals, detect backward jumps to clear trail
+    let lastSeconds = -1;
     intervalRef.current = setInterval(() => {
-      if (!viewer || viewer.isDestroyed() || !viewer.clock.shouldAnimate) return;
+      if (!viewer || viewer.isDestroyed()) return;
+      const seconds = JulianDate.secondsDifference(
+        viewer.clock.currentTime,
+        viewer.clock.startTime
+      );
+      // Detect backward jump (stop/reset) — clear trail
+      if (seconds < lastSeconds - 1) {
+        positionsRef.current = [];
+        viewer.scene.requestRender();
+      }
+      lastSeconds = seconds;
+      if (!viewer.clock.shouldAnimate) return;
       const time = viewer.clock.currentTime;
       const pos = positionProperty.getValue(time);
       if (pos) {

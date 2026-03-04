@@ -26,14 +26,17 @@ export function SimulationHUD() {
   const remaining = Math.max(0, totalDuration - elapsed);
 
   // Distance to next waypoint
+  const isLastWp = pos.currentWaypointIndex >= waypoints.length - 1;
   const nextWpIdx = Math.min(pos.currentWaypointIndex + 1, waypoints.length - 1);
-  const nextWp = waypoints[nextWpIdx];
+  const nextWp = !isLastWp ? waypoints[nextWpIdx] : null;
   const distToNext = nextWp
     ? haversineDistance(pos.lat, pos.lon, nextWp.lat, nextWp.lon)
     : 0;
-  const distLabel = distToNext >= 1000
-    ? `${(distToNext / 1000).toFixed(1)} km`
-    : `${Math.round(distToNext)} m`;
+  const distLabel = isLastWp
+    ? "---"
+    : distToNext >= 1000
+      ? `${(distToNext / 1000).toFixed(1)} km`
+      : `${Math.round(distToNext)} m`;
 
   const items = [
     { label: "WP", value: `${pos.currentWaypointIndex + 1}/${waypoints.length}` },
