@@ -9,6 +9,7 @@ interface DropdownItem {
   icon?: ReactNode;
   danger?: boolean;
   divider?: boolean;
+  disabled?: boolean;
 }
 
 interface DropdownMenuProps {
@@ -49,13 +50,17 @@ export function DropdownMenu({ trigger, items, onSelect, align = "left" }: Dropd
             ) : (
               <button
                 key={item.id}
+                disabled={item.disabled}
                 className={cn(
-                  "w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left transition-colors cursor-pointer",
-                  item.danger
-                    ? "text-status-error hover:bg-status-error/10"
-                    : "text-text-primary hover:bg-bg-tertiary"
+                  "w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left transition-colors",
+                  item.disabled
+                    ? "text-text-tertiary opacity-50 cursor-not-allowed"
+                    : item.danger
+                      ? "text-status-error hover:bg-status-error/10 cursor-pointer"
+                      : "text-text-primary hover:bg-bg-tertiary cursor-pointer"
                 )}
                 onClick={() => {
+                  if (item.disabled) return;
                   onSelect(item.id);
                   setOpen(false);
                 }}

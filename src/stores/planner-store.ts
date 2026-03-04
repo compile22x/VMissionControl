@@ -34,6 +34,8 @@ interface PlannerStoreState {
   defaultAcceptRadius: number;
   /** Default altitude reference frame. */
   defaultFrame: AltitudeFrame;
+  /** Timestamp of the last fit-bounds request (0 = none). PlannerMap watches this. */
+  fitRequestTs: number;
   setActiveTool: (tool: PlannerTool) => void;
   togglePanel: () => void;
   toggleAltProfile: () => void;
@@ -46,6 +48,10 @@ interface PlannerStoreState {
   /** Clear multi-selection. */
   clearMultiSelection: () => void;
   setDefaults: (defaults: Partial<Pick<PlannerStoreState, "defaultAlt" | "defaultSpeed" | "defaultAcceptRadius" | "defaultFrame">>) => void;
+  /** Request map to fit bounds to current waypoints. */
+  requestFit: () => void;
+  /** Reset fit request after map has processed it. */
+  clearFitRequest: () => void;
 }
 
 export const usePlannerStore = create<PlannerStoreState>()(
@@ -62,6 +68,7 @@ export const usePlannerStore = create<PlannerStoreState>()(
   defaultSpeed: 5,
   defaultAcceptRadius: 2,
   defaultFrame: "relative",
+  fitRequestTs: 0,
 
   setActiveTool: (activeTool) => set({ activeTool }),
   togglePanel: () => set((s) => ({ panelCollapsed: !s.panelCollapsed })),
@@ -88,6 +95,8 @@ export const usePlannerStore = create<PlannerStoreState>()(
   clearMultiSelection: () =>
     set({ selectedWaypointIds: [], selectionMode: "single" }),
   setDefaults: (defaults) => set((s) => ({ ...s, ...defaults })),
+  requestFit: () => set({ fitRequestTs: Date.now() }),
+  clearFitRequest: () => set({ fitRequestTs: 0 }),
     }),
     {
       name: "altcmd:planner-store",

@@ -11,6 +11,7 @@ import { useMissionStore } from "@/stores/mission-store";
 import { usePlannerStore } from "@/stores/planner-store";
 import { useFleetStore } from "@/stores/fleet-store";
 import { usePlanLibraryStore } from "@/stores/plan-library-store";
+import { useDroneManager } from "@/stores/drone-manager";
 import { useToast } from "@/components/ui/toast";
 import { randomId } from "@/lib/utils";
 import { DEFAULT_CENTER } from "@/lib/map-constants";
@@ -60,7 +61,7 @@ export interface ContextMenuState {
 export function usePlanner() {
   const {
     waypoints, addWaypoint, removeWaypoint, updateWaypoint, insertWaypoint,
-    reorderWaypoints, uploadMission, downloadMission, uploadState,
+    reorderWaypoints, uploadMission, downloadMission, uploadState, downloadState,
     undoStack, redoStack, undo, redo, clearMission, setWaypoints,
   } = useMissionStore();
 
@@ -93,6 +94,9 @@ export function usePlanner() {
 
   // Clear confirm
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+
+  // Download from drone confirm (unsaved changes)
+  const [showDownloadConfirm, setShowDownloadConfirm] = useState(false);
 
   // Plan library integration
   const activePlanId = usePlanLibraryStore((s) => s.activePlanId);
@@ -477,6 +481,68 @@ export function usePlanner() {
     uploadMission();
   }, [uploadMission]);
 
+  /** Execute the actual download from drone and create a library plan. */
+  const executeDownloadFromDrone = useCallback(async () => {
+    const downloaded = await downloadMission();
+    if (downloaded.length === 0) {
+      toast("No mission found on drone", "info");
+      return;
+    }
+
+    // Create a new plan in the library
+    const time = new Date().toLocaleTimeString("en-US", { hour12: false });
+    const name = `Drone Mission (${time})`;
+    const libStore = usePlanLibraryStore.getState();
+    libStore.createPlan(name, downloaded);
+
+    // Sync local state
+    setMissionName(name);
+    setSelectedDroneId(selectedDroneId);
+    setSuiteType("");
+
+    // Fit map to downloaded waypoints
+    usePlannerStore.getState().requestFit();
+
+    toast(`Loaded ${downloaded.length} waypoints from drone`, "success");
+  }, [downloadMission, selectedDroneId, toast]);
+
+  /** Handle download from drone — checks for drone connection and unsaved changes first. */
+  const handleDownloadFromDrone = useCallback(() => {
+    // Check if any drone is connected
+    const droneManager = useDroneManager.getState();
+    const hasDrone = droneManager.selectedDroneId !== null || droneManager.drones.size > 0;
+    if (!hasDrone) {
+      toast("Connect a drone first", "info");
+      return;
+    }
+
+    // Check for unsaved changes
+    if (isDirty && activePlanId) {
+      setShowDownloadConfirm(true);
+      return;
+    }
+
+    executeDownloadFromDrone();
+  }, [isDirty, activePlanId, executeDownloadFromDrone, toast]);
+
+  /** Save current plan, then download from drone. */
+  const handleSaveAndDownload = useCallback(() => {
+    handleSave();
+    setShowDownloadConfirm(false);
+    executeDownloadFromDrone();
+  }, [handleSave, executeDownloadFromDrone]);
+
+  /** Discard current changes, then download from drone. */
+  const handleDiscardAndDownload = useCallback(() => {
+    setShowDownloadConfirm(false);
+    executeDownloadFromDrone();
+  }, [executeDownloadFromDrone]);
+
+  /** Cancel download dialog. */
+  const handleCancelDownload = useCallback(() => {
+    setShowDownloadConfirm(false);
+  }, []);
+
   /** Handle a completed drawing shape (polygon or circle). */
   const handleDrawingComplete = useCallback(
     (shape: DrawnPolygon | DrawnCircle) => {
@@ -591,7 +657,7 @@ export function usePlanner() {
 
   return {
     // Store state
-    waypoints, undoStack, redoStack, uploadState,
+    waypoints, undoStack, redoStack, uploadState, downloadState,
     activeTool, setActiveTool,
     panelCollapsed, togglePanel,
     altProfileCollapsed, toggleAltProfile,
@@ -614,6 +680,7 @@ export function usePlanner() {
     // Context menu
     contextMenu, setContextMenu,
     showClearConfirm, setShowClearConfirm,
+    showDownloadConfirm,
 
     // Library integration
     isDirty,
@@ -640,6 +707,10 @@ export function usePlanner() {
     handleFocusSearch,
     handleReverseWaypoints,
     handleUpload,
+    handleDownloadFromDrone,
+    handleSaveAndDownload,
+    handleDiscardAndDownload,
+    handleCancelDownload,
     handleAddManualWaypoint,
 
     // Drawing state
@@ -659,6 +730,5 @@ export function usePlanner() {
     // Store actions passed through
     undo, redo,
     updateWaypoint, removeWaypoint, reorderWaypoints,
-    downloadMission,
   };
 }

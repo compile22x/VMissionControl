@@ -25,9 +25,11 @@ import { MapContextMenu } from "@/components/planner/MapContextMenu";
 import { MissionStatsBar } from "@/components/planner/MissionStatsBar";
 import { MissionActions } from "@/components/planner/MissionActions";
 import { FlightPlanLibrary } from "@/components/library/FlightPlanLibrary";
+import { UnsavedChangesDialog } from "@/components/library/UnsavedChangesDialog";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { CollapsibleSection } from "@/components/ui/collapsible-section";
 import { usePlannerStore } from "@/stores/planner-store";
+import { useDroneManager } from "@/stores/drone-manager";
 import { usePlanner } from "./use-planner";
 import { useKeyboardShortcuts } from "./use-keyboard-shortcuts";
 
@@ -44,6 +46,9 @@ export default function MissionPlannerPage() {
   const p = usePlanner();
   const selectedWaypointIds = usePlannerStore((s) => s.selectedWaypointIds);
   const clearMultiSelection = usePlannerStore((s) => s.clearMultiSelection);
+  const droneCount = useDroneManager((s) => s.drones.size);
+  const hasDrone = droneCount > 0;
+  const isDownloading = p.downloadState === "downloading";
 
   // Controlled open state for sections toggled by keyboard shortcuts
   const [patternOpen, setPatternOpen] = useState(false);
@@ -87,6 +92,9 @@ export default function MissionPlannerPage() {
             onPlanLoaded={p.handlePlanLoaded}
             onSave={p.handleSave}
             onPlanRenamed={p.handlePlanRenamed}
+            onDownloadFromDrone={p.handleDownloadFromDrone}
+            isDownloading={isDownloading}
+            hasDrone={hasDrone}
           />
 
           {/* Map area */}
@@ -270,12 +278,13 @@ export default function MissionPlannerPage() {
 
               <MissionActions
                 hasWaypoints={p.waypoints.length > 0}
-                hasDrone={!!p.selectedDroneId}
+                hasDrone={hasDrone}
                 uploadState={p.uploadState}
+                downloadState={p.downloadState}
                 isDirty={p.isDirty}
                 onSave={p.handleSave}
                 onUpload={p.handleUpload}
-                onDownloadFromDrone={p.downloadMission}
+                onDownloadFromDrone={p.handleDownloadFromDrone}
                 onExportWaypoints={p.handleExportWaypoints}
                 onExportPlan={p.handleExportPlan}
                 onExportKML={p.handleExportKML}
@@ -318,6 +327,13 @@ export default function MissionPlannerPage() {
         message="This will remove all waypoints and mission data. This action cannot be undone."
         confirmLabel="Discard"
         variant="danger"
+      />
+
+      <UnsavedChangesDialog
+        open={p.showDownloadConfirm}
+        onSaveAndSwitch={p.handleSaveAndDownload}
+        onDiscardAndSwitch={p.handleDiscardAndDownload}
+        onCancel={p.handleCancelDownload}
       />
     </>
   );

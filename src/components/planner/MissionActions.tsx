@@ -16,6 +16,7 @@ interface MissionActionsProps {
   hasWaypoints: boolean;
   hasDrone: boolean;
   uploadState: "idle" | "uploading" | "uploaded" | "error";
+  downloadState: "idle" | "downloading" | "downloaded" | "error";
   isDirty: boolean;
   onSave: () => void;
   onUpload: () => void;
@@ -33,6 +34,7 @@ export function MissionActions({
   hasWaypoints,
   hasDrone,
   uploadState,
+  downloadState,
   isDirty,
   onSave,
   onUpload,
@@ -47,8 +49,9 @@ export function MissionActions({
 }: MissionActionsProps) {
   const router = useRouter();
 
+  const isDownloading = downloadState === "downloading";
   const overflowItems = [
-    { id: "download-drone", label: "Download from Drone", icon: <Download size={12} /> },
+    { id: "download-drone", label: isDownloading ? "Loading..." : "Download from Drone", icon: <Download size={12} />, disabled: isDownloading || !hasDrone },
     { id: "div1", label: "", divider: true },
     { id: "export-waypoints", label: "Export .waypoints", icon: <FileDown size={12} /> },
     { id: "export-plan", label: "Export .plan (QGC)", icon: <FileOutput size={12} /> },

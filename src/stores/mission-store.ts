@@ -26,6 +26,7 @@ interface MissionStoreState {
   progress: number;
   currentWaypoint: number;
   uploadState: "idle" | "uploading" | "uploaded" | "error";
+  downloadState: "idle" | "downloading" | "downloaded" | "error";
   undoStack: Waypoint[][];
   redoStack: Waypoint[][];
 
@@ -39,10 +40,11 @@ interface MissionStoreState {
   setProgress: (progress: number, currentWaypoint: number) => void;
   setMissionState: (state: MissionState) => void;
   setUploadState: (state: "idle" | "uploading" | "uploaded" | "error") => void;
+  setDownloadState: (state: "idle" | "downloading" | "downloaded" | "error") => void;
   createMission: (name: string, droneId: string, suiteType?: SuiteType) => void;
   clearMission: () => void;
   uploadMission: () => Promise<void>;
-  downloadMission: () => Promise<void>;
+  downloadMission: () => Promise<Waypoint[]>;
   undo: () => void;
   redo: () => void;
 }
@@ -61,6 +63,7 @@ export const useMissionStore = create<MissionStoreState>()(
   progress: 0,
   currentWaypoint: 0,
   uploadState: "idle",
+  downloadState: "idle",
   undoStack: [],
   redoStack: [],
 
@@ -122,6 +125,7 @@ export const useMissionStore = create<MissionStoreState>()(
     ),
 
   setUploadState: (uploadState) => set({ uploadState }),
+  setDownloadState: (downloadState) => set({ downloadState }),
 
   createMission: (name, droneId, suiteType) =>
     set({
@@ -222,7 +226,7 @@ export const useMissionStore = create<MissionStoreState>()(
 
   downloadMission: async () => {
     const protocol = useDroneManager.getState().getSelectedProtocol();
-    if (!protocol) return;
+    if (!protocol) return [];
 
     const reverseCmd: Record<number, string> = {
       16: "WAYPOINT", 17: "LOITER", 18: "LOITER_TURNS", 19: "LOITER_TIME",
@@ -234,6 +238,8 @@ export const useMissionStore = create<MissionStoreState>()(
       179: "DO_SET_HOME", 218: "DO_AUX_FUNCTION",
     };
 
+    set({ downloadState: "downloading" });
+
     try {
       const items = await protocol.downloadMission();
       const waypoints: Waypoint[] = items.map((item) => ({
@@ -242,11 +248,16 @@ export const useMissionStore = create<MissionStoreState>()(
         lon: item.y / 1e7,
         alt: item.z,
         holdTime: item.param1 || undefined,
+        param1: item.param2 || undefined,
+        param2: item.param3 || undefined,
+        param3: item.param4 || undefined,
         command: (reverseCmd[item.command] ?? "WAYPOINT") as Waypoint["command"],
       }));
-      set({ waypoints });
+      set({ waypoints, downloadState: "downloaded" });
+      return waypoints;
     } catch {
-      // downloadMission not yet implemented on protocol — silent fail
+      set({ downloadState: "error" });
+      return [];
     }
   },
     }),

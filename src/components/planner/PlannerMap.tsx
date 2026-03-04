@@ -165,6 +165,8 @@ export function PlannerMap({
   const measureLine = useDrawingStore((s) => s.measureLine);
 
   const setActiveTool = usePlannerStore((s) => s.setActiveTool);
+  const fitRequestTs = usePlannerStore((s) => s.fitRequestTs);
+  const clearFitRequest = usePlannerStore((s) => s.clearFitRequest);
 
   const isDrawingTool = DRAWING_TOOLS.includes(activeTool);
 
@@ -302,6 +304,14 @@ export function PlannerMap({
     if (!mapInstance) return;
     mapInstance.getContainer().style.cursor = TOOL_CURSORS[activeTool];
   }, [mapInstance, activeTool]);
+
+  // Fit map bounds when fitRequestTs changes (triggered by download from drone, etc.)
+  useEffect(() => {
+    if (!mapInstance || fitRequestTs === 0 || waypoints.length === 0) return;
+    const bounds = L.latLngBounds(waypoints.map((wp) => [wp.lat, wp.lon] as [number, number]));
+    mapInstance.fitBounds(bounds, { padding: [40, 40], maxZoom: 16 });
+    clearFitRequest();
+  }, [mapInstance, fitRequestTs, waypoints, clearFitRequest]);
 
   const polylinePositions: [number, number][] = waypoints.map((wp) => [wp.lat, wp.lon]);
 

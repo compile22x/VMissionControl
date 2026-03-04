@@ -30,9 +30,15 @@ interface FlightPlanLibraryProps {
   onSave?: () => void;
   /** Called when the active plan is renamed via context menu */
   onPlanRenamed?: (name: string) => void;
+  /** Called to download mission from connected drone */
+  onDownloadFromDrone?: () => void;
+  /** Whether a download from drone is in progress */
+  isDownloading?: boolean;
+  /** Whether any drone is connected */
+  hasDrone?: boolean;
 }
 
-export function FlightPlanLibrary({ context, onPlanLoaded, onSave, onPlanRenamed }: FlightPlanLibraryProps) {
+export function FlightPlanLibrary({ context, onPlanLoaded, onSave, onPlanRenamed, onDownloadFromDrone, isDownloading, hasDrone }: FlightPlanLibraryProps) {
   const plans = usePlanLibraryStore((s) => s.plans);
   const folders = usePlanLibraryStore((s) => s.folders);
   const activePlanId = usePlanLibraryStore((s) => s.activePlanId);
@@ -176,7 +182,7 @@ export function FlightPlanLibrary({ context, onPlanLoaded, onSave, onPlanRenamed
 
         <div className="flex-1 overflow-y-auto">
           {filteredPlans.length === 0 && !searchQuery ? (
-            <PlanLibraryEmpty onNew={handleNewPlan} onImport={handleImport} />
+            <PlanLibraryEmpty onNew={handleNewPlan} onImport={handleImport} onDownloadFromDrone={onDownloadFromDrone} isDownloading={isDownloading} hasDrone={hasDrone} />
           ) : filteredPlans.length === 0 ? (
             <div className="text-xs text-text-tertiary text-center py-4">
               No plans match search
@@ -196,7 +202,7 @@ export function FlightPlanLibrary({ context, onPlanLoaded, onSave, onPlanRenamed
           )}
         </div>
 
-        <PlanLibraryFooter count={plans.length} onImport={handleImport} />
+        <PlanLibraryFooter count={plans.length} onImport={handleImport} onDownloadFromDrone={onDownloadFromDrone} isDownloading={isDownloading} hasDrone={hasDrone} />
 
         <input
           ref={fileRef}
