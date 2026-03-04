@@ -2,7 +2,7 @@
  * @module MapControlsPanel
  * @description Map controls for the 3D simulation viewer: imagery mode toggle,
  * buildings checkbox, terrain exaggeration slider, and path label toggle.
- * Positioned below CameraModeSelector in the top-left corner.
+ * Positioned in the top-left corner of the viewer.
  * @license GPL-3.0-only
  */
 
@@ -29,7 +29,7 @@ export function MapControlsPanel({ hasIonToken }: MapControlsPanelProps) {
   const buildingsDisabled = !hasIonToken;
 
   return (
-    <div className="absolute top-[180px] left-4 z-10 flex flex-col gap-2 p-2 bg-bg-primary/70 backdrop-blur-md border border-border-default rounded-lg">
+    <div className="absolute top-4 left-4 z-10 flex flex-col gap-2 p-2 bg-bg-primary/70 backdrop-blur-md border border-border-default rounded-lg">
       <span className="text-[9px] font-mono text-text-tertiary text-center">MAP</span>
 
       {/* Imagery toggle */}

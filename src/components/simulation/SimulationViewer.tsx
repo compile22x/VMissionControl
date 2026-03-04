@@ -37,7 +37,6 @@ import { RallyPointEntities } from "./RallyPointEntities";
 import { PatternBoundaryEntities } from "./PatternBoundaryEntities";
 import { PlaybackControls } from "./PlaybackControls";
 import { SimulationHUD } from "./SimulationHUD";
-import { CameraModeSelector } from "./CameraModeSelector";
 import { MapControlsPanel } from "./MapControlsPanel";
 
 /** Fetches Cesium Ion token from Convex. Only mount when Convex is available. */
@@ -186,7 +185,6 @@ export function SimulationViewer({ waypoints, defaultSpeed }: SimulationViewerPr
       <RallyPointEntities viewer={viewer} />
       <PatternBoundaryEntities viewer={viewer} />
 
-      <CameraModeSelector />
       <MapControlsPanel hasIonToken={!!cesiumToken} />
       <SimulationHUD />
       <PlaybackControls waypoints={waypoints} totalDuration={flightPlan.totalDuration} />

@@ -10,7 +10,7 @@
 import { useState, useEffect, useMemo } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, Pencil, AlertTriangle, X } from "lucide-react";
+import { ChevronLeft, AlertTriangle, X } from "lucide-react";
 import { useMissionStore } from "@/stores/mission-store";
 import { usePlannerStore } from "@/stores/planner-store";
 import { useSimulationStore } from "@/stores/simulation-store";
@@ -18,7 +18,7 @@ import { useGeofenceStore } from "@/stores/geofence-store";
 import { useSimulationKeyboard } from "@/hooks/use-simulation-keyboard";
 import { validateMission } from "@/lib/validation/mission-validator";
 import { SimulateLeftPanel } from "@/components/simulation/SimulateLeftPanel";
-import { Button } from "@/components/ui/button";
+
 
 const SimulationViewer = dynamic(
   () =>
@@ -74,18 +74,6 @@ export default function SimulatePage() {
     <div className="flex-1 flex h-full overflow-hidden">
       {/* Left panel */}
       <SimulateLeftPanel />
-
-      {/* Edit Plan button - top-left overlay */}
-      <div className="absolute top-3 left-[260px] z-10">
-        <Button
-          variant="secondary"
-          size="sm"
-          icon={<Pencil size={12} />}
-          onClick={() => router.push("/plan")}
-        >
-          Edit Plan
-        </Button>
-      </div>
 
       {/* Validation warning banner */}
       {validation && !bannerDismissed && (validation.errors.length > 0 || validation.warnings.length > 0) && (
