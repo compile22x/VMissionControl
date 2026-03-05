@@ -98,3 +98,40 @@ jobs:
         with:
           name: linux-build
           path: release/*.AppImage
+
+  update-release-notes:
+    needs: [build-macos, build-windows, build-linux]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update release notes
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const tag = context.ref.replace('refs/tags/', '');
+            const { data: releases } = await github.rest.repos.listReleases({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+            const release = releases.find(r => r.tag_name === tag);
+            if (!release) {
+              core.setFailed(`Release for tag ${tag} not found`);
+              return;
+            }
+            await github.rest.repos.updateRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: release.id,
+              body: [
+                `## Altnautica Command ${tag}`,
+                '',
+                '> **Use the web version for the most updated version and better performance.**',
+                '> Desktop apps will always be outdated by a version or two.',
+                '> If you really want to run locally, please clone and build/run yourself as that is better.',
+                '> Desktop apps are not optimal.',
+                '',
+                '### Downloads',
+                '- **macOS:** `.dmg` (Intel & Apple Silicon)',
+                '- **Windows:** `.exe` installer',
+                '- **Linux:** `.AppImage`',
+              ].join('\n'),
+            });
