@@ -43,7 +43,6 @@ export function usePlanner() {
     setSuiteType: state.setSuiteType,
     setAddingRallyPoint: state.setAddingRallyPoint,
     toast: state.toast,
-    updateWaypoint: state.updateWaypoint,
   });
 
   const io = usePlannerIO({

@@ -11,7 +11,7 @@ export function DfuStatusBanner({
   dfuDevices, selectedDroneId, usbSupported, isFlashing, onDetectDfu,
 }: {
   dfuDevices: UsbDeviceInfo[];
-  selectedDroneId: string;
+  selectedDroneId: string | null;
   usbSupported: boolean;
   isFlashing: boolean;
   onDetectDfu: () => void;

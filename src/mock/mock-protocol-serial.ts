@@ -96,7 +96,7 @@ export function handleSerialCommand(ctx: SerialContext, cmd: string): void {
 // ── Mock Telemetry Tick ─────────────────────────────────────
 
 export interface TelemetryTickContext {
-  emitDebug(data: { timestamp: number; name: string; value: number; type: string }): void;
+  emitDebug(data: { timestamp: number; name: string; value: number; type: "float" | "int" | "debug" }): void;
   emitGimbalAttitude(data: { timestamp: number; pitch: number; roll: number; yaw: number; angularVelocityX: number; angularVelocityY: number; angularVelocityZ: number }): void;
   emitObstacleDistance(data: { timestamp: number; distances: number[]; minDistance: number; maxDistance: number; increment: number; incrementF: number; angleOffset: number; frame: number }): void;
   emitLocalPosition(data: { timestamp: number; x: number; y: number; z: number; vx: number; vy: number; vz: number }): void;

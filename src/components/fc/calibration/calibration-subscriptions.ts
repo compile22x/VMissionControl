@@ -57,7 +57,7 @@ export function subscribeToCalibrationStatus(
   setter: React.Dispatch<React.SetStateAction<CalibrationState>>,
   stepCount: number,
   calType: string,
-  toast: (msg: string, type: string) => void,
+  toast: (msg: string, status?: "success" | "warning" | "error" | "info") => void,
 ) {
   cleanupSubs(manager, calType);
 
@@ -198,7 +198,7 @@ function subscribeCompassCalibration(
   protocol: DroneProtocol,
   setter: React.Dispatch<React.SetStateAction<CalibrationState>>,
   calType: string,
-  toast: (msg: string, type: string) => void,
+  toast: (msg: string, status?: "success" | "warning" | "error" | "info") => void,
 ) {
   if (protocol.onMagCalProgress) {
     const magProgressUnsub = protocol.onMagCalProgress(({ compassId, completionPct, calStatus, completionMask }) => {

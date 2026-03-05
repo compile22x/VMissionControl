@@ -3,22 +3,18 @@
 import { useDroneManager } from "@/stores/drone-manager";
 import { useFirmwareCapabilities } from "@/hooks/use-firmware-capabilities";
 import {
-  ACCEL_STEPS, GYRO_STEPS, COMPASS_STEPS, LEVEL_STEPS,
-  AIRSPEED_STEPS, BARO_STEPS, ESC_CAL_STEPS, COMPASSMOT_STEPS,
+  ACCEL_STEPS, GYRO_STEPS, COMPASS_STEPS,
 } from "./calibration-types";
 import { CalibrationWizard } from "./CalibrationWizard";
 import type { CompassProgressEntry, CompassResultEntry } from "./CalibrationWizard";
 import { CalibrationRebootBanner } from "./CalibrationRebootBanner";
 import { CalibrationLog } from "./CalibrationLog";
 import { ArmedLockOverlay } from "@/components/indicators/ArmedLockOverlay";
-import { RcCalibrationWizard } from "./RcCalibrationWizard";
 import { useCalibrationEngine } from "./useCalibrationEngine";
 import { CalibrationDiffTable } from "./CalibrationDiffTable";
 import { CompassPreflightChecks } from "./CompassPreflightChecks";
 import { PX4CalibrationsSection } from "./PX4CalibrationsSection";
-import { RcChannelMapSection } from "../receiver/RcChannelMapSection";
-import { GpsConfigSection } from "../sensors/GpsConfigSection";
-import { ServoCalibrationSection } from "../misc/ServoCalibrationSection";
+import { ArduPilotCalibrations } from "./ArduPilotCalibrations";
 
 export function CalibrationPanel() {
   const getSelectedProtocol = useDroneManager((s) => s.getSelectedProtocol);
@@ -172,108 +168,14 @@ export function CalibrationPanel() {
 
           {/* Level through CompassMot: ArduPilot/PX4 only */}
           {!isBetaflight && (
-          <>
-          <CalibrationWizard
-            title="Level Calibration"
-            description="Set the reference level horizon for the flight controller."
-            steps={LEVEL_STEPS}
-            currentStep={cal.level.currentStep}
-            status={cal.level.status}
-            progress={cal.level.progress}
-            statusMessage={cal.level.message}
-            onStart={() => cal.startCalibration("level", cal.setLevel, LEVEL_STEPS.length)}
-            onCancel={() => cal.cancelCalibration("level", cal.setLevel)}
-          />
-
-          {cal.level.needsReboot && cal.level.status === "success" && (
-            <CalibrationRebootBanner label="Level calibration saved" onReboot={() => { const p = getSelectedProtocol(); if (p) p.reboot(); }} />
-          )}
-
-          <CalibrationWizard
-            title="Airspeed Calibration"
-            description="ArduPlane only — cover the pitot tube opening before starting."
-            steps={AIRSPEED_STEPS}
-            currentStep={cal.airspeed.currentStep}
-            status={cal.airspeed.status}
-            progress={cal.airspeed.progress}
-            statusMessage={cal.airspeed.message}
-            onStart={() => cal.startCalibration("airspeed", cal.setAirspeed, AIRSPEED_STEPS.length)}
-            onCancel={() => cal.cancelCalibration("airspeed", cal.setAirspeed)}
-          />
-
-          <CalibrationWizard
-            title="Barometer Calibration"
-            description="Resets ground pressure reference. Keep vehicle still during calibration."
-            steps={BARO_STEPS}
-            currentStep={cal.baro.currentStep}
-            status={cal.baro.status}
-            progress={cal.baro.progress}
-            statusMessage={cal.baro.message}
-            onStart={() => cal.startCalibration("baro", cal.setBaro, BARO_STEPS.length)}
-            onCancel={() => cal.cancelCalibration("baro", cal.setBaro)}
-          />
-
-          {/* Baro live pressure readout */}
-          {connected && cal.baroPressure && (
-            <div className="border border-border-default bg-bg-secondary px-4 py-2.5 -mt-4">
-              <div className="flex items-center gap-4 text-[10px] font-mono">
-                <span className="text-text-secondary">Pressure</span>
-                <span className="text-text-primary">{cal.baroPressure.pressAbs.toFixed(2)} hPa</span>
-                <span className="text-text-secondary">Temp</span>
-                <span className="text-text-primary">{cal.baroPressure.temperature.toFixed(1)} °C</span>
-              </div>
-            </div>
-          )}
-
-          <RcCalibrationWizard connected={connected} />
-          <RcChannelMapSection />
-          <GpsConfigSection />
-          <ServoCalibrationSection />
-
-          <CalibrationWizard
-            title="ESC Calibration"
-            description="Set ESC throttle endpoints. REMOVE ALL PROPELLERS before starting."
-            steps={ESC_CAL_STEPS}
-            currentStep={cal.esc.currentStep}
-            status={cal.esc.status}
-            progress={cal.esc.progress}
-            statusMessage={cal.esc.message}
-            preTips={[
-              "CRITICAL: Remove ALL propellers before starting",
-              "Disconnect battery before beginning the sequence",
-              "Some ESCs require this calibration on first use",
-              "If using BLHeli/SimonK ESCs, use their own calibration tools instead",
-            ]}
-            onStart={() => cal.startCalibration("esc", cal.setEsc, ESC_CAL_STEPS.length)}
-            onCancel={() => cal.cancelCalibration("esc", cal.setEsc)}
-          />
-
-          {cal.esc.needsReboot && cal.esc.status === "success" && (
-            <CalibrationRebootBanner label="ESC calibration saved" onReboot={() => { const p = getSelectedProtocol(); if (p) p.reboot(); }} />
-          )}
-
-          <CalibrationWizard
-            title="CompassMot (Motor Interference)"
-            description="Measures magnetic interference from motors/ESCs at various throttle levels. Compensates compass readings."
-            steps={COMPASSMOT_STEPS}
-            currentStep={cal.compassmot.currentStep}
-            status={cal.compassmot.status}
-            progress={cal.compassmot.progress}
-            statusMessage={cal.compassmot.message}
-            preTips={[
-              "Ensure GPS has 3D fix before starting",
-              "Vehicle must be in open area away from metal objects",
-              "Props ON — motors WILL spin during this test",
-              "Interference below 30% is acceptable, below 15% is good",
-            ]}
-            onStart={() => cal.startCalibration("compassmot", cal.setCompassmot, COMPASSMOT_STEPS.length)}
-            onCancel={() => cal.cancelCalibration("compassmot", cal.setCompassmot)}
-          />
-
-          {cal.compassmot.needsReboot && cal.compassmot.status === "success" && (
-            <CalibrationRebootBanner label="CompassMot calibration saved" onReboot={() => { const p = getSelectedProtocol(); if (p) p.reboot(); }} />
-          )}
-          </>
+            <ArduPilotCalibrations
+              connected={connected}
+              level={cal.level} airspeed={cal.airspeed} baro={cal.baro}
+              esc={cal.esc} compassmot={cal.compassmot} baroPressure={cal.baroPressure}
+              startCalibration={cal.startCalibration} cancelCalibration={cal.cancelCalibration}
+              setLevel={cal.setLevel} setAirspeed={cal.setAirspeed} setBaro={cal.setBaro}
+              setEsc={cal.setEsc} setCompassmot={cal.setCompassmot}
+            />
           )}
 
           {/* PX4-Only Calibrations */}
