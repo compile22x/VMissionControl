@@ -17,7 +17,7 @@ import type {
   AnalysisMode,
   WorkerOutMessage,
 } from "@/lib/analysis/types";
-import type { VehicleType } from "@/components/fc/pid-constants";
+import type { VehicleType } from "@/components/fc/pid/pid-constants";
 
 // ---------------------------------------------------------------------------
 // State + Actions

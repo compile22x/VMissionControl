@@ -3,7 +3,7 @@
 import { Select } from "@/components/ui/select";
 import type { SelectOption } from "@/components/ui/select";
 import type { FlightMode } from "@/lib/types";
-import { MODE_DESCRIPTIONS } from "@/components/fc/flight-mode-constants";
+import { MODE_DESCRIPTIONS } from "@/components/fc/flight-modes/flight-mode-constants";
 import type { UnifiedFlightMode } from "@/lib/protocol/types";
 
 interface FlightModeSelectorProps {

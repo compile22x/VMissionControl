@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useTelemetryStore } from "@/stores/telemetry-store";
 import { useDroneStore } from "@/stores/drone-store";
 import { mpsToKph, normalizeHeading } from "@/lib/telemetry-utils";
-import { MODE_DESCRIPTIONS } from "@/components/fc/flight-mode-constants";
+import { MODE_DESCRIPTIONS } from "@/components/fc/flight-modes/flight-mode-constants";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/toast";
 import type { UnifiedFlightMode } from "@/lib/protocol/types";

@@ -5,7 +5,7 @@ import { useFleetStore } from "@/stores/fleet-store";
 import { useDroneMetadataStore } from "@/stores/drone-metadata-store";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MODE_DESCRIPTIONS } from "@/components/fc/flight-mode-constants";
+import { MODE_DESCRIPTIONS } from "@/components/fc/flight-modes/flight-mode-constants";
 import type { UnifiedFlightMode } from "@/lib/protocol/types";
 
 export function FleetTelemetryCard() {

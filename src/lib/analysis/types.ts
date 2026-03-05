@@ -7,7 +7,7 @@
  * @license GPL-3.0-only
  */
 
-import type { VehicleType } from "@/components/fc/pid-constants";
+import type { VehicleType } from "@/components/fc/pid/pid-constants";
 
 // ---------------------------------------------------------------------------
 // Time series

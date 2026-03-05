@@ -23,7 +23,7 @@ import { useAutoReconnect } from "@/hooks/use-auto-reconnect";
 import { useGcsLocation } from "@/hooks/use-gcs-location";
 import { usePlatform } from "@/hooks/use-platform";
 import { useDisconnectGuard } from "@/hooks/use-disconnect-guard";
-import { DisconnectGuard } from "@/components/fc/DisconnectGuard";
+import { DisconnectGuard } from "@/components/fc/shared/DisconnectGuard";
 import { cn } from "@/lib/utils";
 import { ChangelogNotificationGate } from "@/components/changelog/ChangelogNotificationGate";
 import { ChangelogBadge } from "@/components/changelog/ChangelogBadge";
