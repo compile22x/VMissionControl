@@ -48,7 +48,7 @@ interface ActionsDeps {
   setSelectedDroneId: (id: string) => void;
   setSuiteType: (type: string) => void;
   setAddingRallyPoint: (adding: boolean) => void;
-  toast: (message: string, type: string) => void;
+  toast: (message: string, status?: "success" | "warning" | "error" | "info") => void;
 }
 
 const TOOL_COMMAND_MAP: Record<string, Waypoint["command"]> = {

@@ -38,7 +38,7 @@ interface IODeps {
   setShowDownloadConfirm: (show: boolean) => void;
   clearMission: () => void;
   downloadMission: () => Promise<Waypoint[]>;
-  toast: (message: string, type: string) => void;
+  toast: (message: string, status?: "success" | "warning" | "error" | "info") => void;
 }
 
 export function usePlannerIO(deps: IODeps) {
