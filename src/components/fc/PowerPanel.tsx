@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -12,8 +12,9 @@ import { useParamLabel } from "@/hooks/use-param-label";
 import { useUnsavedGuard } from "@/hooks/use-unsaved-guard";
 import { PanelHeader } from "./PanelHeader";
 import { ArmedLockOverlay } from "@/components/indicators/ArmedLockOverlay";
-import { Battery, Zap, ShieldAlert, Save, HardDrive } from "lucide-react";
+import { Battery, Zap, ShieldAlert, Save, HardDrive, Thermometer, Clock, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { StarredParam } from "./ParamStar";
 
 const BATT_MONITOR_OPTIONS = [
   { value: "0", label: "0 — Disabled" },
@@ -82,16 +83,55 @@ export function PowerPanel() {
   const current = latestBattery?.current ?? 0;
   const remaining = latestBattery?.remaining ?? 0;
   const consumed = latestBattery?.consumed ?? 0;
+  const temperature = latestBattery?.temperature;
+  const cellVoltages = latestBattery?.cellVoltages;
+
+  // Track connection start time for flight time estimation
+  const connectTimeRef = useRef<number | null>(null);
+  if (voltage > 0 && connectTimeRef.current === null) {
+    connectTimeRef.current = Date.now();
+  } else if (voltage === 0) {
+    connectTimeRef.current = null;
+  }
 
   const cellCount = useMemo(() => {
+    if (cellVoltages && cellVoltages.length > 0) return cellVoltages.length;
     if (voltage <= 0) return 0;
     return Math.round(voltage / 4.2);
-  }, [voltage]);
+  }, [voltage, cellVoltages]);
 
-  const perCellVoltage = useMemo(() => {
-    if (cellCount <= 0) return 0;
-    return voltage / cellCount;
-  }, [voltage, cellCount]);
+  // Per-cell: use real cell voltages if available, otherwise estimate
+  const displayCellVoltages = useMemo(() => {
+    if (cellVoltages && cellVoltages.length > 0) return cellVoltages;
+    if (cellCount <= 0) return [];
+    const avg = voltage / cellCount;
+    return Array.from({ length: cellCount }, () => avg);
+  }, [voltage, cellCount, cellVoltages]);
+
+  // Cell imbalance detection
+  const cellImbalance = useMemo(() => {
+    if (displayCellVoltages.length < 2) return null;
+    const min = Math.min(...displayCellVoltages);
+    const max = Math.max(...displayCellVoltages);
+    const delta = max - min;
+    if (delta < 0.05) return null;
+    return { delta, severity: delta > 0.3 ? "error" as const : "warning" as const };
+  }, [displayCellVoltages]);
+
+  // Estimated flight time remaining
+  const estimatedMinutes = useMemo(() => {
+    if (!connectTimeRef.current || consumed <= 0 || remaining <= 0) return null;
+    const elapsedMs = Date.now() - connectTimeRef.current;
+    if (elapsedMs < 30_000) return null; // need 30s of data
+    const ratePerMs = consumed / elapsedMs; // mAh per ms
+    if (ratePerMs <= 0) return null;
+    const capacity = params.get("BATT_CAPACITY") ?? 0;
+    const remainingMah = capacity > 0
+      ? capacity - consumed
+      : (consumed / (1 - remaining / 100)) * (remaining / 100);
+    if (remainingMah <= 0) return null;
+    return remainingMah / ratePerMs / 60_000; // ms to minutes
+  }, [consumed, remaining, params]);
 
   /** Get param as string for Select/Input display */
   const p = (name: string, fallback = "0") => String(params.get(name) ?? fallback);
@@ -147,26 +187,66 @@ export function PowerPanel() {
             <LiveStat label="Consumed" value={Math.round(consumed).toString()} unit="mAh" />
           </div>
 
+          {/* Estimated flight time + temperature row */}
+          {voltage > 0 && (
+            <div className="flex items-center gap-4 mb-3">
+              {estimatedMinutes !== null && (
+                <div className="flex items-center gap-1">
+                  <Clock size={10} className="text-text-tertiary" />
+                  <span className={cn(
+                    "text-[10px] font-mono",
+                    estimatedMinutes < 3 ? "text-status-error" : estimatedMinutes < 8 ? "text-status-warning" : "text-text-secondary"
+                  )}>
+                    ~{Math.round(estimatedMinutes)} min remaining
+                  </span>
+                </div>
+              )}
+              {temperature !== undefined && (
+                <div className="flex items-center gap-1">
+                  <Thermometer size={10} className="text-text-tertiary" />
+                  <span className={cn(
+                    "text-[10px] font-mono",
+                    temperature > 60 ? "text-status-error" : temperature > 45 ? "text-status-warning" : "text-text-secondary"
+                  )}>
+                    {temperature.toFixed(1)}&deg;C
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Per-cell voltage */}
-          {cellCount > 0 && (
+          {displayCellVoltages.length > 0 && (
             <div>
-              <span className="text-[10px] text-text-tertiary mb-1.5 block">Cell Voltage Estimate</span>
+              <span className="text-[10px] text-text-tertiary mb-1.5 block">
+                {cellVoltages ? "Cell Voltages" : "Cell Voltage Estimate"}
+              </span>
               <div className="flex gap-1.5">
-                {Array.from({ length: cellCount }, (_, i) => (
+                {displayCellVoltages.map((cv, i) => (
                   <div key={i} className="flex-1">
                     <div className="h-8 bg-bg-tertiary relative overflow-hidden">
                       <div
-                        className={cn("absolute bottom-0 left-0 right-0 transition-all", cellVoltageBg(perCellVoltage))}
-                        style={{ height: `${Math.min(100, Math.max(0, ((perCellVoltage - 3.0) / 1.2) * 100))}%`, opacity: 0.3 }}
+                        className={cn("absolute bottom-0 left-0 right-0 transition-all", cellVoltageBg(cv))}
+                        style={{ height: `${Math.min(100, Math.max(0, ((cv - 3.0) / 1.2) * 100))}%`, opacity: 0.3 }}
                       />
-                      <span className={cn("absolute inset-0 flex items-center justify-center text-[10px] font-mono", cellVoltageColor(perCellVoltage))}>
-                        {perCellVoltage.toFixed(2)}
+                      <span className={cn("absolute inset-0 flex items-center justify-center text-[10px] font-mono", cellVoltageColor(cv))}>
+                        {cv.toFixed(2)}
                       </span>
                     </div>
                     <span className="text-[9px] text-text-tertiary block text-center mt-0.5">C{i + 1}</span>
                   </div>
                 ))}
               </div>
+              {/* Cell imbalance warning */}
+              {cellImbalance && (
+                <div className={cn(
+                  "flex items-center gap-1 mt-2 text-[10px]",
+                  cellImbalance.severity === "error" ? "text-status-error" : "text-status-warning"
+                )}>
+                  <AlertTriangle size={10} />
+                  <span>Cell imbalance: {"\u0394"}{Math.round(cellImbalance.delta * 1000)}mV</span>
+                </div>
+              )}
             </div>
           )}
 
@@ -181,21 +261,25 @@ export function PowerPanel() {
             <Battery size={14} className="text-accent-primary" />
             <h2 className="text-sm font-medium text-text-primary">Battery Settings</h2>
           </div>
-          <Select
-            label={pl("BATT_MONITOR — Battery Monitor Type")}
-            options={BATT_MONITOR_OPTIONS}
-            value={p("BATT_MONITOR")}
-            onChange={(v) => set("BATT_MONITOR", v)}
-          />
-          <Input
-            label={pl("BATT_CAPACITY — Battery Capacity")}
-            type="number"
-            step="100"
-            min="0"
-            unit="mAh"
-            value={p("BATT_CAPACITY")}
-            onChange={(e) => set("BATT_CAPACITY", e.target.value)}
-          />
+          <StarredParam param="BATT_MONITOR">
+            <Select
+              label={pl("BATT_MONITOR — Battery Monitor Type")}
+              options={BATT_MONITOR_OPTIONS}
+              value={p("BATT_MONITOR")}
+              onChange={(v) => set("BATT_MONITOR", v)}
+            />
+          </StarredParam>
+          <StarredParam param="BATT_CAPACITY">
+            <Input
+              label={pl("BATT_CAPACITY — Battery Capacity")}
+              type="number"
+              step="100"
+              min="0"
+              unit="mAh"
+              value={p("BATT_CAPACITY")}
+              onChange={(e) => set("BATT_CAPACITY", e.target.value)}
+            />
+          </StarredParam>
         </div>
 
         {/* Current Sensor Calibration */}
@@ -204,22 +288,26 @@ export function PowerPanel() {
             <Zap size={14} className="text-accent-primary" />
             <h2 className="text-sm font-medium text-text-primary">Current Sensor Calibration</h2>
           </div>
-          <Input
-            label={pl("BATT_AMP_PERVLT — Amps Per Volt")}
-            type="number"
-            step="0.1"
-            unit="A/V"
-            value={p("BATT_AMP_PERVLT", "17.0")}
-            onChange={(e) => set("BATT_AMP_PERVLT", e.target.value)}
-          />
-          <Input
-            label={pl("BATT_AMP_OFFSET — Current Offset")}
-            type="number"
-            step="0.01"
-            unit="A"
-            value={p("BATT_AMP_OFFSET", "0.0")}
-            onChange={(e) => set("BATT_AMP_OFFSET", e.target.value)}
-          />
+          <StarredParam param="BATT_AMP_PERVLT">
+            <Input
+              label={pl("BATT_AMP_PERVLT — Amps Per Volt")}
+              type="number"
+              step="0.1"
+              unit="A/V"
+              value={p("BATT_AMP_PERVLT", "17.0")}
+              onChange={(e) => set("BATT_AMP_PERVLT", e.target.value)}
+            />
+          </StarredParam>
+          <StarredParam param="BATT_AMP_OFFSET">
+            <Input
+              label={pl("BATT_AMP_OFFSET — Current Offset")}
+              type="number"
+              step="0.01"
+              unit="A"
+              value={p("BATT_AMP_OFFSET", "0.0")}
+              onChange={(e) => set("BATT_AMP_OFFSET", e.target.value)}
+            />
+          </StarredParam>
         </div>
 
         {/* Battery 1 Failsafe */}

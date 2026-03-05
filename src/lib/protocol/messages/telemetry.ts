@@ -367,6 +367,84 @@ export function decodeScaledImu(dv: DataView): ScaledImuMsg {
   };
 }
 
+// ── SCALED_PRESSURE (ID 29) ──────────────────────────────────
+
+export interface ScaledPressureMsg {
+  timeBootMs: number;
+  pressAbs: number;
+  pressDiff: number;
+  temperature: number;
+}
+
+/**
+ * Decode SCALED_PRESSURE (msg ID 29).
+ *
+ * Wire order (uint32 → float32 → int16):
+ * | Offset | Type    | Field        |
+ * |--------|---------|--------------|
+ * | 0      | uint32  | timeBootMs   |
+ * | 4      | float32 | pressAbs     | (hPa)
+ * | 8      | float32 | pressDiff    | (hPa)
+ * | 12     | int16   | temperature  | (cdegC)
+ */
+export function decodeScaledPressure(dv: DataView): ScaledPressureMsg {
+  return {
+    timeBootMs: dv.getUint32(0, true),
+    pressAbs: dv.getFloat32(4, true),
+    pressDiff: dv.getFloat32(8, true),
+    temperature: dv.getInt16(12, true),
+  };
+}
+
+// ── ESTIMATOR_STATUS (ID 230) ─────────────────────────────────
+
+export interface EstimatorStatusMsg {
+  timeUsec: number;
+  velRatio: number;
+  posHorizRatio: number;
+  posVertRatio: number;
+  magRatio: number;
+  haglRatio: number;
+  tasRatio: number;
+  posHorizAccuracy: number;
+  posVertAccuracy: number;
+  flags: number;
+}
+
+/**
+ * Decode ESTIMATOR_STATUS (msg ID 230).
+ *
+ * Wire order (uint64 → float32 → uint16):
+ * | Offset | Type    | Field             |
+ * |--------|---------|-------------------|
+ * | 0      | uint64  | timeUsec          |
+ * | 8      | float32 | velRatio          |
+ * | 12     | float32 | posHorizRatio     |
+ * | 16     | float32 | posVertRatio      |
+ * | 20     | float32 | magRatio          |
+ * | 24     | float32 | haglRatio         |
+ * | 28     | float32 | tasRatio          |
+ * | 32     | float32 | posHorizAccuracy  |
+ * | 36     | float32 | posVertAccuracy   |
+ * | 40     | uint16  | flags             |
+ */
+export function decodeEstimatorStatus(dv: DataView): EstimatorStatusMsg {
+  const low = dv.getUint32(0, true);
+  const high = dv.getUint32(4, true);
+  return {
+    timeUsec: high * 0x100000000 + low,
+    velRatio: dv.getFloat32(8, true),
+    posHorizRatio: dv.getFloat32(12, true),
+    posVertRatio: dv.getFloat32(16, true),
+    magRatio: dv.getFloat32(20, true),
+    haglRatio: dv.getFloat32(24, true),
+    tasRatio: dv.getFloat32(28, true),
+    posHorizAccuracy: dv.getFloat32(32, true),
+    posVertAccuracy: dv.getFloat32(36, true),
+    flags: dv.getUint16(40, true),
+  };
+}
+
 // ── LOCAL_POSITION_NED (ID 32) ──────────────────────────────
 
 export interface LocalPositionNedMsg {

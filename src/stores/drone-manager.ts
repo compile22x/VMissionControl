@@ -11,6 +11,8 @@ import { useSettingsStore } from "./settings-store";
 import { useTrailStore } from "./trail-store";
 import { audioEngine } from "@/lib/audio-engine";
 import { useDiagnosticsStore } from "./diagnostics-store";
+import { useGeofenceStore } from "./geofence-store";
+import { startRecording, getRecordingState } from "@/lib/telemetry-recorder";
 import type { FlightMode } from "@/lib/types";
 
 export interface ConnectionMeta {
@@ -92,7 +94,7 @@ function bridgeTelemetry(
     protocol.onPosition((data) => {
       telemetry.pushPosition(data);
       fleetStore.updateDrone(droneId, { position: data });
-      useTrailStore.getState().pushPoint(data.lat, data.lon);
+      useTrailStore.getState().pushPoint(data.lat, data.lon, data.relativeAlt);
     }),
 
     protocol.onBattery((data) => {
@@ -147,7 +149,12 @@ function bridgeTelemetry(
     ...(protocol.onHomePosition ? [protocol.onHomePosition((data) => telemetry.pushHomePosition(data))] : []),
     ...(protocol.onPowerStatus ? [protocol.onPowerStatus((data) => telemetry.pushPowerStatus(data))] : []),
     ...(protocol.onDistanceSensor ? [protocol.onDistanceSensor((data) => telemetry.pushDistanceSensor(data))] : []),
-    ...(protocol.onFenceStatus ? [protocol.onFenceStatus((data) => telemetry.pushFenceStatus(data))] : []),
+    ...(protocol.onFenceStatus ? [protocol.onFenceStatus((data) => {
+      telemetry.pushFenceStatus(data);
+      useGeofenceStore.getState().updateBreachState(data.breachStatus, data.breachCount, data.breachType);
+    })] : []),
+    ...(protocol.onEstimatorStatus ? [protocol.onEstimatorStatus((data) => telemetry.pushEstimatorStatus(data))] : []),
+    ...(protocol.onCameraTrigger ? [protocol.onCameraTrigger((data) => telemetry.pushCameraTrigger(data))] : []),
     ...(protocol.onNavController ? [protocol.onNavController((data) => telemetry.pushNavController(data))] : []),
 
     protocol.onMissionProgress((data) => {
@@ -280,6 +287,14 @@ export const useDroneManager = create<DroneManagerState>((set, get) => ({
     // Auto-select if this is the first drone
     if (get().drones.size === 1) {
       get().selectDrone(id);
+    }
+
+    // Auto-start recording if enabled in settings
+    if (useSettingsStore.getState().autoRecordOnConnect) {
+      const recState = getRecordingState();
+      if (recState.state !== "recording") {
+        startRecording(id, name);
+      }
     }
   },
 

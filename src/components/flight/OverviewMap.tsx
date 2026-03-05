@@ -3,11 +3,12 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useTelemetryStore } from "@/stores/telemetry-store";
 import { useTrailStore } from "@/stores/trail-store";
+import { useDroneStore } from "@/stores/drone-store";
+import { useDroneManager } from "@/stores/drone-manager";
+import { useMissionStore } from "@/stores/mission-store";
+import { Pause, Play } from "lucide-react";
 import {
   MapContainer,
-  TileLayer,
-  Polyline,
-  CircleMarker,
   Circle,
   Marker,
   useMap,
@@ -18,10 +19,28 @@ const GcsMarker = dynamic(
   () => import("@/components/map/GcsMarker").then((m) => ({ default: m.GcsMarker })),
   { ssr: false }
 );
+const TileLayerSwitcher = dynamic(
+  () => import("@/components/map/TileLayerSwitcher").then((m) => ({ default: m.TileLayerSwitcher })),
+  { ssr: false }
+);
+const MapContextMenu = dynamic(
+  () => import("@/components/map/MapContextMenu").then((m) => ({ default: m.MapContextMenu })),
+  { ssr: false }
+);
+const AltitudeTrail = dynamic(
+  () => import("@/components/map/AltitudeTrail").then((m) => ({ default: m.AltitudeTrail })),
+  { ssr: false }
+);
+const EditableGeofenceOverlay = dynamic(
+  () => import("@/components/map/EditableGeofenceOverlay").then((m) => ({ default: m.EditableGeofenceOverlay })),
+  { ssr: false }
+);
+const PlannedVsActualOverlay = dynamic(
+  () => import("@/components/logs/PlannedVsActualOverlay").then((m) => ({ default: m.PlannedVsActualOverlay })),
+  { ssr: false }
+);
 
 const BANGALORE_CENTER: [number, number] = [12.9716, 77.5946];
-const DARK_TILES = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
-const ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>';
 
 /** SVG arrow icon for the drone marker, rotated by heading. */
 function createDroneIcon(heading: number): L.DivIcon {
@@ -66,7 +85,18 @@ function MapFollower({ position, follow }: { position: [number, number] | null; 
 
 export function OverviewMap() {
   const [follow, setFollow] = useState(true);
+  const [showPlannedPath, setShowPlannedPath] = useState(false);
   const mapReadyRef = useRef(false);
+
+  // Mission pause/resume state
+  const flightMode = useDroneStore((s) => s.flightMode);
+  const previousMode = useDroneStore((s) => s.previousMode);
+  const setFlightMode = useDroneStore((s) => s.setFlightMode);
+  const getProtocol = useDroneManager((s) => s.getSelectedProtocol);
+  const missionState = useMissionStore((s) => s.activeMission?.state);
+  const isAutoMode = flightMode === "AUTO";
+  const isPausedFromAuto = flightMode === "LOITER" && previousMode === "AUTO";
+  const showMissionControls = isAutoMode || isPausedFromAuto || missionState === "running" || missionState === "paused";
 
   // Subscribe to position updates
   const pos = useTelemetryStore((s) => s.position.latest());
@@ -77,11 +107,6 @@ export function OverviewMap() {
 
   const heading = pos?.heading ?? 0;
   const droneIcon = useMemo(() => createDroneIcon(heading), [heading]);
-
-  const trailPositions: [number, number][] = useMemo(
-    () => trail.map((p) => [p.lat, p.lon] as [number, number]),
-    [trail]
-  );
 
   // Home position = first trail point
   const homePos: [number, number] | null =
@@ -113,18 +138,20 @@ export function OverviewMap() {
         style={{ background: "#0a0a0a" }}
         whenReady={() => { mapReadyRef.current = true; }}
       >
-        <TileLayer url={DARK_TILES} attribution={ATTRIBUTION} />
+        <TileLayerSwitcher />
 
         <MapResizer />
         <MapFollower position={dronePos} follow={follow} />
+        <MapContextMenu />
 
-        {/* Trail polyline */}
-        {trailPositions.length >= 2 && (
-          <Polyline
-            positions={trailPositions}
-            pathOptions={{ color: "#3A82FF", weight: 2, opacity: 0.7 }}
-          />
-        )}
+        {/* Altitude-coded trail (falls back to blue when no alt data) */}
+        <AltitudeTrail />
+
+        {/* Interactive geofence editing */}
+        <EditableGeofenceOverlay />
+
+        {/* Planned vs actual path comparison */}
+        {showPlannedPath && <PlannedVsActualOverlay />}
 
         {/* Home marker — dashed blue circle */}
         {homePos && (
@@ -149,17 +176,53 @@ export function OverviewMap() {
         <GcsMarker />
       </MapContainer>
 
-      {/* Follow toggle — bottom right */}
-      <button
-        onClick={() => setFollow((f) => !f)}
-        className={`absolute bottom-2 right-2 z-[1000] text-[9px] font-mono px-2 py-1 border transition-colors ${
-          follow
-            ? "border-[#3A82FF] text-[#3A82FF] bg-[#3A82FF]/10"
-            : "border-border-default text-text-tertiary bg-bg-secondary/80"
-        }`}
-      >
-        {follow ? "FOLLOW" : "FREE"}
-      </button>
+      {/* Mission pause/resume overlay — top right */}
+      {showMissionControls && (
+        <button
+          onClick={() => {
+            const protocol = getProtocol();
+            if (isAutoMode) {
+              if (protocol) protocol.pauseMission();
+              else setFlightMode("LOITER");
+            } else {
+              if (protocol) protocol.resumeMission();
+              else setFlightMode("AUTO");
+            }
+          }}
+          className={`absolute top-2 right-2 z-[1000] flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-mono font-semibold border transition-colors ${
+            isAutoMode
+              ? "border-status-warning text-status-warning bg-status-warning/10 hover:bg-status-warning/20"
+              : "border-status-success text-status-success bg-status-success/10 hover:bg-status-success/20"
+          }`}
+        >
+          {isAutoMode ? <Pause size={12} /> : <Play size={12} />}
+          {isAutoMode ? "PAUSE" : "RESUME"}
+        </button>
+      )}
+
+      {/* Follow toggle + plan overlay — bottom right */}
+      <div className="absolute bottom-2 right-2 z-[1000] flex items-center gap-1">
+        <button
+          onClick={() => setShowPlannedPath((v) => !v)}
+          className={`text-[9px] font-mono px-2 py-1 border transition-colors ${
+            showPlannedPath
+              ? "border-[#3A82FF] text-[#3A82FF] bg-[#3A82FF]/10"
+              : "border-border-default text-text-tertiary bg-bg-secondary/80"
+          }`}
+        >
+          PLAN
+        </button>
+        <button
+          onClick={() => setFollow((f) => !f)}
+          className={`text-[9px] font-mono px-2 py-1 border transition-colors ${
+            follow
+              ? "border-[#3A82FF] text-[#3A82FF] bg-[#3A82FF]/10"
+              : "border-border-default text-text-tertiary bg-bg-secondary/80"
+          }`}
+        >
+          {follow ? "FOLLOW" : "FREE"}
+        </button>
+      </div>
 
       {/* Coordinates — bottom left */}
       {dronePos && (

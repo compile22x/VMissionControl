@@ -271,13 +271,20 @@ class MockFlightEngine {
           airSpeed: wp.speed * 1.05,
           climbRate: (nextWp.alt - wp.alt) * progressStep,
         },
-        battery: {
-          timestamp: now,
-          voltage: 22.2 * (state.battery / 100),
-          current: 10 + Math.random() * 5,
-          remaining: state.battery,
-          consumed: (100 - state.battery) * 22,
-        },
+        battery: (() => {
+          const cellBase = (22.2 * (state.battery / 100)) / 6;
+          return {
+            timestamp: now,
+            voltage: 22.2 * (state.battery / 100),
+            current: 10 + Math.random() * 5,
+            remaining: state.battery,
+            consumed: (100 - state.battery) * 22,
+            temperature: 32 + Math.random() * 8,
+            cellVoltages: Array.from({ length: 6 }, (_, i) =>
+              cellBase + (i === 2 ? 0.04 : 0) + (Math.random() - 0.5) * 0.02
+            ),
+          };
+        })(),
         gps: {
           timestamp: now,
           fixType: 3,

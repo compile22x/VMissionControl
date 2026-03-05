@@ -1,9 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { useTelemetryStore } from "@/stores/telemetry-store";
 import { useDroneStore } from "@/stores/drone-store";
 import { mpsToKph, normalizeHeading } from "@/lib/telemetry-utils";
+import { MODE_DESCRIPTIONS } from "@/components/fc/flight-mode-constants";
 import { cn } from "@/lib/utils";
+import type { UnifiedFlightMode } from "@/lib/protocol/types";
 
 function gpsFixLabel(fixType: number): string {
   if (fixType >= 3) return "3D";
@@ -81,9 +84,29 @@ export function TelemetryReadout() {
           </span>
         </div>
 
-        {/* Flight mode */}
-        <span className="text-text-secondary font-semibold shrink-0 uppercase">{mode}</span>
+        {/* Flight mode with description tooltip */}
+        <ModeLabel mode={mode} />
       </div>
+    </div>
+  );
+}
+
+function ModeLabel({ mode }: { mode: string }) {
+  const [show, setShow] = useState(false);
+  const desc = MODE_DESCRIPTIONS[mode as UnifiedFlightMode];
+
+  return (
+    <div
+      className="relative shrink-0"
+      onMouseEnter={() => setShow(true)}
+      onMouseLeave={() => setShow(false)}
+    >
+      <span className="text-text-secondary font-semibold uppercase cursor-default">{mode}</span>
+      {show && desc && (
+        <div className="absolute right-0 bottom-full mb-1 z-50 bg-bg-tertiary border border-border-default px-2 py-1.5 text-[10px] text-text-secondary whitespace-nowrap">
+          {desc}
+        </div>
+      )}
     </div>
   );
 }

@@ -44,8 +44,18 @@ export function DroneDetailPanel({ droneId, onClose }: DroneDetailPanelProps) {
 
   const immersiveMode = useUiStore((s) => s.immersiveMode);
   const exitImmersiveMode = useUiStore((s) => s.exitImmersiveMode);
+  const pendingDetailTab = useUiStore((s) => s.pendingDetailTab);
+  const setPendingDetailTab = useUiStore((s) => s.setPendingDetailTab);
 
   const displayName = metadata?.displayName ?? drone?.name ?? droneId;
+
+  // Consume pending detail tab from Cmd+K navigation
+  useEffect(() => {
+    if (pendingDetailTab) {
+      setActiveTab(pendingDetailTab);
+      setPendingDetailTab(null);
+    }
+  }, [pendingDetailTab, setPendingDetailTab]);
 
   // Exit immersive mode if tab changes away from overview
   useEffect(() => {

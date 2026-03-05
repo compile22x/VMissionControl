@@ -87,6 +87,8 @@ interface SettingsStoreState {
   seenChangelogIds: string[];
   /** Whether changelog notification modal is enabled on app load. */
   changelogNotificationsEnabled: boolean;
+  /** Auto-start telemetry recording when a drone connects. */
+  autoRecordOnConnect: boolean;
 
   setMapTileSource: (source: MapTileSource) => void;
   setUnits: (units: UnitSystem) => void;
@@ -115,6 +117,7 @@ interface SettingsStoreState {
   markChangelogSeen: (ids: string[]) => void;
   clearSeenChangelog: () => void;
   setChangelogNotificationsEnabled: (enabled: boolean) => void;
+  setAutoRecordOnConnect: (enabled: boolean) => void;
 }
 
 export const useSettingsStore = create<SettingsStoreState>()(
@@ -152,6 +155,7 @@ export const useSettingsStore = create<SettingsStoreState>()(
       showPathLabels: false,
       seenChangelogIds: [],
       changelogNotificationsEnabled: true,
+      autoRecordOnConnect: false,
 
       setMapTileSource: (mapTileSource) => set({ mapTileSource }),
       setUnits: (units) => set({ units }),
@@ -190,11 +194,12 @@ export const useSettingsStore = create<SettingsStoreState>()(
       clearSeenChangelog: () => set({ seenChangelogIds: [] }),
       setChangelogNotificationsEnabled: (changelogNotificationsEnabled) =>
         set({ changelogNotificationsEnabled }),
+      setAutoRecordOnConnect: (autoRecordOnConnect) => set({ autoRecordOnConnect }),
     }),
     {
       name: "altcmd:settings",
       storage: createJSONStorage(indexedDBStorage.storage),
-      version: 13,
+      version: 14,
       migrate: (persisted, version) => {
         const state = persisted as Record<string, unknown>;
         if (version < 2) {
@@ -252,6 +257,10 @@ export const useSettingsStore = create<SettingsStoreState>()(
           // v13: Changelog notification tracking
           state.seenChangelogIds = [];
           state.changelogNotificationsEnabled = true;
+        }
+        if (version < 14) {
+          // v14: Auto-start recording on drone connect
+          state.autoRecordOnConnect = false;
         }
         return state as unknown as SettingsStoreState;
       },

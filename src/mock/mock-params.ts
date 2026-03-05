@@ -430,6 +430,9 @@ export const MOCK_PARAMS: MockParam[] = [
   { name: "FENCE_ACTION", value: 1, type: 9 },     // RTL
   { name: "FENCE_TOTAL", value: 5, type: 9 },
 
+  // ── Terrain ───────────────────────────────────────
+  { name: "TERRAIN_ENABLE", value: 0, type: 9 },    // Disabled
+
   // ── Frame ──────────────────────────────────────────
   { name: "FRAME_CLASS", value: 1, type: 9 },      // Quad
   { name: "FRAME_TYPE", value: 1, type: 9 },       // X
@@ -457,6 +460,20 @@ export const MOCK_PARAMS: MockParam[] = [
   { name: "GND_ABS_PRESS", value: 101325, type: 9 },
   { name: "GND_TEMP", value: 25, type: 9 },
   { name: "BARO_PRIMARY", value: 0, type: 9 },
+
+  // ── Calibration offsets (snapshot for before/after) ──
+  { name: "INS_ACCOFFS_X", value: 0.012, type: 9 },
+  { name: "INS_ACCOFFS_Y", value: -0.008, type: 9 },
+  { name: "INS_ACCOFFS_Z", value: 0.245, type: 9 },
+  { name: "INS_ACCSCAL_X", value: 1.001, type: 9 },
+  { name: "INS_ACCSCAL_Y", value: 0.999, type: 9 },
+  { name: "INS_ACCSCAL_Z", value: 1.002, type: 9 },
+  { name: "INS_GYROFFS_X", value: -0.003, type: 9 },
+  { name: "INS_GYROFFS_Y", value: 0.001, type: 9 },
+  { name: "INS_GYROFFS_Z", value: 0.005, type: 9 },
+  { name: "AHRS_TRIM_X", value: 0, type: 9 },
+  { name: "AHRS_TRIM_Y", value: 0, type: 9 },
+  { name: "AHRS_TRIM_Z", value: 0, type: 9 },
 
   // ── Gimbal / Mount ─────────────────────────────────
   { name: "MNT1_TYPE", value: 0, type: 9 },        // None

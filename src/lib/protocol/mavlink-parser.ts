@@ -74,6 +74,7 @@ export const CRC_EXTRA: ReadonlyMap<number, number> = new Map([
   [162, 189], // FENCE_STATUS
   [62, 183],  // NAV_CONTROLLER_OUTPUT
   [26, 170],  // SCALED_IMU
+  [29, 115],  // SCALED_PRESSURE
   [124, 87],  // GPS2_RAW
   [117, 128], // LOG_REQUEST_LIST
   [118, 56],  // LOG_ENTRY
@@ -96,6 +97,8 @@ export const CRC_EXTRA: ReadonlyMap<number, number> = new Map([
   [160, 78],    // FENCE_POINT
   [161, 68],    // FENCE_FETCH_POINT
   [70, 124],    // RC_CHANNELS_OVERRIDE
+  [112, 174],   // CAMERA_TRIGGER
+  [230, 163],   // ESTIMATOR_STATUS
 ]);
 
 /**
@@ -147,6 +150,7 @@ const PAYLOAD_LENGTHS: ReadonlyMap<number, number> = new Map([
   [162, 8],   // FENCE_STATUS
   [62, 26],   // NAV_CONTROLLER_OUTPUT
   [26, 22],   // SCALED_IMU
+  [29, 14],   // SCALED_PRESSURE
   [124, 35],  // GPS2_RAW
   [117, 6],   // LOG_REQUEST_LIST
   [118, 14],  // LOG_ENTRY
@@ -169,6 +173,8 @@ const PAYLOAD_LENGTHS: ReadonlyMap<number, number> = new Map([
   [160, 12],    // FENCE_POINT
   [161, 6],     // FENCE_FETCH_POINT
   [70, 18],     // RC_CHANNELS_OVERRIDE
+  [112, 24],    // CAMERA_TRIGGER
+  [230, 42],    // ESTIMATOR_STATUS
 ]);
 
 // ── CRC-16/MCRF4XX ─────────────────────────────────────────

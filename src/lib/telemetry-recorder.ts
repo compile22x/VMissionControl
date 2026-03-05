@@ -191,3 +191,51 @@ export async function exportRecordingCSV(recordingId: string): Promise<string> {
   }
   return rows.join("\n");
 }
+
+/**
+ * Export a recording as .tlog binary format.
+ *
+ * .tlog format: for each frame, write an 8-byte little-endian timestamp
+ * (microseconds since epoch) followed by the frame data encoded as JSON
+ * with a 4-byte little-endian length prefix.
+ *
+ * Since we don't store raw MAVLink bytes, we use a structured binary
+ * format: [8-byte timestamp (uint64 LE, microseconds)] [4-byte length (uint32 LE)]
+ * [UTF-8 JSON payload of {channel, data}].
+ *
+ * This can be converted to standard .tlog with external tooling if needed.
+ */
+export async function exportTlog(recordingId: string): Promise<Blob | null> {
+  const recordings = await listRecordings();
+  const recording = recordings.find((r) => r.id === recordingId);
+  if (!recording) return null;
+
+  const frames = await loadRecordingFrames(recordingId);
+  if (frames.length === 0) return null;
+
+  const encoder = new TextEncoder();
+  const chunks: ArrayBuffer[] = [];
+
+  for (const frame of frames) {
+    // Absolute timestamp in microseconds (split into low/high 32-bit words for LE uint64)
+    const timestampMs = recording.startTime + frame.offsetMs;
+    const timestampUs = timestampMs * 1000;
+    const low = timestampUs % 0x100000000;
+    const high = Math.floor(timestampUs / 0x100000000);
+
+    // Encode the frame payload as JSON
+    const payload = encoder.encode(JSON.stringify({ channel: frame.channel, data: frame.data }));
+
+    // 8-byte timestamp (uint64 LE) + 4-byte payload length (uint32 LE) + payload
+    const header = new ArrayBuffer(12);
+    const view = new DataView(header);
+    view.setUint32(0, low, true);
+    view.setUint32(4, high, true);
+    view.setUint32(8, payload.byteLength, true);
+
+    chunks.push(header);
+    chunks.push(payload.buffer as ArrayBuffer);
+  }
+
+  return new Blob(chunks, { type: "application/octet-stream" });
+}

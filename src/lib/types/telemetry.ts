@@ -31,7 +31,8 @@ export interface BatteryData {
   current: number;     // amps
   remaining: number;   // percentage 0-100
   consumed: number;    // mAh
-  temperature?: number; // celsius
+  temperature?: number; // celsius (from BATTERY_STATUS temperature field)
+  cellVoltages?: number[]; // per-cell voltages in volts (from BATTERY_STATUS voltages[10])
 }
 
 export interface GpsData {
@@ -238,6 +239,31 @@ export interface FenceStatusData {
   breachStatus: number;
   breachCount: number;
   breachType: number;
+}
+
+// ── Estimator Status ─────────────────────────────────────
+
+export interface EstimatorStatusData {
+  timestamp: number;
+  velRatio: number;
+  posHorizRatio: number;
+  posVertRatio: number;
+  magRatio: number;
+  haglRatio: number;
+  tasRatio: number;
+  posHorizAccuracy: number;
+  posVertAccuracy: number;
+  flags: number;
+}
+
+// ── Camera Trigger ───────────────────────────────────────
+
+export interface CameraTriggerData {
+  timestamp: number;
+  seq: number;
+  lat: number;
+  lon: number;
+  alt: number;
 }
 
 // ── Nav Controller ────────────────────────────────────────

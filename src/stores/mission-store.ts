@@ -198,7 +198,7 @@ export const useMissionStore = create<MissionStoreState>()(
       CONDITION_YAW: 115, DO_SET_SERVO: 183, DO_FENCE_ENABLE: 207,
       DO_MOUNT_CONTROL: 205, DO_GRIPPER: 211, DO_WINCH: 212,
       NAV_PAYLOAD_PLACE: 94, CONDITION_DISTANCE: 114, DO_SET_HOME: 179,
-      DO_AUX_FUNCTION: 218,
+      DO_AUX_FUNCTION: 218, VTOL_TAKEOFF: 84, VTOL_LAND: 85,
     } satisfies Record<WaypointCommand, number>;
 
     const items: MissionItem[] = waypoints.map((wp, i) => ({
@@ -235,7 +235,7 @@ export const useMissionStore = create<MissionStoreState>()(
       206: "DO_SET_CAM_TRIGG", 203: "DO_DIGICAM", 183: "DO_SET_SERVO",
       207: "DO_FENCE_ENABLE", 205: "DO_MOUNT_CONTROL", 211: "DO_GRIPPER",
       212: "DO_WINCH", 94: "NAV_PAYLOAD_PLACE", 114: "CONDITION_DISTANCE",
-      179: "DO_SET_HOME", 218: "DO_AUX_FUNCTION",
+      179: "DO_SET_HOME", 218: "DO_AUX_FUNCTION", 84: "VTOL_TAKEOFF", 85: "VTOL_LAND",
     };
 
     set({ downloadState: "downloading" });

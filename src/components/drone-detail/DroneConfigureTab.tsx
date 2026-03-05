@@ -9,6 +9,7 @@ import { useSettingsStore } from "@/stores/settings-store";
 import { FcDisconnectedPlaceholder } from "@/components/fc/FcDisconnectedPlaceholder";
 import { FlashCommitBanner } from "@/components/fc/FlashCommitBanner";
 import { RebootRequiredBanner } from "@/components/indicators/RebootRequiredBanner";
+import { useParamSafetyStore } from "@/stores/param-safety-store";
 import { OutputsPanel } from "@/components/fc/OutputsPanel";
 import { ReceiverPanel } from "@/components/fc/ReceiverPanel";
 import { FlightModesPanel } from "@/components/fc/FlightModesPanel";
@@ -24,6 +25,7 @@ import { GeofencePanel } from "@/components/fc/GeofencePanel";
 import { FramePanel } from "@/components/fc/FramePanel";
 import { PreArmPanel } from "@/components/fc/PreArmPanel";
 import { DebugPanel } from "@/components/fc/DebugPanel";
+import { DiagnosticsPanel } from "@/components/diagnostics/DiagnosticsPanel";
 import { SensorGraphPanel } from "@/components/fc/SensorGraphPanel";
 import { SensorsPanel } from "@/components/fc/SensorsPanel";
 import { GimbalPanel } from "@/components/fc/GimbalPanel";
@@ -54,6 +56,7 @@ import {
   Lightbulb,
   Wifi,
   Bug,
+  Stethoscope,
 } from "lucide-react";
 
 // ---------------------------------------------------------------------------
@@ -97,6 +100,7 @@ const FC_NAV_ITEMS: FcNavItem[] = [
   // --- Debug ---
   { id: "mavlink", label: "MAVLink Inspector", icon: <Monitor size={14} />, requiredCapability: "supportsMavlinkInspector", section: "Debug" },
   { id: "debug", label: "Debug", icon: <Bug size={14} />, requiredCapability: "supportsDebugValues", section: "Debug" },
+  { id: "diagnostics", label: "Diagnostics", icon: <Stethoscope size={14} />, section: "Debug" },
 ];
 
 // ---------------------------------------------------------------------------
@@ -124,6 +128,10 @@ export function DroneConfigureTab({ droneId, droneName, isConnected }: DroneConf
   const saveToRam = useFcPanelActionsStore((s) => s.saveToRam);
   const refresh = useFcPanelActionsStore((s) => s.refresh);
   useFcKeyboardShortcuts(saveToRam ?? undefined, refresh ?? undefined);
+
+  // Reboot-required param tracking
+  const rebootRequiredParams = useParamSafetyStore((s) => s.rebootRequiredParams);
+  const rebootParamsList = useMemo(() => Array.from(rebootRequiredParams), [rebootRequiredParams]);
 
   // Filter nav items based on firmware capabilities
   const visibleItems = useMemo(
@@ -217,7 +225,7 @@ export function DroneConfigureTab({ droneId, droneName, isConnected }: DroneConf
         ) : (
           <>
             <FlashCommitBanner />
-            <RebootRequiredBanner rebootParams={[]} />
+            <RebootRequiredBanner rebootParams={rebootParamsList} />
             {activePanel === "outputs" && <OutputsPanel />}
             {activePanel === "receiver" && <ReceiverPanel />}
             {activePanel === "modes" && <FlightModesPanel />}
@@ -239,6 +247,7 @@ export function DroneConfigureTab({ droneId, droneName, isConnected }: DroneConf
             {activePanel === "cli" && <CliPanel />}
             {activePanel === "mavlink" && <MavlinkInspectorPanel />}
             {activePanel === "debug" && <DebugPanel />}
+            {activePanel === "diagnostics" && <DiagnosticsPanel />}
           </>
         )}
       </div>

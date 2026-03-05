@@ -87,9 +87,9 @@ export function validateMission(
     });
   }
 
-  // 3. First waypoint should be TAKEOFF
+  // 3. First waypoint should be TAKEOFF or VTOL_TAKEOFF
   const firstCmd = waypoints[0].command ?? "WAYPOINT";
-  if (firstCmd !== "TAKEOFF") {
+  if (firstCmd !== "TAKEOFF" && firstCmd !== "VTOL_TAKEOFF") {
     warnings.push({
       type: "warning",
       code: "NO_TAKEOFF",
@@ -99,10 +99,10 @@ export function validateMission(
     });
   }
 
-  // 4. Last waypoint should be LAND or RTL
+  // 4. Last waypoint should be LAND, VTOL_LAND, or RTL
   if (waypoints.length >= 2) {
     const lastCmd = waypoints[waypoints.length - 1].command ?? "WAYPOINT";
-    if (lastCmd !== "LAND" && lastCmd !== "RTL") {
+    if (lastCmd !== "LAND" && lastCmd !== "VTOL_LAND" && lastCmd !== "RTL") {
       warnings.push({
         type: "warning",
         code: "NO_LAND",

@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { RingBuffer } from "@/lib/ring-buffer";
-import type { AttitudeData, PositionData, BatteryData, GpsData, VfrData, RcData, SysStatusData, RadioData, EkfData, VibrationData, ServoOutputData, WindData, TerrainData, LocalPositionData, DebugData, GimbalData, ObstacleData, ScaledImuData, HomePositionData, PowerStatusData, DistanceSensorData, FenceStatusData, NavControllerData } from "@/lib/types";
+import type { AttitudeData, PositionData, BatteryData, GpsData, VfrData, RcData, SysStatusData, RadioData, EkfData, VibrationData, ServoOutputData, WindData, TerrainData, LocalPositionData, DebugData, GimbalData, ObstacleData, ScaledImuData, HomePositionData, PowerStatusData, DistanceSensorData, FenceStatusData, EstimatorStatusData, CameraTriggerData, NavControllerData } from "@/lib/types";
 
 interface TelemetryStoreState {
   _version: number;
@@ -26,6 +26,8 @@ interface TelemetryStoreState {
   powerStatus: RingBuffer<PowerStatusData>;
   distanceSensor: RingBuffer<DistanceSensorData>;
   fenceStatus: RingBuffer<FenceStatusData>;
+  estimatorStatus: RingBuffer<EstimatorStatusData>;
+  cameraTrigger: RingBuffer<CameraTriggerData>;
   navController: RingBuffer<NavControllerData>;
 
   pushAttitude: (data: AttitudeData) => void;
@@ -50,6 +52,8 @@ interface TelemetryStoreState {
   pushPowerStatus: (data: PowerStatusData) => void;
   pushDistanceSensor: (data: DistanceSensorData) => void;
   pushFenceStatus: (data: FenceStatusData) => void;
+  pushEstimatorStatus: (data: EstimatorStatusData) => void;
+  pushCameraTrigger: (data: CameraTriggerData) => void;
   pushNavController: (data: NavControllerData) => void;
   pushBatch: (batch: Partial<{
     attitude: AttitudeData;
@@ -74,6 +78,8 @@ interface TelemetryStoreState {
     powerStatus: PowerStatusData;
     distanceSensor: DistanceSensorData;
     fenceStatus: FenceStatusData;
+    estimatorStatus: EstimatorStatusData;
+    cameraTrigger: CameraTriggerData;
     navController: NavControllerData;
   }>) => void;
   clear: () => void;
@@ -103,6 +109,8 @@ export const useTelemetryStore = create<TelemetryStoreState>((set, get) => ({
   powerStatus: new RingBuffer<PowerStatusData>(60),        // 1Hz x 60s
   distanceSensor: new RingBuffer<DistanceSensorData>(120), // 2Hz x 60s
   fenceStatus: new RingBuffer<FenceStatusData>(60),        // 1Hz x 60s
+  estimatorStatus: new RingBuffer<EstimatorStatusData>(60), // 1Hz x 60s
+  cameraTrigger: new RingBuffer<CameraTriggerData>(100),    // event-driven
   navController: new RingBuffer<NavControllerData>(120),   // 2Hz x 60s
 
   pushAttitude: (data) => {
@@ -151,6 +159,8 @@ export const useTelemetryStore = create<TelemetryStoreState>((set, get) => ({
   pushPowerStatus: (data) => { get().powerStatus.push(data); set({ _version: get()._version + 1 }); },
   pushDistanceSensor: (data) => { get().distanceSensor.push(data); set({ _version: get()._version + 1 }); },
   pushFenceStatus: (data) => { get().fenceStatus.push(data); set({ _version: get()._version + 1 }); },
+  pushEstimatorStatus: (data) => { get().estimatorStatus.push(data); set({ _version: get()._version + 1 }); },
+  pushCameraTrigger: (data) => { get().cameraTrigger.push(data); set({ _version: get()._version + 1 }); },
   pushNavController: (data) => { get().navController.push(data); set({ _version: get()._version + 1 }); },
   pushBatch: (batch) => {
     const s = get();
@@ -176,6 +186,8 @@ export const useTelemetryStore = create<TelemetryStoreState>((set, get) => ({
     if (batch.powerStatus) s.powerStatus.push(batch.powerStatus);
     if (batch.distanceSensor) s.distanceSensor.push(batch.distanceSensor);
     if (batch.fenceStatus) s.fenceStatus.push(batch.fenceStatus);
+    if (batch.estimatorStatus) s.estimatorStatus.push(batch.estimatorStatus);
+    if (batch.cameraTrigger) s.cameraTrigger.push(batch.cameraTrigger);
     if (batch.navController) s.navController.push(batch.navController);
     set({ _version: get()._version + 1 });
   },
@@ -203,6 +215,8 @@ export const useTelemetryStore = create<TelemetryStoreState>((set, get) => ({
       powerStatus: new RingBuffer<PowerStatusData>(60),
       distanceSensor: new RingBuffer<DistanceSensorData>(120),
       fenceStatus: new RingBuffer<FenceStatusData>(60),
+      estimatorStatus: new RingBuffer<EstimatorStatusData>(60),
+      cameraTrigger: new RingBuffer<CameraTriggerData>(100),
       navController: new RingBuffer<NavControllerData>(120),
     }),
 }));

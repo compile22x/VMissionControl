@@ -38,6 +38,8 @@ export type BatteryCallback = (data: {
   current: number;
   remaining: number;
   consumed: number;
+  temperature?: number;
+  cellVoltages?: number[];
 }) => void;
 
 export type GpsCallback = (data: {
@@ -247,6 +249,34 @@ export type ScaledImuCallback = (data: {
   xmag: number;
   ymag: number;
   zmag: number;
+}) => void;
+
+export type ScaledPressureCallback = (data: {
+  timestamp: number;
+  pressAbs: number;
+  pressDiff: number;
+  temperature: number;
+}) => void;
+
+export type EstimatorStatusCallback = (data: {
+  timestamp: number;
+  velRatio: number;
+  posHorizRatio: number;
+  posVertRatio: number;
+  magRatio: number;
+  haglRatio: number;
+  tasRatio: number;
+  posHorizAccuracy: number;
+  posVertAccuracy: number;
+  flags: number;
+}) => void;
+
+export type CameraTriggerCallback = (data: {
+  timestamp: number;
+  seq: number;
+  lat: number;
+  lon: number;
+  alt: number;
 }) => void;
 
 export type LinkStateCallback = () => void;

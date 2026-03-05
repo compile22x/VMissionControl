@@ -18,7 +18,8 @@ import type {
   AccelCalPosCallback,
   HomePositionCallback, AutopilotVersionCallback,
   PowerStatusCallback, DistanceSensorCallback, FenceStatusCallback,
-  NavControllerCallback, ScaledImuCallback, LinkStateCallback,
+  NavControllerCallback, ScaledImuCallback, ScaledPressureCallback,
+  EstimatorStatusCallback, CameraTriggerCallback, LinkStateCallback,
   LocalPositionCallback, DebugCallback, GimbalAttitudeCallback,
   ObstacleDistanceCallback, CameraImageCapturedCallback,
   ExtendedSysStateCallback, FencePointCallback, SystemTimeCallback,
@@ -102,6 +103,8 @@ export interface DroneProtocol {
   getParameter(name: string): Promise<ParameterValue>;
   setParameter(name: string, value: number, type?: number): Promise<CommandResult>;
   resetParametersToDefault(): Promise<CommandResult>;
+  /** Return cached parameter names (from last getAllParameters download). Empty if not yet downloaded. */
+  getCachedParameterNames(): string[];
 
   // ── Mission ─────────────────────────────────────────────
   uploadMission(items: MissionItem[]): Promise<CommandResult>;
@@ -168,6 +171,9 @@ export interface DroneProtocol {
   onFenceStatus?(callback: FenceStatusCallback): () => void;
   onNavController?(callback: NavControllerCallback): () => void;
   onScaledImu?(callback: ScaledImuCallback): () => void;
+  onScaledPressure?(callback: ScaledPressureCallback): () => void;
+  onEstimatorStatus?(callback: EstimatorStatusCallback): () => void;
+  onCameraTrigger?(callback: CameraTriggerCallback): () => void;
   onLinkLost?(callback: LinkStateCallback): () => void;
   onLinkRestored?(callback: LinkStateCallback): () => void;
   onLocalPosition?(callback: LocalPositionCallback): () => void;

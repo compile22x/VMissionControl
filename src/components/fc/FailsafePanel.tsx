@@ -11,7 +11,8 @@ import { useParamLabel } from "@/hooks/use-param-label";
 import { useUnsavedGuard } from "@/hooks/use-unsaved-guard";
 import { PanelHeader } from "./PanelHeader";
 import { ArmedLockOverlay } from "@/components/indicators/ArmedLockOverlay";
-import { ShieldAlert, Battery, Radio, Gauge, Save, HardDrive, MapPin, SlidersHorizontal } from "lucide-react";
+import { ShieldAlert, Battery, Radio, Gauge, Save, HardDrive, MapPin, SlidersHorizontal, Mountain } from "lucide-react";
+import { StarredParam } from "./ParamStar";
 
 const RC_CHANNEL_COUNT = 8;
 
@@ -41,6 +42,7 @@ const RC_OPTION_VALUES = [
 // Vehicle-specific failsafe params
 const COPTER_FS_PARAMS = [
   "FS_SHORT_ACTN", "FS_SHORT_TIMEOUT", "FS_LONG_ACTN", "FS_LONG_TIMEOUT", "FS_GCS_ENABL",
+  "TERRAIN_ENABLE",
 ];
 const PLANE_FS_PARAMS = [
   "THR_FAILSAFE", "THR_FS_VALUE",
@@ -121,93 +123,122 @@ export function FailsafePanel() {
 
         {/* Short Failsafe (Copter only) */}
         {!isPlane && <Card icon={<ShieldAlert size={14} />} title="Short Failsafe" description="Triggered on brief signal loss">
-          <Select
-            label={pl("FS_SHORT_ACTN — Action")}
-            options={[
-              { value: "0", label: "0 — Disabled" },
-              { value: "1", label: "1 — Enabled (Circle)" },
-            ]}
-            value={p("FS_SHORT_ACTN")}
-            onChange={(v) => set("FS_SHORT_ACTN", v)}
-          />
-          <Input
-            label={pl("FS_SHORT_TIMEOUT — Timeout (s)")}
-            type="number"
-            step="0.1"
-            min="0"
-            unit="s"
-            value={p("FS_SHORT_TIMEOUT", "1.5")}
-            onChange={(e) => set("FS_SHORT_TIMEOUT", e.target.value)}
-          />
+          <StarredParam param="FS_SHORT_ACTN">
+            <Select
+              label={pl("FS_SHORT_ACTN — Action")}
+              options={[
+                { value: "0", label: "0 — Disabled" },
+                { value: "1", label: "1 — Enabled (Circle)" },
+              ]}
+              value={p("FS_SHORT_ACTN")}
+              onChange={(v) => set("FS_SHORT_ACTN", v)}
+            />
+          </StarredParam>
+          <StarredParam param="FS_SHORT_TIMEOUT">
+            <Input
+              label={pl("FS_SHORT_TIMEOUT — Timeout (s)")}
+              type="number"
+              step="0.1"
+              min="0"
+              unit="s"
+              value={p("FS_SHORT_TIMEOUT", "1.5")}
+              onChange={(e) => set("FS_SHORT_TIMEOUT", e.target.value)}
+            />
+          </StarredParam>
         </Card>}
 
         {/* Long Failsafe (Copter only) */}
         {!isPlane && <Card icon={<ShieldAlert size={14} />} title="Long Failsafe" description="Triggered on extended signal loss">
-          <Select
-            label={pl("FS_LONG_ACTN — Action")}
-            options={[
-              { value: "0", label: "0 — Continue" },
-              { value: "1", label: "1 — RTL" },
-              { value: "2", label: "2 — Glide" },
-            ]}
-            value={p("FS_LONG_ACTN")}
-            onChange={(v) => set("FS_LONG_ACTN", v)}
-          />
-          <Input
-            label={pl("FS_LONG_TIMEOUT — Timeout (s)")}
-            type="number"
-            step="0.1"
-            min="0"
-            unit="s"
-            value={p("FS_LONG_TIMEOUT", "5.0")}
-            onChange={(e) => set("FS_LONG_TIMEOUT", e.target.value)}
-          />
+          <StarredParam param="FS_LONG_ACTN">
+            <Select
+              label={pl("FS_LONG_ACTN — Action")}
+              options={[
+                { value: "0", label: "0 — Continue" },
+                { value: "1", label: "1 — RTL" },
+                { value: "2", label: "2 — Glide" },
+              ]}
+              value={p("FS_LONG_ACTN")}
+              onChange={(v) => set("FS_LONG_ACTN", v)}
+            />
+          </StarredParam>
+          <StarredParam param="FS_LONG_TIMEOUT">
+            <Input
+              label={pl("FS_LONG_TIMEOUT — Timeout (s)")}
+              type="number"
+              step="0.1"
+              min="0"
+              unit="s"
+              value={p("FS_LONG_TIMEOUT", "5.0")}
+              onChange={(e) => set("FS_LONG_TIMEOUT", e.target.value)}
+            />
+          </StarredParam>
         </Card>}
 
         {/* Battery Failsafe */}
         <Card icon={<Battery size={14} />} title="Battery Failsafe" description="Triggered on low battery voltage">
-          <Select
-            label={pl("BATT_FS_VOLTSRC — Voltage Source")}
-            options={[
-              { value: "0", label: "0 — Raw Voltage" },
-              { value: "1", label: "1 — Sag Compensated" },
-            ]}
-            value={p("BATT_FS_VOLTSRC")}
-            onChange={(v) => set("BATT_FS_VOLTSRC", v)}
-          />
-          <Input
-            label={pl("BATT_FS_LOW_VOLT — Low Voltage Threshold")}
-            type="number"
-            step="0.1"
-            min="0"
-            unit="V"
-            value={p("BATT_FS_LOW_VOLT")}
-            onChange={(e) => set("BATT_FS_LOW_VOLT", e.target.value)}
-          />
-          <Select
-            label={pl("BATT_FS_LOW_ACT — Low Voltage Action")}
-            options={[
-              { value: "0", label: "0 — None" },
-              { value: "1", label: "1 — Land" },
-              { value: "2", label: "2 — RTL" },
-              { value: "3", label: "3 — SmartRTL or RTL" },
-            ]}
-            value={p("BATT_FS_LOW_ACT")}
-            onChange={(v) => set("BATT_FS_LOW_ACT", v)}
-          />
+          <StarredParam param="BATT_FS_VOLTSRC">
+            <Select
+              label={pl("BATT_FS_VOLTSRC — Voltage Source")}
+              options={[
+                { value: "0", label: "0 — Raw Voltage" },
+                { value: "1", label: "1 — Sag Compensated" },
+              ]}
+              value={p("BATT_FS_VOLTSRC")}
+              onChange={(v) => set("BATT_FS_VOLTSRC", v)}
+            />
+          </StarredParam>
+          <StarredParam param="BATT_FS_LOW_VOLT">
+            <Input
+              label={pl("BATT_FS_LOW_VOLT — Low Voltage Threshold")}
+              type="number"
+              step="0.1"
+              min="0"
+              unit="V"
+              value={p("BATT_FS_LOW_VOLT")}
+              onChange={(e) => set("BATT_FS_LOW_VOLT", e.target.value)}
+            />
+          </StarredParam>
+          <StarredParam param="BATT_FS_LOW_ACT">
+            <Select
+              label={pl("BATT_FS_LOW_ACT — Low Voltage Action")}
+              options={[
+                { value: "0", label: "0 — None" },
+                { value: "1", label: "1 — Land" },
+                { value: "2", label: "2 — RTL" },
+                { value: "3", label: "3 — SmartRTL or RTL" },
+              ]}
+              value={p("BATT_FS_LOW_ACT")}
+              onChange={(v) => set("BATT_FS_LOW_ACT", v)}
+            />
+          </StarredParam>
         </Card>
 
         {/* GCS Failsafe (Copter only) */}
         {!isPlane && <Card icon={<Radio size={14} />} title="GCS Failsafe" description="Triggered on GCS link loss">
+          <StarredParam param="FS_GCS_ENABL">
+            <Select
+              label={pl("FS_GCS_ENABL — GCS Failsafe")}
+              options={[
+                { value: "0", label: "0 — Disabled" },
+                { value: "1", label: "1 — Enabled (RTL)" },
+                { value: "2", label: "2 — Enabled (continue in auto)" },
+              ]}
+              value={p("FS_GCS_ENABL")}
+              onChange={(v) => set("FS_GCS_ENABL", v)}
+            />
+          </StarredParam>
+        </Card>}
+
+        {/* Terrain Failsafe (Copter only) */}
+        {!isPlane && <Card icon={<Mountain size={14} />} title="Terrain Failsafe" description="Triggered when terrain data is unavailable during terrain-following">
           <Select
-            label={pl("FS_GCS_ENABL — GCS Failsafe")}
+            label={pl("TERRAIN_ENABLE — Terrain Following")}
             options={[
               { value: "0", label: "0 — Disabled" },
-              { value: "1", label: "1 — Enabled (RTL)" },
-              { value: "2", label: "2 — Enabled (continue in auto)" },
+              { value: "1", label: "1 — Enabled" },
             ]}
-            value={p("FS_GCS_ENABL")}
-            onChange={(v) => set("FS_GCS_ENABL", v)}
+            value={p("TERRAIN_ENABLE")}
+            onChange={(v) => set("TERRAIN_ENABLE", v)}
           />
         </Card>}
 

@@ -24,6 +24,8 @@ const COMMAND_OPTIONS: { value: WaypointCommand; label: string }[] = [
   { value: "LOITER_TURNS", label: "Loiter (Turns)" },
   { value: "RTL", label: "Return to Launch" },
   { value: "ROI", label: "Region of Interest" },
+  { value: "VTOL_TAKEOFF", label: "VTOL Takeoff" },
+  { value: "VTOL_LAND", label: "VTOL Land" },
   { value: "NAV_PAYLOAD_PLACE", label: "Payload Place" },
   { value: "DO_SET_SPEED", label: "Set Speed" },
   { value: "DO_SET_CAM_TRIGG", label: "Camera Trigger" },
@@ -66,6 +68,8 @@ const CMD_LETTER: Record<string, string> = {
   DO_FENCE_ENABLE: "F",
   DO_SET_HOME: "H",
   DO_AUX_FUNCTION: "A",
+  VTOL_TAKEOFF: "T",
+  VTOL_LAND: "D",
 };
 
 interface WaypointListItemProps {

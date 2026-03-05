@@ -19,6 +19,7 @@ import {
   Star,
   HardDrive,
   Zap,
+  Diff,
 } from "lucide-react";
 
 interface ParameterSearchFilterProps {
@@ -40,6 +41,7 @@ interface ParameterSearchFilterProps {
   onDismissError: () => void;
   onExport: () => void;
   onCompare: () => void;
+  onDefaultsDiff: () => void;
   onImport: (e: ChangeEvent<HTMLInputElement>) => void;
   onRevert: () => void;
   onResetDefaults: () => void;
@@ -68,6 +70,7 @@ export function ParameterSearchFilter({
   onDismissError,
   onExport,
   onCompare,
+  onDefaultsDiff,
   onImport,
   onRevert,
   onResetDefaults,
@@ -149,6 +152,7 @@ export function ParameterSearchFilter({
           <Button variant="secondary" size="sm" icon={<Upload size={12} />} onClick={() => fileInputRef.current?.click()} disabled={paramCount === 0}>Import</Button>
           <input ref={fileInputRef} type="file" accept=".param,.txt" className="hidden" onChange={onImport} />
           <Button variant="secondary" size="sm" icon={<GitCompareArrows size={12} />} onClick={onCompare} disabled={paramCount === 0}>Compare</Button>
+          <Button variant="secondary" size="sm" icon={<Diff size={12} />} onClick={onDefaultsDiff} disabled={paramCount === 0}>Defaults Diff</Button>
 
           <div className="w-px h-5 bg-border-default" />
 

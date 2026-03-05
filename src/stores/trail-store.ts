@@ -8,15 +8,16 @@
 
 import { create } from "zustand";
 
-interface TrailPoint {
+export interface TrailPoint {
   lat: number;
   lon: number;
+  alt: number;
 }
 
 interface TrailStoreState {
   trail: TrailPoint[];
   maxPoints: number;
-  pushPoint: (lat: number, lon: number) => void;
+  pushPoint: (lat: number, lon: number, alt?: number) => void;
   clear: () => void;
 }
 
@@ -24,7 +25,7 @@ export const useTrailStore = create<TrailStoreState>((set, get) => ({
   trail: [],
   maxPoints: 1000,
 
-  pushPoint: (lat, lon) => {
+  pushPoint: (lat, lon, alt = 0) => {
     // Reject invalid (0,0) positions — GPS not yet fixed
     if (Math.abs(lat) < 0.001 && Math.abs(lon) < 0.001) return;
     const { trail, maxPoints } = get();
@@ -35,7 +36,7 @@ export const useTrailStore = create<TrailStoreState>((set, get) => ({
       const dlon = Math.abs(lon - last.lon);
       if (dlat < 0.00001 && dlon < 0.00001) return;
     }
-    const newTrail = [...trail, { lat, lon }];
+    const newTrail = [...trail, { lat, lon, alt }];
     if (newTrail.length > maxPoints) {
       newTrail.splice(0, newTrail.length - maxPoints);
     }

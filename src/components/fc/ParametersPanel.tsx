@@ -8,9 +8,11 @@ import { ParameterGrid } from "./ParameterGrid";
 import { WriteConfirmDialog } from "./WriteConfirmDialog";
 import { ParameterSearchFilter } from "./ParameterSearchFilter";
 import { ParamCompare } from "./ParamCompare";
+import { ParamDefaultsDiff } from "./ParamDefaultsDiff";
 import { useToast } from "@/components/ui/toast";
 import { useDroneManager } from "@/stores/drone-manager";
 import { useSettingsStore } from "@/stores/settings-store";
+import { useUiStore } from "@/stores/ui-store";
 import { getParamMetadata, firmwareTypeToVehicle, type ParamMetadata } from "@/lib/protocol/param-metadata";
 import { cn } from "@/lib/utils";
 import {
@@ -54,8 +56,11 @@ export function ParametersPanel() {
   const [showCommitButton, setShowCommitButton] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showCompare, setShowCompare] = useState(false);
+  const [showDefaultsDiff, setShowDefaultsDiff] = useState(false);
   const columnVisibility = useSettingsStore((s) => s.paramColumns);
   const favoriteParams = useSettingsStore((s) => s.favoriteParams);
+  const pendingParamSearch = useUiStore((s) => s.pendingParamSearch);
+  const setPendingParamSearch = useUiStore((s) => s.setPendingParamSearch);
 
   useEffect(() => {
     if (cachedParamList && Date.now() - cacheTimestamp < PARAM_LIST_CACHE_TTL) {
@@ -74,6 +79,18 @@ export function ParametersPanel() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Consume pending param search from Cmd+K
+  useEffect(() => {
+    if (pendingParamSearch) {
+      setFilter(pendingParamSearch);
+      setCategory(null);
+      setShowModifiedOnly(false);
+      setShowFavorites(false);
+      setShowNonDefault(false);
+      setPendingParamSearch(null);
+    }
+  }, [pendingParamSearch, setPendingParamSearch]);
 
   const downloadParams = useCallback(async () => {
     const protocol = useDroneManager.getState().getSelectedProtocol();
@@ -343,6 +360,7 @@ export function ParametersPanel() {
         onDismissError={() => setError(null)}
         onExport={handleExport}
         onCompare={() => setShowCompare(true)}
+        onDefaultsDiff={() => setShowDefaultsDiff(true)}
         onImport={handleImport}
         onRevert={handleRevert}
         onResetDefaults={handleResetDefaults}
@@ -419,6 +437,7 @@ export function ParametersPanel() {
         onCancel={() => setShowWriteConfirm(false)}
         onConfirm={doWrite}
         changes={writeChanges}
+        metadata={metadata}
       />
 
       {/* Reset to defaults confirmation */}
@@ -440,6 +459,16 @@ export function ParametersPanel() {
         className="max-w-3xl"
       >
         <ParamCompare fcParams={fcParamMap} onApplied={handleCompareApplied} />
+      </Modal>
+
+      {/* Defaults diff modal */}
+      <Modal
+        open={showDefaultsDiff}
+        onClose={() => setShowDefaultsDiff(false)}
+        title="Compare to Defaults"
+        className="max-w-3xl"
+      >
+        <ParamDefaultsDiff parameters={parameters} modified={modified} metadata={metadata} />
       </Modal>
 
       {/* Reboot prompt */}

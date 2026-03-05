@@ -24,14 +24,18 @@ interface ParamSafetyStoreState {
   flashCommitLog: RingBuffer<FlashCommitEntry>;
   lastFlashCommit: number;
   panelStaleness: Map<string, number>;
+  rebootRequiredParams: Set<string>;
 
   trackWrite: (paramName: string, oldValue: number, newValue: number, panel: string) => void;
   removeWrite: (paramName: string) => void;
   commitFlash: (success?: boolean) => void;
   getPendingCount: () => number;
   hasCriticalPending: () => boolean;
+  isCriticalParam: (paramName: string) => boolean;
   markPanelLoaded: (panel: string) => void;
   isPanelStale: (panel: string, maxAgeMs?: number) => boolean;
+  trackRebootParam: (paramName: string) => void;
+  clearRebootParams: () => void;
   clear: () => void;
 }
 
@@ -40,6 +44,7 @@ export const useParamSafetyStore = create<ParamSafetyStoreState>((set, get) => (
   flashCommitLog: new RingBuffer<FlashCommitEntry>(10),
   lastFlashCommit: 0,
   panelStaleness: new Map(),
+  rebootRequiredParams: new Set(),
 
   trackWrite: (paramName, oldValue, newValue, panel) => {
     const pending = get().pendingWrites;
@@ -82,6 +87,10 @@ export const useParamSafetyStore = create<ParamSafetyStoreState>((set, get) => (
     return false;
   },
 
+  isCriticalParam: (paramName: string) => {
+    return CRITICAL_PREFIXES.some((prefix) => paramName.startsWith(prefix));
+  },
+
   markPanelLoaded: (panel) => {
     get().panelStaleness.set(panel, Date.now());
     set({});
@@ -93,11 +102,22 @@ export const useParamSafetyStore = create<ParamSafetyStoreState>((set, get) => (
     return Date.now() - loaded > maxAgeMs;
   },
 
+  trackRebootParam: (paramName: string) => {
+    const reboot = get().rebootRequiredParams;
+    reboot.add(paramName);
+    set({}); // trigger re-render
+  },
+
+  clearRebootParams: () => {
+    set({ rebootRequiredParams: new Set() });
+  },
+
   clear: () =>
     set({
       pendingWrites: new Map(),
       flashCommitLog: new RingBuffer<FlashCommitEntry>(10),
       lastFlashCommit: 0,
       panelStaleness: new Map(),
+      rebootRequiredParams: new Set(),
     }),
 }));

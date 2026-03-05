@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useRef, useCallback, useMemo } from "react";
-import { RotateCw, Star, ChevronUp, ChevronDown, Lock } from "lucide-react";
+import { RotateCw, Star, ChevronUp, ChevronDown, Lock, AlertTriangle, HardDrive } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSettingsStore } from "@/stores/settings-store";
+import { useParamSafetyStore } from "@/stores/param-safety-store";
+import { ParamTooltip } from "./ParamTooltip";
 import type { ParameterValue } from "@/lib/protocol/types";
 import type { ParamMetadata } from "@/lib/protocol/param-metadata";
 import type { ParamColumnVisibility } from "@/stores/settings-store";
@@ -29,6 +31,30 @@ function isReadOnly(name: string, _meta: ParamMetadata | undefined): boolean {
   return READ_ONLY_PATTERNS.some((p) => p.test(name));
 }
 
+/** Dangerous value validation rules for specific parameter patterns. */
+interface DangerousRule {
+  test: (name: string) => boolean;
+  check: (value: number) => boolean;
+  message: string;
+}
+
+const DANGEROUS_VALUE_RULES: DangerousRule[] = [
+  { test: (n) => n === "BATT_CAPACITY", check: (v) => v < 0, message: "Battery capacity cannot be negative" },
+  { test: (n) => n === "MOT_SPIN_ARM", check: (v) => v === 0, message: "Zero spin arm may prevent motor start" },
+  { test: (n) => n.startsWith("FS_") && n.endsWith("_TIMEOUT"), check: (v) => v < 0, message: "Failsafe timeout cannot be negative" },
+  { test: (n) => n === "FENCE_ALT_MAX", check: (v) => v < 0, message: "Fence max altitude cannot be negative" },
+  { test: (n) => n === "FENCE_RADIUS", check: (v) => v < 0, message: "Fence radius cannot be negative" },
+  { test: (n) => n === "BATT_LOW_VOLT", check: (v) => v < 0, message: "Low battery voltage cannot be negative" },
+  { test: (n) => n === "BATT_CRT_VOLT", check: (v) => v < 0, message: "Critical battery voltage cannot be negative" },
+];
+
+function getDangerousWarning(name: string, value: number): string | null {
+  for (const rule of DANGEROUS_VALUE_RULES) {
+    if (rule.test(name) && rule.check(value)) return rule.message;
+  }
+  return null;
+}
+
 interface ParameterGridProps {
   parameters: ParameterValue[];
   modified: Map<string, number>;
@@ -45,47 +71,15 @@ function isValueOutOfRange(value: number, meta: ParamMetadata | undefined): bool
   return value < meta.range.min || value > meta.range.max;
 }
 
-/** Inline tooltip for parameter name hover. */
-function ParamTooltip({ meta, children }: { meta: ParamMetadata | undefined; children: React.ReactNode }) {
-  const [show, setShow] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  if (!meta || (!meta.humanName && !meta.description)) {
-    return <>{children}</>;
-  }
-
-  return (
-    <div
-      ref={ref}
-      className="relative"
-      onMouseEnter={() => setShow(true)}
-      onMouseLeave={() => setShow(false)}
-    >
-      {children}
-      {show && (
-        <div className="absolute left-0 top-full mt-1 z-50 max-w-[300px] whitespace-normal bg-bg-tertiary border border-border-default px-2.5 py-2 text-[10px] leading-relaxed">
-          {meta.humanName && (
-            <div className="font-semibold text-text-primary mb-0.5">{meta.humanName}</div>
-          )}
-          {meta.description && (
-            <div className="text-text-secondary">{meta.description}</div>
-          )}
-          {meta.rebootRequired && (
-            <div className="text-status-warning mt-1">Reboot required after change</div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
 export function ParameterGrid({ parameters, modified, onModify, filter, showModifiedOnly, metadata, columnVisibility }: ParameterGridProps) {
   const [editingParam, setEditingParam] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
+  const [dangerousWarning, setDangerousWarning] = useState<{ name: string; message: string } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const selectRef = useRef<HTMLSelectElement>(null);
   const toggleFavorite = useSettingsStore((s) => s.toggleFavorite);
   const favoriteParams = useSettingsStore((s) => s.favoriteParams);
+  const pendingWrites = useParamSafetyStore((s) => s.pendingWrites);
 
   const filtered = useMemo(() => {
     let result = parameters;
@@ -128,6 +122,12 @@ export function ParameterGrid({ parameters, modified, onModify, filter, showModi
   const commitEdit = useCallback((name: string) => {
     const num = parseFloat(editValue);
     if (!isNaN(num)) {
+      const warning = getDangerousWarning(name, num);
+      if (warning) {
+        setDangerousWarning({ name, message: warning });
+        return;
+      }
+      setDangerousWarning(null);
       onModify(name, num);
     }
     setEditingParam(null);
@@ -143,6 +143,7 @@ export function ParameterGrid({ parameters, modified, onModify, filter, showModi
 
   const cancelEdit = useCallback(() => {
     setEditingParam(null);
+    setDangerousWarning(null);
   }, []);
 
   const vis = columnVisibility;
@@ -166,6 +167,7 @@ export function ParameterGrid({ parameters, modified, onModify, filter, showModi
         <tbody>
           {filtered.map((param) => {
             const isModified = modified.has(param.name);
+            const isPendingRam = pendingWrites.has(param.name);
             const displayValue = isModified ? modified.get(param.name)! : param.value;
             const isEditing = editingParam === param.name;
             const meta = metadata?.get(param.name);
@@ -183,7 +185,9 @@ export function ParameterGrid({ parameters, modified, onModify, filter, showModi
                 key={`${param.name}-${param.index}`}
                 className={cn(
                   "border-b border-border-default h-8 transition-colors",
-                  isModified && "bg-status-warning/5"
+                  isModified
+                    ? "bg-status-warning/5"
+                    : isPendingRam && "bg-orange-500/8"
                 )}
               >
                 {/* Favorite star */}
@@ -269,22 +273,35 @@ export function ParameterGrid({ parameters, modified, onModify, filter, showModi
                             )}
                           </select>
                         ) : (
-                          <input
-                            ref={inputRef}
-                            type="text"
-                            value={editValue}
-                            onChange={(e) => setEditValue(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") commitEdit(param.name);
-                              if (e.key === "Escape") cancelEdit();
-                            }}
-                            onBlur={() => commitEdit(param.name)}
-                            title={editOutOfRange && meta?.range ? `Expected range: ${meta.range.min} .. ${meta.range.max}` : undefined}
-                            className={cn(
-                              "w-full h-6 px-1.5 bg-bg-tertiary border text-xs font-mono text-text-primary focus:outline-none",
-                              editOutOfRange ? "border-status-warning" : "border-accent-primary"
+                          <div className="w-full">
+                            <input
+                              ref={inputRef}
+                              type="text"
+                              value={editValue}
+                              onChange={(e) => {
+                                setEditValue(e.target.value);
+                                if (dangerousWarning?.name === param.name) setDangerousWarning(null);
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") commitEdit(param.name);
+                                if (e.key === "Escape") cancelEdit();
+                              }}
+                              onBlur={() => commitEdit(param.name)}
+                              title={editOutOfRange && meta?.range ? `Expected range: ${meta.range.min} .. ${meta.range.max}` : undefined}
+                              className={cn(
+                                "w-full h-6 px-1.5 bg-bg-tertiary border text-xs font-mono text-text-primary focus:outline-none",
+                                dangerousWarning?.name === param.name
+                                  ? "border-status-error"
+                                  : editOutOfRange ? "border-status-warning" : "border-accent-primary"
+                              )}
+                            />
+                            {dangerousWarning?.name === param.name && (
+                              <div className="flex items-center gap-1 mt-0.5 text-[10px] text-status-error">
+                                <AlertTriangle size={9} />
+                                {dangerousWarning.message}
+                              </div>
                             )}
-                          />
+                          </div>
                         )
                       ) : (
                         <>
@@ -293,6 +310,7 @@ export function ParameterGrid({ parameters, modified, onModify, filter, showModi
                             title={
                               readOnly ? "Read-only parameter" :
                               outOfRange && meta?.range ? `Out of range: expected ${meta.range.min} .. ${meta.range.max}` :
+                              isPendingRam && !isModified ? "Written to RAM — not yet committed to flash" :
                               undefined
                             }
                             className={cn(
@@ -303,7 +321,9 @@ export function ParameterGrid({ parameters, modified, onModify, filter, showModi
                                   ? "text-status-warning border border-status-warning/60 bg-status-warning/5 cursor-pointer hover:bg-bg-tertiary"
                                   : isModified
                                     ? "text-status-warning border border-status-warning/40 cursor-pointer hover:bg-bg-tertiary"
-                                    : "text-text-primary border border-transparent cursor-pointer hover:bg-bg-tertiary"
+                                    : isPendingRam
+                                      ? "text-orange-400 border border-orange-500/40 cursor-pointer hover:bg-bg-tertiary"
+                                      : "text-text-primary border border-transparent cursor-pointer hover:bg-bg-tertiary"
                             )}
                           >
                             <span>
@@ -312,6 +332,11 @@ export function ParameterGrid({ parameters, modified, onModify, filter, showModi
                                 : displayValue}
                             </span>
                             {outOfRange && <span className="text-[10px]" title={`Range: ${meta?.range?.min} .. ${meta?.range?.max}`}>!</span>}
+                            {isPendingRam && !isModified && (
+                              <span className="flex-shrink-0" title="RAM only, not flashed">
+                                <HardDrive size={10} className="text-orange-400" />
+                              </span>
+                            )}
                           </button>
                           {/* Increment arrows for params with defined step */}
                           {!readOnly && meta?.increment && !hasEnum && !hasBitmask && (

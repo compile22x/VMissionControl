@@ -67,6 +67,8 @@ export function SensorsPanel() {
 
   const vfrBuffer = useTelemetryStore((s) => s.vfr);
   const latestVfr = vfrBuffer.latest();
+  const distanceBuffer = useTelemetryStore((s) => s.distanceSensor);
+  const latestDistance = distanceBuffer.latest();
 
   const {
     params, loading, error, dirtyParams, hasRamWrites,
@@ -154,6 +156,29 @@ export function SensorsPanel() {
                     value={p("RNGFND1_ORIENT", "25")}
                     onChange={(v) => set("RNGFND1_ORIENT", v)}
                   />
+                  {/* Live distance readout */}
+                  {latestDistance && (
+                    <div className="mt-2 p-3 bg-bg-tertiary/50 rounded space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] text-text-tertiary">Live Distance</span>
+                        <span className="text-sm font-mono text-text-primary">
+                          {(latestDistance.currentDistance / 100).toFixed(2)} <span className="text-[10px] text-text-tertiary">m</span>
+                        </span>
+                      </div>
+                      <div className="h-2 bg-bg-tertiary rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-accent-primary transition-all duration-200"
+                          style={{
+                            width: `${Math.min(100, Math.max(0, ((latestDistance.currentDistance - latestDistance.minDistance) / (latestDistance.maxDistance - latestDistance.minDistance)) * 100))}%`,
+                          }}
+                        />
+                      </div>
+                      <div className="flex justify-between text-[9px] text-text-tertiary font-mono">
+                        <span>{(latestDistance.minDistance / 100).toFixed(1)}m</span>
+                        <span>{(latestDistance.maxDistance / 100).toFixed(1)}m</span>
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
             </div>

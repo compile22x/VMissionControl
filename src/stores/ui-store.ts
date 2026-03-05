@@ -7,6 +7,10 @@ interface UiStoreState {
   sidebarOpen: boolean;
   modalOpen: string | null;
   immersiveMode: boolean;
+  /** Pending param search from Cmd+K — consumed by ParametersPanel to set initial filter. */
+  pendingParamSearch: string | null;
+  /** Pending detail tab switch from Cmd+K — consumed by DroneDetailPanel. */
+  pendingDetailTab: string | null;
 
   setActiveView: (view: ViewId) => void;
   togglePanel: (panel: keyof PanelState) => void;
@@ -17,6 +21,8 @@ interface UiStoreState {
   closeModal: () => void;
   enterImmersiveMode: () => void;
   exitImmersiveMode: () => void;
+  setPendingParamSearch: (query: string | null) => void;
+  setPendingDetailTab: (tab: string | null) => void;
 }
 
 export const useUiStore = create<UiStoreState>((set) => ({
@@ -25,6 +31,8 @@ export const useUiStore = create<UiStoreState>((set) => ({
   sidebarOpen: true,
   modalOpen: null,
   immersiveMode: false,
+  pendingParamSearch: null,
+  pendingDetailTab: null,
 
   setActiveView: (activeView) => set({ activeView }),
 
@@ -44,4 +52,6 @@ export const useUiStore = create<UiStoreState>((set) => ({
   closeModal: () => set({ modalOpen: null }),
   enterImmersiveMode: () => set({ immersiveMode: true }),
   exitImmersiveMode: () => set({ immersiveMode: false }),
+  setPendingParamSearch: (pendingParamSearch) => set({ pendingParamSearch }),
+  setPendingDetailTab: (pendingDetailTab) => set({ pendingDetailTab }),
 }));

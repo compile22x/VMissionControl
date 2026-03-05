@@ -21,6 +21,12 @@ interface GeofenceStoreState {
   polygonPoints: [number, number][];
   uploadState: "idle" | "uploading" | "uploaded" | "error";
 
+  // Live breach state from FENCE_STATUS (msg 162)
+  breachStatus: number;  // 0=no breach, 1=breach active
+  breachCount: number;   // cumulative breach count
+  breachType: number;    // FENCE_BREACH enum (0=none, 1=minAlt, 2=maxAlt, 3=boundary)
+
+  updateBreachState: (breachStatus: number, breachCount: number, breachType: number) => void;
   setEnabled: (enabled: boolean) => void;
   setFenceType: (type: FenceType) => void;
   setMaxAltitude: (alt: number) => void;
@@ -42,6 +48,12 @@ export const useGeofenceStore = create<GeofenceStoreState>()((set, get) => ({
   polygonPoints: [],
   uploadState: "idle",
 
+  breachStatus: 0,
+  breachCount: 0,
+  breachType: 0,
+
+  updateBreachState: (breachStatus, breachCount, breachType) =>
+    set({ breachStatus, breachCount, breachType }),
   setEnabled: (enabled) => set({ enabled }),
   setFenceType: (fenceType) => set({ fenceType }),
   setMaxAltitude: (maxAltitude) => set({ maxAltitude }),
@@ -111,5 +123,8 @@ export const useGeofenceStore = create<GeofenceStoreState>()((set, get) => ({
       circleRadius: 200,
       polygonPoints: [],
       uploadState: "idle",
+      breachStatus: 0,
+      breachCount: 0,
+      breachType: 0,
     }),
 }));

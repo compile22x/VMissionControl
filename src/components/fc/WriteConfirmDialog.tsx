@@ -1,20 +1,49 @@
 "use client";
 
+import { useMemo } from "react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, Check, X } from "lucide-react";
+import type { ParamMetadata } from "@/lib/protocol/param-metadata";
+
+const CRITICAL_PREFIXES = ["FS_", "BATT_FS_", "FENCE_", "MOT_", "BRD_SAFETY", "ARMING_"];
+
+function isCriticalParam(name: string): boolean {
+  return CRITICAL_PREFIXES.some((prefix) => name.startsWith(prefix));
+}
+
+function isValueOutOfRange(value: number, meta: ParamMetadata | undefined): boolean {
+  if (!meta?.range) return false;
+  return value < meta.range.min || value > meta.range.max;
+}
 
 interface WriteConfirmDialogProps {
   open: boolean;
   onCancel: () => void;
   onConfirm: () => void;
   changes: { name: string; oldValue: number; newValue: number }[];
+  metadata?: Map<string, ParamMetadata>;
 }
 
-export function WriteConfirmDialog({ open, onCancel, onConfirm, changes }: WriteConfirmDialogProps) {
+export function WriteConfirmDialog({ open, onCancel, onConfirm, changes, metadata }: WriteConfirmDialogProps) {
+  const hasCritical = useMemo(
+    () => changes.some((c) => isCriticalParam(c.name)),
+    [changes]
+  );
+
   return (
     <Modal open={open} onClose={onCancel} title="Confirm Parameter Write" className="max-w-lg">
       <div className="flex flex-col gap-4">
+        {/* Critical safety banner */}
+        {hasCritical && (
+          <div className="flex items-center gap-2 px-3 py-2 bg-status-error/10 border border-status-error/30 text-status-error text-xs">
+            <AlertTriangle size={14} className="flex-shrink-0" />
+            <span>
+              This batch includes flight-safety parameters. Review carefully before writing.
+            </span>
+          </div>
+        )}
+
         <div className="flex items-center gap-2 text-status-warning">
           <AlertTriangle size={16} />
           <span className="text-sm">
@@ -32,13 +61,35 @@ export function WriteConfirmDialog({ open, onCancel, onConfirm, changes }: Write
               </tr>
             </thead>
             <tbody>
-              {changes.map(({ name, oldValue, newValue }) => (
-                <tr key={name} className="border-b border-border-default">
-                  <td className="px-3 py-1.5 font-mono text-text-primary">{name}</td>
-                  <td className="px-3 py-1.5 text-right font-mono text-text-tertiary">{oldValue}</td>
-                  <td className="px-3 py-1.5 text-right font-mono text-status-warning">{newValue}</td>
-                </tr>
-              ))}
+              {changes.map(({ name, oldValue, newValue }) => {
+                const critical = isCriticalParam(name);
+                const meta = metadata?.get(name);
+                const outOfRange = isValueOutOfRange(newValue, meta);
+
+                return (
+                  <tr key={name} className="border-b border-border-default">
+                    <td className="px-3 py-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-mono text-text-primary">{name}</span>
+                        {critical && (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] bg-status-error/15 text-status-error rounded-sm">
+                            <AlertTriangle size={10} />
+                            Flight safety
+                          </span>
+                        )}
+                      </div>
+                      {outOfRange && meta?.range && (
+                        <div className="flex items-center gap-1 mt-0.5 text-[10px] text-status-warning">
+                          <AlertTriangle size={9} />
+                          Outside expected range ({meta.range.min} .. {meta.range.max})
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-3 py-1.5 text-right font-mono text-text-tertiary">{oldValue}</td>
+                    <td className="px-3 py-1.5 text-right font-mono text-status-warning">{newValue}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

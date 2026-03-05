@@ -2,6 +2,7 @@
 
 import { SlidersHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ParamStar } from "./ParamStar";
 import type { AxisConfig } from "./pid-constants";
 
 export function PidAxisRow({
@@ -29,7 +30,7 @@ export function PidAxisRow({
           const value = params.get(pidP.param) ?? 0;
           const isDirty = dirtyParams.has(pidP.param);
           return (
-            <div key={pidP.param} className="grid grid-cols-[100px_1fr_80px] items-center gap-3">
+            <div key={pidP.param} className="grid grid-cols-[100px_1fr_80px_auto] items-center gap-3">
               <div>
                 <span className="text-xs font-mono text-text-secondary">{pidP.label}</span>
                 <span className="text-[9px] text-text-tertiary block">{mapParamName(pidP.param)}</span>
@@ -67,6 +68,7 @@ export function PidAxisRow({
                   isDirty ? "border-status-warning" : "border-border-default",
                 )}
               />
+              <ParamStar name={pidP.param} />
             </div>
           );
         })}

@@ -55,6 +55,9 @@ import type {
   FenceStatusCallback,
   NavControllerCallback,
   ScaledImuCallback,
+  ScaledPressureCallback,
+  EstimatorStatusCallback,
+  CameraTriggerCallback,
   LinkStateCallback,
   LocalPositionCallback,
   DebugCallback,
@@ -159,6 +162,9 @@ export class MockProtocol implements DroneProtocol {
   private fenceStatusCbs: FenceStatusCallback[] = [];
   private navControllerCbs: NavControllerCallback[] = [];
   private scaledImuCbs: ScaledImuCallback[] = [];
+  private scaledPressureCbs: ScaledPressureCallback[] = [];
+  private estimatorStatusCbs: EstimatorStatusCallback[] = [];
+  private cameraTriggerCbs: CameraTriggerCallback[] = [];
   private linkLostCbs: LinkStateCallback[] = [];
   private linkRestoredCbs: LinkStateCallback[] = [];
   private localPositionCbs: LocalPositionCallback[] = [];
@@ -237,6 +243,10 @@ export class MockProtocol implements DroneProtocol {
     for (const cb of this.scaledImuCbs) cb(data);
   }
 
+  emitScaledPressure(data: Parameters<ScaledPressureCallback>[0]): void {
+    for (const cb of this.scaledPressureCbs) cb(data);
+  }
+
   emitHomePosition(data: Parameters<HomePositionCallback>[0]): void {
     for (const cb of this.homePositionCbs) cb(data);
   }
@@ -251,6 +261,14 @@ export class MockProtocol implements DroneProtocol {
 
   emitFenceStatus(data: Parameters<FenceStatusCallback>[0]): void {
     for (const cb of this.fenceStatusCbs) cb(data);
+  }
+
+  emitEstimatorStatus(data: Parameters<EstimatorStatusCallback>[0]): void {
+    for (const cb of this.estimatorStatusCbs) cb(data);
+  }
+
+  emitCameraTrigger(data: Parameters<CameraTriggerCallback>[0]): void {
+    for (const cb of this.cameraTriggerCbs) cb(data);
   }
 
   emitNavController(data: Parameters<NavControllerCallback>[0]): void {
@@ -473,6 +491,10 @@ export class MockProtocol implements DroneProtocol {
   }
 
   // ── Parameters ──────────────────────────────────────────
+
+  getCachedParameterNames(): string[] {
+    return Array.from(this.params.keys());
+  }
 
   async getAllParameters(): Promise<ParameterValue[]> {
     const all = Array.from(this.params.values());
@@ -854,6 +876,9 @@ export class MockProtocol implements DroneProtocol {
   onFenceStatus(cb: FenceStatusCallback): () => void { return sub(this.fenceStatusCbs, cb); }
   onNavController(cb: NavControllerCallback): () => void { return sub(this.navControllerCbs, cb); }
   onScaledImu(cb: ScaledImuCallback): () => void { return sub(this.scaledImuCbs, cb); }
+  onScaledPressure(cb: ScaledPressureCallback): () => void { return sub(this.scaledPressureCbs, cb); }
+  onEstimatorStatus(cb: EstimatorStatusCallback): () => void { return sub(this.estimatorStatusCbs, cb); }
+  onCameraTrigger(cb: CameraTriggerCallback): () => void { return sub(this.cameraTriggerCbs, cb); }
   onLinkLost(cb: LinkStateCallback): () => void { return sub(this.linkLostCbs, cb); }
   onLinkRestored(cb: LinkStateCallback): () => void { return sub(this.linkRestoredCbs, cb); }
   onLocalPosition(cb: LocalPositionCallback): () => void { return sub(this.localPositionCbs, cb); }

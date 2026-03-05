@@ -1,9 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { useFleetStore } from "@/stores/fleet-store";
 import { useDroneMetadataStore } from "@/stores/drone-metadata-store";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { MODE_DESCRIPTIONS } from "@/components/fc/flight-mode-constants";
+import type { UnifiedFlightMode } from "@/lib/protocol/types";
 
 export function FleetTelemetryCard() {
   const drones = useFleetStore((s) => s.drones);
@@ -74,7 +77,7 @@ export function FleetTelemetryCard() {
               <span className={`font-mono tabular-nums ${d.pct < 25 ? "text-status-error" : "text-text-tertiary"}`}>
                 {d.voltage.toFixed(1)}V
               </span>
-              <span className="font-mono text-text-tertiary w-14 text-right">{d.mode}</span>
+              <FleetModeLabel mode={d.mode} />
               <Badge variant={d.armState === "armed" ? "warning" : "neutral"} size="sm">
                 {d.armState === "armed" ? "ARM" : "DIS"}
               </Badge>
@@ -83,5 +86,25 @@ export function FleetTelemetryCard() {
         ))}
       </div>
     </Card>
+  );
+}
+
+function FleetModeLabel({ mode }: { mode: string }) {
+  const [show, setShow] = useState(false);
+  const desc = MODE_DESCRIPTIONS[mode as UnifiedFlightMode];
+
+  return (
+    <div
+      className="relative"
+      onMouseEnter={() => setShow(true)}
+      onMouseLeave={() => setShow(false)}
+    >
+      <span className="font-mono text-text-tertiary w-14 text-right cursor-default">{mode}</span>
+      {show && desc && (
+        <div className="absolute right-0 bottom-full mb-1 z-50 bg-bg-tertiary border border-border-default px-2 py-1 text-[10px] text-text-secondary whitespace-nowrap">
+          {desc}
+        </div>
+      )}
+    </div>
   );
 }

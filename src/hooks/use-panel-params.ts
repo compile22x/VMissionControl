@@ -4,6 +4,8 @@ import { useParamSafetyStore } from "@/stores/param-safety-store";
 import { usePanelCacheStore } from "@/stores/panel-cache-store";
 import { useFcPanelActionsStore } from "@/stores/fc-panel-actions-store";
 import { useDiagnosticsStore } from "@/stores/diagnostics-store";
+import { cachePanelToIDB, getCachedPanelFromIDB } from "@/lib/param-cache-idb";
+import type { ParamMetadata } from "@/lib/protocol/param-metadata";
 
 interface PanelParamEvent {
   type: "read" | "write" | "flash" | "error" | "info";
@@ -25,7 +27,16 @@ interface PanelParamOptions {
   batchSize?: number;
   /** Optional callback for logging parameter operations */
   onEvent?: (event: PanelParamEvent) => void;
+  /** Optional param metadata map — used to detect rebootRequired params on write */
+  metadata?: Map<string, ParamMetadata>;
 }
+
+interface UndoEntry {
+  name: string;
+  previousValue: number;
+}
+
+const MAX_UNDO_STACK = 50;
 
 interface PanelParamState {
   params: Map<string, number>;
@@ -41,6 +52,10 @@ interface PanelParamState {
   hasLoaded: boolean;
   /** Optional params that were not found on this firmware */
   missingOptional: Set<string>;
+  /** Number of entries in the undo stack */
+  undoCount: number;
+  /** If loaded from IDB cache (offline), this is the cache timestamp */
+  idbCacheTimestamp: number | null;
 }
 
 interface PanelParamActions {
@@ -58,6 +73,8 @@ interface PanelParamActions {
   revert: (name: string) => void;
   /** Revert all dirty params */
   revertAll: () => void;
+  /** Undo the last param edit */
+  undo: () => void;
 }
 
 const RETRY_DELAYS = [500, 1000, 2000];
@@ -67,7 +84,7 @@ const EMPTY_ARRAY: string[] = [];
 export function usePanelParams(
   options: PanelParamOptions,
 ): PanelParamState & PanelParamActions {
-  const { paramNames, optionalParams = EMPTY_ARRAY, panelId, autoLoad = false, maxRetries = 3, batchSize = DEFAULT_BATCH_SIZE, onEvent } = options;
+  const { paramNames, optionalParams = EMPTY_ARRAY, panelId, autoLoad = false, maxRetries = 3, batchSize = DEFAULT_BATCH_SIZE, onEvent, metadata: externalMetadata } = options;
   const optionalSet = useMemo(() => new Set(optionalParams), [optionalParams]);
 
   const [params, setParams] = useState<Map<string, number>>(new Map());
@@ -78,13 +95,17 @@ export function usePanelParams(
   const [loadProgress, setLoadProgress] = useState<{ loaded: number; total: number } | null>(null);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [missingOptional, setMissingOptional] = useState<Set<string>>(new Set());
+  const [idbCacheTimestamp, setIdbCacheTimestamp] = useState<number | null>(null);
 
   // Track original loaded values for revert
   const originalValues = useRef<Map<string, number>>(new Map());
+  const undoStack = useRef<UndoEntry[]>([]);
+  const [undoCount, setUndoCount] = useState(0);
   const abortedRef = useRef(false);
 
   const getProtocol = useDroneManager((s) => s.getSelectedProtocol);
   const trackWrite = useParamSafetyStore((s) => s.trackWrite);
+  const trackRebootParam = useParamSafetyStore((s) => s.trackRebootParam);
   const commitFlashStore = useParamSafetyStore((s) => s.commitFlash);
   const markPanelLoaded = useParamSafetyStore((s) => s.markPanelLoaded);
   const cachePanel = usePanelCacheStore((s) => s.cachePanel);
@@ -152,6 +173,8 @@ export function usePanelParams(
       if (abortedRef.current) return;
 
       originalValues.current = new Map(loaded);
+      undoStack.current = [];
+      setUndoCount(0);
       setParams(new Map(loaded));
       setDirtyParams(new Set());
       setHasRamWrites(false);
@@ -175,6 +198,9 @@ export function usePanelParams(
 
       markPanelLoaded(panelId);
       cachePanel(panelId, new Map(loaded), new Map(loaded));
+      // Persist to IndexedDB for offline access
+      cachePanelToIDB(panelId, loaded).catch(() => {});
+      setIdbCacheTimestamp(null);
     } finally {
       if (!abortedRef.current) {
         setLoading(false);
@@ -196,6 +222,23 @@ export function usePanelParams(
       setDirtyParams(new Set());
       setHasRamWrites(false);
       markPanelLoaded(panelId);
+    } else {
+      // Try IndexedDB cache when disconnected and no in-memory cache
+      const protocol = getProtocol();
+      const isDisconnected = !protocol || !protocol.isConnected;
+      if (isDisconnected) {
+        getCachedPanelFromIDB(panelId).then((idbData) => {
+          if (idbData) {
+            const paramMap = new Map(Object.entries(idbData.params).map(([k, v]) => [k, v]));
+            setParams(paramMap);
+            originalValues.current = new Map(paramMap);
+            setHasLoaded(true);
+            setDirtyParams(new Set());
+            setHasRamWrites(false);
+            setIdbCacheTimestamp(idbData.timestamp);
+          }
+        }).catch(() => {});
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -214,6 +257,16 @@ export function usePanelParams(
   const setLocalValue = useCallback(
     (name: string, value: number) => {
       setParams((prev) => {
+        // Push previous value onto undo stack
+        const previousValue = prev.get(name);
+        if (previousValue !== undefined) {
+          const stack = undoStack.current;
+          stack.push({ name, previousValue });
+          if (stack.length > MAX_UNDO_STACK) {
+            stack.shift();
+          }
+          setUndoCount(stack.length);
+        }
         const next = new Map(prev);
         next.set(name, value);
         return next;
@@ -241,6 +294,11 @@ export function usePanelParams(
         const result = await protocol.setParameter(name, value);
         if (result.success) {
           trackWrite(name, oldValue, value, panelId);
+          // Check if this param requires a reboot to take effect
+          const meta = externalMetadata?.get(name);
+          if (meta?.rebootRequired) {
+            trackRebootParam(name);
+          }
           setDirtyParams((prev) => {
             const next = new Set(prev);
             next.delete(name);
@@ -260,7 +318,7 @@ export function usePanelParams(
         return false;
       }
     },
-    [getProtocol, panelId, trackWrite, onEvent],
+    [getProtocol, panelId, trackWrite, trackRebootParam, externalMetadata, onEvent],
   );
 
   const saveAllToRam = useCallback(async (): Promise<boolean> => {
@@ -323,6 +381,31 @@ export function usePanelParams(
   const revertAll = useCallback(() => {
     setParams(new Map(originalValues.current));
     setDirtyParams(new Set());
+    undoStack.current = [];
+    setUndoCount(0);
+  }, []);
+
+  const undo = useCallback(() => {
+    const stack = undoStack.current;
+    const entry = stack.pop();
+    if (!entry) return;
+    setUndoCount(stack.length);
+
+    setParams((prev) => {
+      const next = new Map(prev);
+      next.set(entry.name, entry.previousValue);
+      return next;
+    });
+
+    // If the restored value matches the original, remove from dirty set
+    const original = originalValues.current.get(entry.name);
+    if (original !== undefined && original === entry.previousValue) {
+      setDirtyParams((prev) => {
+        const next = new Set(prev);
+        next.delete(entry.name);
+        return next;
+      });
+    }
   }, []);
 
   // Register panel actions for global keyboard shortcuts
@@ -336,6 +419,21 @@ export function usePanelParams(
     return () => unregisterActions();
   }, [registerActions, unregisterActions, saveAllToRam, loadParams]);
 
+  // Ctrl+Z / Cmd+Z keyboard shortcut for undo
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "z" && !e.shiftKey) {
+        // Don't intercept if user is typing in an input/textarea
+        const tag = (e.target as HTMLElement)?.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+        e.preventDefault();
+        undo();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [undo]);
+
   return {
     params,
     loading,
@@ -345,6 +443,8 @@ export function usePanelParams(
     loadProgress,
     hasLoaded,
     missingOptional,
+    undoCount,
+    idbCacheTimestamp,
     refresh: loadParams,
     setLocalValue,
     saveToRam,
@@ -352,5 +452,6 @@ export function usePanelParams(
     commitToFlash,
     revert,
     revertAll,
+    undo,
   };
 }

@@ -30,6 +30,23 @@ export function PreArmPanel() {
     return () => clearInterval(interval);
   }, []);
 
+  // Request SYS_STATUS at higher rate on mount for faster health data
+  useEffect(() => {
+    if (!protocol) return;
+    // SYS_STATUS = message ID 1, request at 2 Hz (500000 us interval)
+    if (protocol.setMessageInterval) {
+      protocol.setMessageInterval(1, 500_000).catch(() => {
+        // Silently fail — not all firmware supports this
+      });
+    }
+    return () => {
+      // Restore default rate on unmount (0 = default rate)
+      if (protocol.setMessageInterval) {
+        protocol.setMessageInterval(1, 0).catch(() => {});
+      }
+    };
+  }, [protocol]);
+
   const handleRefreshAll = useCallback(() => {
     setLastRefresh(Date.now());
   }, []);

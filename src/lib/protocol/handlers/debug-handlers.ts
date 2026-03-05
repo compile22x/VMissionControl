@@ -6,13 +6,13 @@
  */
 
 import type {
-  DebugCallback, CameraImageCapturedCallback,
+  DebugCallback, CameraImageCapturedCallback, CameraTriggerCallback,
   GimbalAttitudeCallback, ObstacleDistanceCallback,
 } from '../types'
 import {
   decodeNamedValueFloat, decodeNamedValueInt, decodeDebug,
-  decodeCameraImageCaptured, decodeGimbalDeviceAttitudeStatus,
-  decodeObstacleDistance,
+  decodeCameraImageCaptured, decodeCameraTrigger,
+  decodeGimbalDeviceAttitudeStatus, decodeObstacleDistance,
 } from '../mavlink-messages'
 
 export function handleNamedValueFloat(payload: DataView, callbacks: DebugCallback[]): void {
@@ -33,6 +33,19 @@ export function handleDebugValue(payload: DataView, callbacks: DebugCallback[]):
   const data = decodeDebug(payload)
   for (const cb of callbacks) {
     cb({ timestamp: Date.now(), name: `debug[${data.ind}]`, value: data.value, type: "debug" })
+  }
+}
+
+export function handleCameraTrigger(payload: DataView, callbacks: CameraTriggerCallback[]): void {
+  const data = decodeCameraTrigger(payload)
+  for (const cb of callbacks) {
+    cb({
+      timestamp: Date.now(),
+      seq: data.seq,
+      lat: data.lat / 1e7,
+      lon: data.lon / 1e7,
+      alt: data.alt,
+    })
   }
 }
 

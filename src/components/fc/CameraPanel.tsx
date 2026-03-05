@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { usePanelParams } from "@/hooks/use-panel-params";
 import { useParamLabel } from "@/hooks/use-param-label";
 import { useUnsavedGuard } from "@/hooks/use-unsaved-guard";
@@ -11,7 +11,7 @@ import { PanelHeader } from "./PanelHeader";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Camera, Save, HardDrive, Aperture, Ruler, Calculator } from "lucide-react";
+import { Camera, Save, HardDrive, Aperture, Ruler, Calculator, Timer } from "lucide-react";
 
 const CAMERA_PARAMS: string[] = [];
 
@@ -35,6 +35,9 @@ export function CameraPanel() {
   const { label: pl } = useParamLabel();
   const [saving, setSaving] = useState(false);
   const [imageCount, setImageCount] = useState(0);
+  const [intervalSec, setIntervalSec] = useState(5);
+  const [intervalActive, setIntervalActive] = useState(false);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Survey helper state
   const [surveyAlt, setSurveyAlt] = useState(50);
@@ -90,6 +93,38 @@ export function CameraPanel() {
       toast(`Trigger distance set to ${calculatedTriggerDist.toFixed(1)} m`, "success");
     }
   }
+
+  const doIntervalTrigger = useCallback(() => {
+    const protocol = getSelectedProtocol();
+    if (!protocol) return;
+    protocol.cameraTrigger();
+    setImageCount((c) => c + 1);
+  }, [getSelectedProtocol]);
+
+  function toggleIntervalTrigger() {
+    if (intervalActive) {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      intervalRef.current = null;
+      setIntervalActive(false);
+      toast("Interval trigger stopped", "success");
+    } else {
+      if (intervalSec <= 0) {
+        toast("Enter a positive interval", "warning");
+        return;
+      }
+      doIntervalTrigger();
+      intervalRef.current = setInterval(doIntervalTrigger, intervalSec * 1000);
+      setIntervalActive(true);
+      toast(`Triggering every ${intervalSec}s`, "success");
+    }
+  }
+
+  // Cleanup interval on unmount
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, []);
 
   return (
     <ArmedLockOverlay>
@@ -226,6 +261,36 @@ export function CameraPanel() {
                   Images: {imageCount}
                 </span>
               </div>
+            </Card>
+          )}
+
+          {/* Interval Trigger */}
+          {camEnabled && connected && (
+            <Card icon={<Timer size={14} />} title="Interval Trigger" description="Trigger camera at a fixed time interval">
+              <div className="flex items-center gap-3">
+                <Input
+                  label="Interval"
+                  type="number"
+                  step="1"
+                  min="1"
+                  unit="s"
+                  value={String(intervalSec)}
+                  onChange={(e) => setIntervalSec(Number(e.target.value) || 1)}
+                  disabled={intervalActive}
+                />
+                <Button
+                  size="sm"
+                  variant={intervalActive ? "danger" : "primary"}
+                  onClick={toggleIntervalTrigger}
+                >
+                  {intervalActive ? "Stop" : "Start"}
+                </Button>
+              </div>
+              {intervalActive && (
+                <p className="text-[10px] text-status-success">
+                  Active: triggering every {intervalSec}s ({imageCount} images taken)
+                </p>
+              )}
             </Card>
           )}
 

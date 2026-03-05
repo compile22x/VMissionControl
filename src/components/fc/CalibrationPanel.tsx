@@ -36,6 +36,16 @@ const RC_PWM_MAX = 2200;
 const RC_CENTER_TOLERANCE = 100; // ±100 from 1500 is considered "centered"
 const RC_CENTER_VALUE = 1500;
 
+// ── Calibration snapshot params (before/after comparison) ──
+const CAL_SNAPSHOT_PARAMS: Record<string, string[]> = {
+  accel: ["INS_ACCOFFS_X", "INS_ACCOFFS_Y", "INS_ACCOFFS_Z", "INS_ACCSCAL_X", "INS_ACCSCAL_Y", "INS_ACCSCAL_Z"],
+  gyro: ["INS_GYROFFS_X", "INS_GYROFFS_Y", "INS_GYROFFS_Z"],
+  compass: ["COMPASS_OFS_X", "COMPASS_OFS_Y", "COMPASS_OFS_Z", "COMPASS_DIA_X", "COMPASS_DIA_Y", "COMPASS_DIA_Z"],
+  level: ["AHRS_TRIM_X", "AHRS_TRIM_Y", "AHRS_TRIM_Z"],
+  baro: ["GND_ABS_PRESS", "GND_TEMP"],
+  airspeed: ["ARSPD_OFFSET"],
+};
+
 type RcCalStep = "idle" | "center" | "move" | "confirm" | "saving" | "done" | "error";
 
 interface RcChannelCapture {
@@ -131,6 +141,8 @@ function RcCalibrationWizard({ connected }: { connected: boolean }) {
     Array.from({ length: RC_CHANNEL_COUNT }, defaultCapture)
   );
   const [errorMsg, setErrorMsg] = useState("");
+  const [showTrimReset, setShowTrimReset] = useState(false);
+  const [trimResetting, setTrimResetting] = useState(false);
   const capturesRef = useRef(captures);
   capturesRef.current = captures;
 
@@ -239,6 +251,25 @@ function RcCalibrationWizard({ connected }: { connected: boolean }) {
     setCaptures(Array.from({ length: RC_CHANNEL_COUNT }, defaultCapture));
     setErrorMsg("");
   }, []);
+
+  const handleResetTrims = useCallback(async () => {
+    const protocol = getSelectedProtocol();
+    if (!protocol) return;
+
+    setTrimResetting(true);
+    try {
+      for (let i = 1; i <= RC_CHANNEL_COUNT; i++) {
+        await protocol.setParameter(`RC${i}_TRIM`, RC_CENTER_VALUE);
+      }
+      await protocol.commitParamsToFlash();
+      toast("RC trims reset to 1500 and saved to flash", "success");
+    } catch {
+      toast("Failed to reset RC trims", "error");
+    } finally {
+      setTrimResetting(false);
+      setShowTrimReset(false);
+    }
+  }, [getSelectedProtocol, toast]);
 
   const statusBadge = {
     idle: { label: "Ready", className: "bg-bg-tertiary text-text-tertiary" },
@@ -385,12 +416,35 @@ function RcCalibrationWizard({ connected }: { connected: boolean }) {
         </p>
       )}
 
+      {/* Trim Reset Confirmation */}
+      {showTrimReset && (
+        <div className="mb-3 border border-status-warning/30 bg-status-warning/5 px-3 py-2.5">
+          <p className="text-[10px] font-medium text-status-warning mb-1.5">Confirm Trim Reset</p>
+          <p className="text-[10px] text-text-tertiary mb-2">
+            This will set RC1_TRIM through RC8_TRIM to 1500 (center). This affects flight behavior and should only be done if trims are incorrect.
+          </p>
+          <div className="flex gap-2">
+            <Button variant="danger" size="sm" onClick={handleResetTrims} loading={trimResetting} disabled={trimResetting}>
+              Reset All Trims
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => setShowTrimReset(false)} disabled={trimResetting}>
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Action buttons */}
       <div className="flex gap-2">
         {step === "idle" && (
-          <Button variant="primary" size="sm" onClick={handleStart} disabled={!connected}>
-            Start
-          </Button>
+          <>
+            <Button variant="primary" size="sm" onClick={handleStart} disabled={!connected}>
+              Start
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => setShowTrimReset(true)} disabled={!connected || showTrimReset}>
+              Reset Trims
+            </Button>
+          </>
         )}
         {step === "center" && (
           <>
@@ -451,6 +505,15 @@ export function CalibrationPanel() {
   const [esc, setEsc] = useState<CalibrationState>(INITIAL_STATE);
   const [compassmot, setCompassmot] = useState<CalibrationState>(INITIAL_STATE);
   const [logEntries, setLogEntries] = useState<CalibrationLogEntry[]>([]);
+
+  // Baro live pressure display (SCALED_PRESSURE msg 29)
+  const [baroPressure, setBaroPressure] = useState<{ pressAbs: number; temperature: number } | null>(null);
+
+  // Calibration before/after comparison
+  const [calSnapshot, setCalSnapshot] = useState<Map<string, number> | null>(null);
+  const [calDiff, setCalDiff] = useState<Array<{ name: string; before: number; after: number }> | null>(null);
+  const [calDiffType, setCalDiffType] = useState<string | null>(null);
+
   const [compassParams, setCompassParams] = useState<{
     COMPASS_USE: number | null;
     COMPASS_ORIENT: number | null;
@@ -532,6 +595,16 @@ export function CalibrationPanel() {
     });
   }, [getSelectedProtocol]);
 
+  // Subscribe to SCALED_PRESSURE for live baro display
+  useEffect(() => {
+    const protocol = getSelectedProtocol();
+    if (!protocol?.onScaledPressure) return;
+    const unsub = protocol.onScaledPressure(({ pressAbs, temperature }) => {
+      setBaroPressure({ pressAbs, temperature });
+    });
+    return unsub;
+  }, [getSelectedProtocol]);
+
   // Cleanup all on unmount
   useEffect(() => {
     return () => {
@@ -540,6 +613,54 @@ export function CalibrationPanel() {
       }
     };
   }, []);
+
+  // Fetch calibration-relevant params and build a before/after diff
+  const fetchCalDiff = useCallback(async (type: string, snapshot: Map<string, number>) => {
+    const protocol = getSelectedProtocol();
+    if (!protocol) return;
+    const paramNames = CAL_SNAPSHOT_PARAMS[type];
+    if (!paramNames || paramNames.length === 0) return;
+
+    const results = await Promise.allSettled(paramNames.map((n) => protocol.getParameter(n)));
+    const diffs: Array<{ name: string; before: number; after: number }> = [];
+    paramNames.forEach((name, i) => {
+      const r = results[i];
+      if (r.status !== "fulfilled") return;
+      const after = r.value.value;
+      const before = snapshot.get(name);
+      if (before !== undefined && before !== after) {
+        diffs.push({ name, before, after });
+      }
+    });
+    if (diffs.length > 0) {
+      setCalDiff(diffs);
+      setCalDiffType(type);
+    }
+  }, [getSelectedProtocol]);
+
+  // Detect calibration success and fetch before/after diff
+  const calStates = useMemo(() => [
+    { type: "accel", state: accel },
+    { type: "gyro", state: gyro },
+    { type: "compass", state: compass },
+    { type: "level", state: level },
+    { type: "airspeed", state: airspeed },
+    { type: "baro", state: baro },
+  ], [accel, gyro, compass, level, airspeed, baro]);
+
+  const lastSuccessRef = useRef<string | null>(null);
+  useEffect(() => {
+    const succeeded = calStates.find((c) => c.state.status === "success");
+    if (succeeded && succeeded.type !== lastSuccessRef.current && calSnapshot) {
+      lastSuccessRef.current = succeeded.type;
+      // Delay fetch slightly so FC can finalize params
+      const timer = setTimeout(() => {
+        fetchCalDiff(succeeded.type, calSnapshot);
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+    if (!succeeded) lastSuccessRef.current = null;
+  }, [calStates, calSnapshot, fetchCalDiff]);
 
   // Keyboard handler for accel cal confirm
   useEffect(() => {
@@ -975,6 +1096,24 @@ export function CalibrationPanel() {
       const protocol = getSelectedProtocol();
       if (!protocol) return;
 
+      // Clear previous diff
+      setCalDiff(null);
+      setCalDiffType(null);
+
+      // Snapshot pre-calibration params for before/after comparison
+      const paramNames = CAL_SNAPSHOT_PARAMS[type];
+      if (paramNames && paramNames.length > 0) {
+        const results = await Promise.allSettled(paramNames.map((n) => protocol.getParameter(n)));
+        const snap = new Map<string, number>();
+        paramNames.forEach((name, i) => {
+          const r = results[i];
+          if (r.status === "fulfilled") snap.set(name, r.value.value);
+        });
+        setCalSnapshot(snap);
+      } else {
+        setCalSnapshot(null);
+      }
+
       // Auto-set COMPASS_AUTO_ROT=3 (lenient) to prevent orientation flickering
       if (type === "compass" && compassParams.COMPASS_AUTO_ROT !== null && compassParams.COMPASS_AUTO_ROT !== 3) {
         try {
@@ -1272,6 +1411,18 @@ export function CalibrationPanel() {
             onCancel={() => cancelCalibration("baro", setBaro)}
           />
 
+          {/* Baro live pressure readout */}
+          {connected && baroPressure && (
+            <div className="border border-border-default bg-bg-secondary px-4 py-2.5 -mt-4">
+              <div className="flex items-center gap-4 text-[10px] font-mono">
+                <span className="text-text-secondary">Pressure</span>
+                <span className="text-text-primary">{baroPressure.pressAbs.toFixed(2)} hPa</span>
+                <span className="text-text-secondary">Temp</span>
+                <span className="text-text-primary">{baroPressure.temperature.toFixed(1)} °C</span>
+              </div>
+            </div>
+          )}
+
           {/* Radio Calibration */}
           <RcCalibrationWizard connected={connected} />
 
@@ -1321,6 +1472,58 @@ export function CalibrationPanel() {
           {/* CompassMot Reboot Banner */}
           {compassmot.needsReboot && compassmot.status === "success" && (
             <CalibrationRebootBanner label="CompassMot calibration saved" onReboot={() => { const p = getSelectedProtocol(); if (p) p.reboot(); }} />
+          )}
+
+          {/* Calibration Before/After Comparison */}
+          {calDiff && calDiff.length > 0 && calDiffType && (
+            <div className="border border-border-default bg-bg-secondary p-4">
+              <div className="flex items-start justify-between mb-2">
+                <div>
+                  <h3 className="text-xs font-medium text-text-primary">
+                    {calDiffType.charAt(0).toUpperCase() + calDiffType.slice(1)} Calibration Changes
+                  </h3>
+                  <p className="text-[10px] text-text-tertiary mt-0.5">
+                    Parameters changed during calibration
+                  </p>
+                </div>
+                <button
+                  className="text-[10px] text-text-tertiary hover:text-text-secondary"
+                  onClick={() => { setCalDiff(null); setCalDiffType(null); }}
+                >
+                  Dismiss
+                </button>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-[10px] font-mono">
+                  <thead>
+                    <tr className="text-text-tertiary">
+                      <th className="text-left px-1 py-0.5">Parameter</th>
+                      <th className="text-right px-1 py-0.5">Before</th>
+                      <th className="text-right px-1 py-0.5">After</th>
+                      <th className="text-right px-1 py-0.5">Change</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {calDiff.map((d) => {
+                      const change = d.after - d.before;
+                      return (
+                        <tr key={d.name} className="border-t border-border-default/50">
+                          <td className="text-left px-1 py-0.5 text-text-secondary">{d.name}</td>
+                          <td className="text-right px-1 py-0.5 text-text-tertiary">{d.before.toFixed(4)}</td>
+                          <td className="text-right px-1 py-0.5 text-text-primary">{d.after.toFixed(4)}</td>
+                          <td className={cn(
+                            "text-right px-1 py-0.5",
+                            change > 0 ? "text-status-success" : change < 0 ? "text-status-warning" : "text-text-tertiary"
+                          )}>
+                            {change > 0 ? "+" : ""}{change.toFixed(4)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           )}
 
           <div className="pb-4" />

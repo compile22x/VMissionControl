@@ -8,12 +8,14 @@
 import type {
   AttitudeCallback, PositionCallback, BatteryCallback, GpsCallback,
   VfrCallback, RcCallback, SysStatusCallback, RadioCallback,
-  PowerStatusCallback, ScaledImuCallback, LocalPositionCallback,
+  PowerStatusCallback, ScaledImuCallback, ScaledPressureCallback,
+  EstimatorStatusCallback, LocalPositionCallback,
 } from '../types'
 import {
   decodeAttitude, decodeGlobalPositionInt, decodeBatteryStatus,
   decodeGpsRawInt, decodeVfrHud, decodeRcChannels, decodeSysStatus,
-  decodeRadioStatus, decodePowerStatus, decodeScaledImu, decodeLocalPositionNed,
+  decodeRadioStatus, decodePowerStatus, decodeScaledImu, decodeScaledPressure,
+  decodeEstimatorStatus, decodeLocalPositionNed,
 } from '../mavlink-messages'
 
 const RAD_TO_DEG = 180 / Math.PI
@@ -52,10 +54,15 @@ export function handleGlobalPosition(payload: DataView, callbacks: PositionCallb
 
 export function handleBattery(payload: DataView, callbacks: BatteryCallback[]): void {
   const data = decodeBatteryStatus(payload)
-  // Sum valid cell voltages (0xFFFF = cell not used)
-  const totalVoltage = data.voltages
-    .filter(v => v !== 0xFFFF)
-    .reduce((sum, v) => sum + v, 0) / 1000 // mV → V
+  // Filter valid cell voltages (0xFFFF = cell not used)
+  const validCells = data.voltages.filter(v => v !== 0xFFFF)
+  const totalVoltage = validCells.reduce((sum, v) => sum + v, 0) / 1000 // mV → V
+  const cellVoltages = validCells.length > 0 ? validCells.map(v => v / 1000) : undefined // mV → V
+
+  // Temperature: centi-degrees to degrees, INT16_MAX (32767) = unavailable
+  const temperature = data.temperature !== 32767 && data.temperature !== 0
+    ? data.temperature / 100
+    : undefined
 
   for (const cb of callbacks) {
     cb({
@@ -64,6 +71,8 @@ export function handleBattery(payload: DataView, callbacks: BatteryCallback[]): 
       current: data.currentBattery / 100,      // cA → A
       remaining: data.batteryRemaining,          // already %
       consumed: data.currentConsumed,            // mAh
+      temperature,
+      cellVoltages,
     })
   }
 }
@@ -173,6 +182,18 @@ export function handleScaledImu(payload: DataView, callbacks: ScaledImuCallback[
   }
 }
 
+export function handleScaledPressure(payload: DataView, callbacks: ScaledPressureCallback[]): void {
+  const data = decodeScaledPressure(payload)
+  for (const cb of callbacks) {
+    cb({
+      timestamp: Date.now(),
+      pressAbs: data.pressAbs,
+      pressDiff: data.pressDiff,
+      temperature: data.temperature / 100, // cdegC → degC
+    })
+  }
+}
+
 export function handleLocalPosition(payload: DataView, callbacks: LocalPositionCallback[]): void {
   const data = decodeLocalPositionNed(payload)
   for (const cb of callbacks) {
@@ -180,6 +201,24 @@ export function handleLocalPosition(payload: DataView, callbacks: LocalPositionC
       timestamp: Date.now(),
       x: data.x, y: data.y, z: data.z,
       vx: data.vx, vy: data.vy, vz: data.vz,
+    })
+  }
+}
+
+export function handleEstimatorStatus(payload: DataView, callbacks: EstimatorStatusCallback[]): void {
+  const data = decodeEstimatorStatus(payload)
+  for (const cb of callbacks) {
+    cb({
+      timestamp: Date.now(),
+      velRatio: data.velRatio,
+      posHorizRatio: data.posHorizRatio,
+      posVertRatio: data.posVertRatio,
+      magRatio: data.magRatio,
+      haglRatio: data.haglRatio,
+      tasRatio: data.tasRatio,
+      posHorizAccuracy: data.posHorizAccuracy,
+      posVertAccuracy: data.posVertAccuracy,
+      flags: data.flags,
     })
   }
 }

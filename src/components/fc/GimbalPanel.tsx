@@ -12,7 +12,7 @@ import { PanelHeader } from "./PanelHeader";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Move3D, Save, HardDrive, Crosshair, RotateCcw } from "lucide-react";
+import { Move3D, Save, HardDrive, Crosshair, RotateCcw, MapPin, Settings2 } from "lucide-react";
 
 const GIMBAL_PARAMS: string[] = [];
 
@@ -49,6 +49,12 @@ export function GimbalPanel() {
   const [saving, setSaving] = useState(false);
   const [manualPitch, setManualPitch] = useState(0);
   const [manualYaw, setManualYaw] = useState(0);
+  const [roiLat, setRoiLat] = useState("");
+  const [roiLon, setRoiLon] = useState("");
+  const [roiAlt, setRoiAlt] = useState("0");
+  const [roiSending, setRoiSending] = useState(false);
+  const [liveMode, setLiveMode] = useState("2");
+  const [modeSending, setModeSending] = useState(false);
 
   const gimbalBuffer = useTelemetryStore((s) => s.gimbal);
   const latestGimbal = gimbalBuffer.latest();
@@ -85,6 +91,33 @@ export function GimbalPanel() {
     setManualPitch(0);
     setManualYaw(0);
   }, []);
+
+  async function handleSetMountMode() {
+    const protocol = getSelectedProtocol();
+    if (!protocol?.setGimbalMode) return;
+    setModeSending(true);
+    const result = await protocol.setGimbalMode(Number(liveMode));
+    setModeSending(false);
+    if (result.success) toast("Mount mode set", "success");
+    else toast(result.message || "Failed to set mount mode", "error");
+  }
+
+  async function handleSetROI() {
+    const protocol = getSelectedProtocol();
+    if (!protocol?.setGimbalROI) return;
+    const lat = parseFloat(roiLat);
+    const lon = parseFloat(roiLon);
+    const alt = parseFloat(roiAlt) || 0;
+    if (isNaN(lat) || isNaN(lon)) {
+      toast("Enter valid latitude and longitude", "warning");
+      return;
+    }
+    setRoiSending(true);
+    const result = await protocol.setGimbalROI(lat, lon, alt);
+    setRoiSending(false);
+    if (result.success) toast("ROI set", "success");
+    else toast(result.message || "Failed to set ROI", "error");
+  }
 
   return (
     <ArmedLockOverlay>
@@ -214,6 +247,25 @@ export function GimbalPanel() {
             </Card>
           )}
 
+          {/* Live Mount Mode */}
+          {mountEnabled && connected && (
+            <Card icon={<Settings2 size={14} />} title="Mount Mode" description="Send DO_MOUNT_CONFIGURE command to change active mode">
+              <div className="flex items-end gap-3">
+                <div className="flex-1">
+                  <Select
+                    label="Active Mode"
+                    options={MNT_MODE_OPTIONS}
+                    value={liveMode}
+                    onChange={setLiveMode}
+                  />
+                </div>
+                <Button size="sm" onClick={handleSetMountMode} loading={modeSending}>
+                  <Settings2 size={12} className="mr-1" /> Set Mode
+                </Button>
+              </div>
+            </Card>
+          )}
+
           {/* Manual Control */}
           {mountEnabled && (
             <Card icon={<Move3D size={14} />} title="Manual Control" description="Direct gimbal control sliders">
@@ -252,6 +304,41 @@ export function GimbalPanel() {
                   </Button>
                 </div>
               </div>
+            </Card>
+          )}
+
+          {/* Set ROI */}
+          {mountEnabled && connected && (
+            <Card icon={<MapPin size={14} />} title="Set ROI" description="Point gimbal at a GPS location">
+              <div className="grid grid-cols-3 gap-3">
+                <Input
+                  label="Latitude"
+                  type="number"
+                  step="0.000001"
+                  value={roiLat}
+                  onChange={(e) => setRoiLat(e.target.value)}
+                  placeholder="-33.8688"
+                />
+                <Input
+                  label="Longitude"
+                  type="number"
+                  step="0.000001"
+                  value={roiLon}
+                  onChange={(e) => setRoiLon(e.target.value)}
+                  placeholder="151.2093"
+                />
+                <Input
+                  label="Altitude"
+                  type="number"
+                  step="1"
+                  unit="m"
+                  value={roiAlt}
+                  onChange={(e) => setRoiAlt(e.target.value)}
+                />
+              </div>
+              <Button size="sm" onClick={handleSetROI} loading={roiSending}>
+                <MapPin size={12} className="mr-1" /> Set ROI
+              </Button>
             </Card>
           )}
 

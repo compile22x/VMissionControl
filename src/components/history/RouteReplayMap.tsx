@@ -10,8 +10,8 @@ const MapContainer = dynamic(
   () => import("react-leaflet").then((m) => m.MapContainer),
   { ssr: false }
 );
-const TileLayer = dynamic(
-  () => import("react-leaflet").then((m) => m.TileLayer),
+const TileLayerSwitcher = dynamic(
+  () => import("@/components/map/TileLayerSwitcher").then((m) => ({ default: m.TileLayerSwitcher })),
   { ssr: false }
 );
 const Polyline = dynamic(
@@ -27,9 +27,6 @@ const GcsMarker = dynamic(
   { ssr: false }
 );
 
-const DARK_TILES = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
-const ATTRIBUTION =
-  '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>';
 
 /** Generate a mock path around Bangalore. */
 function generateMockPath(): [number, number][] {
@@ -114,7 +111,7 @@ export function RouteReplayMap({ path: providedPath }: RouteReplayMapProps) {
           attributionControl={false}
           style={{ background: "#0a0a0a" }}
         >
-          <TileLayer url={DARK_TILES} attribution={ATTRIBUTION} />
+          <TileLayerSwitcher />
 
           {/* Full path (dim) */}
           <Polyline

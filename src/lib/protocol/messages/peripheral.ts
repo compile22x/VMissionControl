@@ -165,6 +165,40 @@ export function decodeGps2Raw(dv: DataView): Gps2RawMsg {
   };
 }
 
+// ── CAMERA_TRIGGER (ID 112) ──────────────────────────────────
+
+export interface CameraTriggerMsg {
+  timeUsec: number;
+  seq: number;
+  lat: number;
+  lon: number;
+  alt: number;
+}
+
+/**
+ * Decode CAMERA_TRIGGER (msg ID 112).
+ *
+ * Wire order (uint64 → uint32 → int32 → float32):
+ * | Offset | Type    | Field          |
+ * |--------|---------|----------------|
+ * | 0      | uint64  | timeUsec       |
+ * | 8      | uint32  | seq            |
+ * | 12     | int32   | lat (degE7)    |
+ * | 16     | int32   | lon (degE7)    |
+ * | 20     | float32 | alt (m, AMSL)  |
+ */
+export function decodeCameraTrigger(dv: DataView): CameraTriggerMsg {
+  const low = dv.getUint32(0, true);
+  const high = dv.getUint32(4, true);
+  return {
+    timeUsec: high * 0x100000000 + low,
+    seq: dv.getUint32(8, true),
+    lat: dv.getInt32(12, true),
+    lon: dv.getInt32(16, true),
+    alt: dv.getFloat32(20, true),
+  };
+}
+
 // ── NAMED_VALUE_FLOAT (ID 251) ──────────────────────────────
 
 export interface NamedValueFloatMsg {

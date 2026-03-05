@@ -24,7 +24,8 @@ import type {
   AccelCalPosCallback,
   HomePositionCallback, AutopilotVersionCallback,
   PowerStatusCallback, DistanceSensorCallback, FenceStatusCallback,
-  NavControllerCallback, ScaledImuCallback, LinkStateCallback,
+  NavControllerCallback, ScaledImuCallback, ScaledPressureCallback,
+  EstimatorStatusCallback, CameraTriggerCallback, LinkStateCallback,
   LocalPositionCallback, DebugCallback, GimbalAttitudeCallback,
   ObstacleDistanceCallback, CameraImageCapturedCallback,
   ExtendedSysStateCallback, FencePointCallback, SystemTimeCallback,
@@ -50,7 +51,7 @@ import {
   handleAttitude, handleGlobalPosition, handleBattery,
   handleGpsRaw, handleVfrHud, handleRcChannels,
   handleSysStatus, handleRadioStatus, handlePowerStatus,
-  handleScaledImu, handleLocalPosition,
+  handleScaledImu, handleScaledPressure, handleEstimatorStatus, handleLocalPosition,
 } from './handlers/telemetry-handlers'
 import {
   handleEkfStatus, handleVibration, handleServoOutput,
@@ -68,7 +69,7 @@ import {
 } from './handlers/info-handlers'
 import {
   handleNamedValueFloat, handleNamedValueInt, handleDebugValue,
-  handleCameraImageCaptured, handleGimbalAttitude, handleObstacleDistance,
+  handleCameraTrigger, handleCameraImageCaptured, handleGimbalAttitude, handleObstacleDistance,
 } from './handlers/debug-handlers'
 import { CommandQueue } from './command-queue'
 import { createFirmwareHandler } from './firmware/ardupilot'
@@ -123,6 +124,9 @@ export class MAVLinkAdapter implements DroneProtocol {
   private fenceStatusCallbacks: FenceStatusCallback[] = []
   private navControllerCallbacks: NavControllerCallback[] = []
   private scaledImuCallbacks: ScaledImuCallback[] = []
+  private scaledPressureCallbacks: ScaledPressureCallback[] = []
+  private estimatorStatusCallbacks: EstimatorStatusCallback[] = []
+  private cameraTriggerCallbacks: CameraTriggerCallback[] = []
   private linkLostCallbacks: LinkStateCallback[] = []
   private linkRestoredCallbacks: LinkStateCallback[] = []
   private localPositionCallbacks: LocalPositionCallback[] = []
@@ -395,6 +399,7 @@ export class MAVLinkAdapter implements DroneProtocol {
       case 1:   handleSysStatus(p, this.sysStatusCallbacks); break
       case 24:  handleGpsRaw(p, this.gpsCallbacks); break
       case 26:  handleScaledImu(p, this.scaledImuCallbacks); break
+      case 29:  handleScaledPressure(p, this.scaledPressureCallbacks); break
       case 30:  handleAttitude(p, this.attitudeCallbacks); break
       case 32:  handleLocalPosition(p, this.localPositionCallbacks); break
       case 33:  handleGlobalPosition(p, this.positionCallbacks); break
@@ -418,6 +423,9 @@ export class MAVLinkAdapter implements DroneProtocol {
       case 242: handleHomePosition(p, this.homePositionCallbacks); break
       case 335: handleEkfStatus(p, this.ekfCallbacks); break
 
+      // Estimator
+      case 230: handleEstimatorStatus(p, this.estimatorStatusCallbacks); break
+
       // Calibration handlers
       case 76:  handleIncomingCommandLong(p, this.accelCalPosCallbacks); break
       case 191: handleMagCalProgress(p, this.magCalProgressCallbacks); break
@@ -430,6 +438,7 @@ export class MAVLinkAdapter implements DroneProtocol {
       case 253: handleStatusText(p, this.statusTextCallbacks); break
 
       // Debug / peripheral handlers
+      case 112: handleCameraTrigger(p, this.cameraTriggerCallbacks); break
       case 251: handleNamedValueFloat(p, this.debugCallbacks); break
       case 252: handleNamedValueInt(p, this.debugCallbacks); break
       case 254: handleDebugValue(p, this.debugCallbacks); break
@@ -827,6 +836,10 @@ export class MAVLinkAdapter implements DroneProtocol {
     })
   }
 
+  getCachedParameterNames(): string[] {
+    return Array.from(this.paramCache.keys())
+  }
+
   async getParameter(name: string): Promise<ParameterValue> {
     if (!this.transport?.isConnected) {
       return Promise.reject(new Error('Not connected'))
@@ -1156,6 +1169,12 @@ export class MAVLinkAdapter implements DroneProtocol {
 
   async setGimbalAngle(pitch: number, roll: number, yaw: number): Promise<CommandResult> {
     return this.sendCommandLong(205, [pitch * 100, roll * 100, yaw * 100, 0, 0, 0, 0])
+  }
+
+  async setGimbalMode(mode: number): Promise<CommandResult> {
+    // MAV_CMD_DO_MOUNT_CONFIGURE (204): param1=mount_mode
+    // 0=Retract, 1=Neutral, 2=MAVLink targeting, 3=RC targeting, 4=GPS point, 5=SysID, 6=Home
+    return this.sendCommandLong(204, [mode, 0, 0, 0, 0, 0, 0])
   }
 
   async doPreArmCheck(): Promise<CommandResult> {
@@ -1489,6 +1508,18 @@ export class MAVLinkAdapter implements DroneProtocol {
   onScaledImu(cb: ScaledImuCallback): () => void {
     this.scaledImuCallbacks.push(cb)
     return () => { this.scaledImuCallbacks = this.scaledImuCallbacks.filter(c => c !== cb) }
+  }
+  onScaledPressure(cb: ScaledPressureCallback): () => void {
+    this.scaledPressureCallbacks.push(cb)
+    return () => { this.scaledPressureCallbacks = this.scaledPressureCallbacks.filter(c => c !== cb) }
+  }
+  onEstimatorStatus(cb: EstimatorStatusCallback): () => void {
+    this.estimatorStatusCallbacks.push(cb)
+    return () => { this.estimatorStatusCallbacks = this.estimatorStatusCallbacks.filter(c => c !== cb) }
+  }
+  onCameraTrigger(cb: CameraTriggerCallback): () => void {
+    this.cameraTriggerCallbacks.push(cb)
+    return () => { this.cameraTriggerCallbacks = this.cameraTriggerCallbacks.filter(c => c !== cb) }
   }
   onLinkLost(cb: LinkStateCallback): () => void {
     this.linkLostCallbacks.push(cb)
