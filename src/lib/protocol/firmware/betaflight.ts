@@ -1,9 +1,9 @@
 /**
- * Betaflight firmware handler stub for Altnautica Command GCS.
+ * Betaflight firmware handler for Altnautica Command GCS.
  *
- * Betaflight uses the MSP (MultiWii Serial Protocol) which is not yet
- * implemented. This handler provides capability reporting so the UI
- * can show/hide panels appropriately when a Betaflight FC is detected.
+ * Betaflight uses the MSP (MultiWii Serial Protocol). This handler
+ * provides capability reporting, mode encoding/decoding, and parameter
+ * name mapping for the UI.
  *
  * @module firmware/betaflight
  */
@@ -32,7 +32,7 @@ const BETAFLIGHT_CAPABILITIES: ProtocolCapabilities = {
   supportsMotorTest: true,
   supportsGeoFence: false,
   supportsRally: false,
-  supportsLogDownload: false,
+  supportsLogDownload: true,
   supportsOsd: true,
   supportsPidTuning: true,
   supportsPorts: true,
@@ -50,6 +50,13 @@ const BETAFLIGHT_CAPABILITIES: ProtocolCapabilities = {
   supportsOpticalFlow: false,
   supportsObstacleAvoidance: false,
   supportsDebugValues: true,
+  supportsAuxModes: true,
+  supportsVtx: true,
+  supportsBlackbox: true,
+  supportsBetaflightConfig: true,
+  supportsGpsConfig: true,
+  supportsRateProfiles: true,
+  supportsAdjustments: true,
   manualControlHz: 50,
   parameterCount: 300,
 }
@@ -59,29 +66,35 @@ const BETAFLIGHT_CAPABILITIES: ProtocolCapabilities = {
 // ---------------------------------------------------------------------------
 
 /**
- * Stub firmware handler for Betaflight.
+ * Firmware handler for Betaflight.
  *
- * MSP protocol support is planned for Phase 2. All mode encode/decode
- * operations return UNKNOWN. Capability flags are accurate so the UI
- * can correctly show/hide panels.
+ * Betaflight mode switching is done via AUX channels, not MAVLink-style
+ * commands. encodeFlightMode returns zeroes because modes are set by
+ * toggling AUX channel ranges, not by sending a mode number.
  */
 class BetaflightHandler implements FirmwareHandler {
   readonly firmwareType: FirmwareType = 'betaflight'
   readonly vehicleClass: VehicleClass = 'copter'
 
-  /** MSP mode encoding not yet implemented. */
+  /**
+   * Betaflight does not use MAVLink-style mode numbers.
+   * Mode switching is done via AUX channels, not commands.
+   */
   encodeFlightMode(_mode: UnifiedFlightMode): { baseMode: number; customMode: number } {
     return { baseMode: 0, customMode: 0 }
   }
 
-  /** MSP mode decoding not yet implemented. */
+  /**
+   * Simplified mode decoding. Full mode decoding from MSP box flags
+   * happens in the MSPAdapter's heartbeat handler.
+   */
   decodeFlightMode(_customMode: number): UnifiedFlightMode {
     return 'UNKNOWN'
   }
 
-  /** Betaflight modes — stubs until MSP is implemented. */
+  /** Betaflight modes available via AUX channel configuration. */
   getAvailableModes(): UnifiedFlightMode[] {
-    return ['ACRO', 'STABILIZE', 'ALT_HOLD', 'POSHOLD', 'RTL', 'LAND', 'UNKNOWN']
+    return ['ACRO', 'STABILIZE', 'ALT_HOLD', 'RTL']
   }
 
   getDefaultMode(): UnifiedFlightMode {

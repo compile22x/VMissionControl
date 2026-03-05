@@ -21,6 +21,7 @@ import { PidAxisRow } from "./PidAxisRow";
 import {
   type PidParam, type PidPreset, type VehicleType,
   PLANE_AXES, COPTER_AXES, ACRO_PARAMS, FILTER_PARAMS, COPTER_PRESETS,
+  BF_PID_AXES, BF_FILTER_PARAMS, BF_PID_PRESETS,
 } from "./pid-constants";
 import { useParamLabel } from "@/hooks/use-param-label";
 import { useParamMetadataMap } from "@/hooks/use-param-metadata";
@@ -35,6 +36,7 @@ export function PidTuningPanel() {
   const [saving, setSaving] = useState(false);
   const { firmwareType } = useFirmwareCapabilities();
   const isPx4 = firmwareType === 'px4';
+  const isBetaflight = firmwareType === 'betaflight';
 
   // Detect vehicle type from connected drone
   const drone = getSelectedDrone();
@@ -49,7 +51,9 @@ export function PidTuningPanel() {
   }, [drone?.vehicleInfo?.vehicleClass]);
 
   const [vehicleType, setVehicleType] = useState<VehicleType>(detectedVehicle ?? "copter");
-  const activeAxes = vehicleType === "copter" ? COPTER_AXES : PLANE_AXES;
+  const activeAxes = isBetaflight ? BF_PID_AXES : (vehicleType === "copter" ? COPTER_AXES : PLANE_AXES);
+  const activeFilterParams = isBetaflight ? BF_FILTER_PARAMS : FILTER_PARAMS;
+  const activePresets = isBetaflight ? BF_PID_PRESETS : COPTER_PRESETS;
 
   // Expanded sections state
   const [showFilters, setShowFilters] = useState(false);
@@ -76,6 +80,12 @@ export function PidTuningPanel() {
 
   // Memoize param names — changes when vehicle type changes, triggering reload
   const paramNames = useMemo(() => {
+    if (isBetaflight) {
+      return [
+        ...BF_PID_AXES.flatMap((a) => a.params.map((p) => p.param)),
+        ...(showFilters ? BF_FILTER_PARAMS.map((p) => p.param) : []),
+      ];
+    }
     const axes = vehicleType === "copter" ? COPTER_AXES : PLANE_AXES;
     return [
       ...axes.flatMap((a) => a.params.map((p) => p.param)),
@@ -83,7 +93,7 @@ export function PidTuningPanel() {
       ...(showFilters ? FILTER_PARAMS.map((p) => p.param) : []),
       ...(isPx4 ? ["MC_ROLLRATE_K", "MC_PITCHRATE_K", "MC_YAWRATE_K"] : []),
     ];
-  }, [vehicleType, showFilters, isPx4]);
+  }, [vehicleType, showFilters, isPx4, isBetaflight]);
 
   const {
     params, loading, error, dirtyParams, hasRamWrites,
@@ -163,9 +173,11 @@ export function PidTuningPanel() {
     return () => unsub();
   }, [getSelectedProtocol]);
 
-  const subtitle = vehicleType === "copter"
-    ? "ArduCopter rate PIDs — roll, pitch, yaw"
-    : "ArduPlane roll, pitch, yaw servo PID gains";
+  const subtitle = isBetaflight
+    ? "Betaflight PID gains — roll, pitch, yaw"
+    : vehicleType === "copter"
+      ? "ArduCopter rate PIDs — roll, pitch, yaw"
+      : "ArduPlane roll, pitch, yaw servo PID gains";
 
   return (
     <ArmedLockOverlay>
@@ -183,36 +195,38 @@ export function PidTuningPanel() {
           error={error}
         />
 
-        {/* Vehicle type toggle */}
-        <div className="flex items-center gap-1 bg-bg-secondary border border-border-default p-1 w-fit">
-          <button
-            onClick={() => setVehicleType("copter")}
-            className={cn(
-              "px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer",
-              vehicleType === "copter"
-                ? "bg-accent-primary text-white"
-                : "text-text-secondary hover:text-text-primary",
+        {/* Vehicle type toggle (hidden for Betaflight — always multirotor) */}
+        {!isBetaflight && (
+          <div className="flex items-center gap-1 bg-bg-secondary border border-border-default p-1 w-fit">
+            <button
+              onClick={() => setVehicleType("copter")}
+              className={cn(
+                "px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer",
+                vehicleType === "copter"
+                  ? "bg-accent-primary text-white"
+                  : "text-text-secondary hover:text-text-primary",
+              )}
+            >
+              Copter
+            </button>
+            <button
+              onClick={() => setVehicleType("plane")}
+              className={cn(
+                "px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer",
+                vehicleType === "plane"
+                  ? "bg-accent-primary text-white"
+                  : "text-text-secondary hover:text-text-primary",
+              )}
+            >
+              Plane
+            </button>
+            {detectedVehicle && (
+              <span className="text-[10px] text-text-tertiary ml-2">
+                Detected: {detectedVehicle}
+              </span>
             )}
-          >
-            Copter
-          </button>
-          <button
-            onClick={() => setVehicleType("plane")}
-            className={cn(
-              "px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer",
-              vehicleType === "plane"
-                ? "bg-accent-primary text-white"
-                : "text-text-secondary hover:text-text-primary",
-            )}
-          >
-            Plane
-          </button>
-          {detectedVehicle && (
-            <span className="text-[10px] text-text-tertiary ml-2">
-              Detected: {detectedVehicle}
-            </span>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* PID Tables per axis */}
         {activeAxes.map((axis) => (
@@ -226,65 +240,67 @@ export function PidTuningPanel() {
           />
         ))}
 
-        {/* Acro Rate Params */}
-        <div className="border border-border-default bg-bg-secondary p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <SlidersHorizontal size={14} className="text-accent-primary" />
-            <h2 className="text-sm font-medium text-text-primary">Acro Rates</h2>
-          </div>
-          <div className="space-y-3">
-            {ACRO_PARAMS.map((pidP) => {
-              const value = params.get(pidP.param) ?? 0;
-              const isDirty = dirtyParams.has(pidP.param);
-              return (
-                <div key={pidP.param} className="grid grid-cols-[160px_1fr_80px] items-center gap-3">
-                  <div>
-                    <span className="text-xs font-mono text-text-secondary">{pidP.label}</span>
-                    <ParamTooltip meta={paramMeta.get(pidP.param)}><span className="text-[9px] text-text-tertiary block cursor-default">{pn(pidP.param)}</span></ParamTooltip>
-                  </div>
-                  <div className="relative">
+        {/* Acro Rate Params (ArduPilot/PX4 only — BF uses Rate Profiles panel) */}
+        {!isBetaflight && (
+          <div className="border border-border-default bg-bg-secondary p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <SlidersHorizontal size={14} className="text-accent-primary" />
+              <h2 className="text-sm font-medium text-text-primary">Acro Rates</h2>
+            </div>
+            <div className="space-y-3">
+              {ACRO_PARAMS.map((pidP) => {
+                const value = params.get(pidP.param) ?? 0;
+                const isDirty = dirtyParams.has(pidP.param);
+                return (
+                  <div key={pidP.param} className="grid grid-cols-[160px_1fr_80px] items-center gap-3">
+                    <div>
+                      <span className="text-xs font-mono text-text-secondary">{pidP.label}</span>
+                      <ParamTooltip meta={paramMeta.get(pidP.param)}><span className="text-[9px] text-text-tertiary block cursor-default">{pn(pidP.param)}</span></ParamTooltip>
+                    </div>
+                    <div className="relative">
+                      <input
+                        type="range"
+                        min={pidP.min}
+                        max={pidP.max}
+                        step={pidP.step}
+                        value={value}
+                        onChange={(e) => setLocalValue(pidP.param, parseFloat(e.target.value))}
+                        className="w-full h-1.5 bg-bg-tertiary appearance-none cursor-pointer accent-accent-primary [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-accent-primary [&::-webkit-slider-thumb]:cursor-pointer"
+                      />
+                      <div className="flex justify-between text-[8px] text-text-tertiary font-mono mt-0.5">
+                        <span>{pidP.min}</span>
+                        <span>{pidP.max} deg/s</span>
+                      </div>
+                    </div>
                     <input
-                      type="range"
+                      type="number"
                       min={pidP.min}
                       max={pidP.max}
                       step={pidP.step}
                       value={value}
-                      onChange={(e) => setLocalValue(pidP.param, parseFloat(e.target.value))}
-                      className="w-full h-1.5 bg-bg-tertiary appearance-none cursor-pointer accent-accent-primary [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-accent-primary [&::-webkit-slider-thumb]:cursor-pointer"
+                      onChange={(e) => setLocalValue(pidP.param, parseFloat(e.target.value) || 0)}
+                      className={cn(
+                        "w-full h-7 px-1.5 bg-bg-tertiary border text-xs font-mono text-text-primary text-right",
+                        "focus:outline-none focus:border-accent-primary transition-colors",
+                        isDirty ? "border-status-warning" : "border-border-default",
+                      )}
                     />
-                    <div className="flex justify-between text-[8px] text-text-tertiary font-mono mt-0.5">
-                      <span>{pidP.min}</span>
-                      <span>{pidP.max} deg/s</span>
-                    </div>
                   </div>
-                  <input
-                    type="number"
-                    min={pidP.min}
-                    max={pidP.max}
-                    step={pidP.step}
-                    value={value}
-                    onChange={(e) => setLocalValue(pidP.param, parseFloat(e.target.value) || 0)}
-                    className={cn(
-                      "w-full h-7 px-1.5 bg-bg-tertiary border text-xs font-mono text-text-primary text-right",
-                      "focus:outline-none focus:border-accent-primary transition-colors",
-                      isDirty ? "border-status-warning" : "border-border-default",
-                    )}
-                  />
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* ── Preset Profiles ── */}
-        {vehicleType === "copter" && (
+        {(isBetaflight || vehicleType === "copter") && (
           <div className="border border-border-default bg-bg-secondary p-4">
             <div className="flex items-center gap-2 mb-3">
               <Zap size={14} className="text-accent-primary" />
               <h2 className="text-sm font-medium text-text-primary">Preset Profiles</h2>
             </div>
             <div className="flex gap-2">
-              {COPTER_PRESETS.map((preset) => (
+              {activePresets.map((preset) => (
                 <button
                   key={preset.name}
                   onClick={() => applyPreset(preset)}
@@ -311,9 +327,9 @@ export function PidTuningPanel() {
           {showFilters && (
             <div className="px-4 pb-4 space-y-3">
               <p className="text-[10px] text-text-tertiary">
-                INS gyro/accel low-pass filters and harmonic notch filter
+                {isBetaflight ? "Gyro and D-term low-pass and notch filters" : "INS gyro/accel low-pass filters and harmonic notch filter"}
               </p>
-              {FILTER_PARAMS.map((fp) => {
+              {activeFilterParams.map((fp) => {
                 const value = params.get(fp.param) ?? 0;
                 const isDirty = dirtyParams.has(fp.param);
                 return (
@@ -357,8 +373,8 @@ export function PidTuningPanel() {
           )}
         </div>
 
-        {/* ── Autotune (expandable) ── */}
-        {vehicleType === "copter" && (
+        {/* ── Autotune (expandable, ArduPilot/PX4 copter only) ── */}
+        {!isBetaflight && vehicleType === "copter" && (
           <div className="border border-border-default bg-bg-secondary">
             <button
               onClick={() => setShowAutotune((a) => !a)}

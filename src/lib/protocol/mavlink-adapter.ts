@@ -1914,6 +1914,9 @@ export class MAVLinkAdapter implements DroneProtocol {
       supportsGimbal: false, supportsCamera: false, supportsLed: false,
       supportsBattery2: false, supportsRangefinder: false, supportsOpticalFlow: false,
       supportsObstacleAvoidance: false, supportsDebugValues: false,
+      supportsAuxModes: false, supportsVtx: false, supportsBlackbox: false,
+      supportsBetaflightConfig: false, supportsGpsConfig: false,
+      supportsRateProfiles: false, supportsAdjustments: false,
       manualControlHz: 0, parameterCount: 0,
     }
   }

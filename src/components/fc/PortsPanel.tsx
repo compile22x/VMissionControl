@@ -253,6 +253,23 @@ export function PortsPanel() {
               <div className="flex items-center justify-center py-16">
                 <span className="text-xs text-text-tertiary">Loading serial parameters...</span>
               </div>
+            ) : firmwareType === 'betaflight' ? (
+              <div className="border border-border-default bg-bg-secondary p-4 space-y-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <Usb size={14} className="text-accent-primary" />
+                  <h2 className="text-sm font-medium text-text-primary">Betaflight Serial Ports</h2>
+                </div>
+                <p className="text-xs text-text-secondary">
+                  Serial port configuration for Betaflight uses packed bitmask data that is best configured through the CLI.
+                </p>
+                <p className="text-xs text-text-tertiary">
+                  Use the <span className="font-mono text-accent-primary">serial</span> command in the FC Console panel to view and configure serial port assignments.
+                </p>
+                <div className="bg-bg-tertiary px-3 py-2 font-mono text-[10px] text-text-secondary space-y-1">
+                  <p><span className="text-accent-primary">serial</span> — Show current serial port configuration</p>
+                  <p><span className="text-accent-primary">serial 0 64 115200 57600 0 115200</span> — Example: set port 0</p>
+                </div>
+              </div>
             ) : isPx4 ? (
               <div className="space-y-3">
                 <p className="text-xs text-text-tertiary">

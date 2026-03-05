@@ -142,3 +142,60 @@ export const COPTER_PRESETS: PidPreset[] = [
 ];
 
 export type VehicleType = "copter" | "plane";
+
+// ── Betaflight PID axes (4 gains per axis: P/I/D/FF) ────
+
+export const BF_PID_AXES: AxisConfig[] = [
+  {
+    axis: "Roll",
+    params: [
+      { param: "BF_PID_ROLL_P", label: "P", min: 0, max: 200, step: 1 },
+      { param: "BF_PID_ROLL_I", label: "I", min: 0, max: 200, step: 1 },
+      { param: "BF_PID_ROLL_D", label: "D", min: 0, max: 200, step: 1 },
+      { param: "BF_PID_ROLL_F", label: "FF", min: 0, max: 2000, step: 1 },
+    ],
+  },
+  {
+    axis: "Pitch",
+    params: [
+      { param: "BF_PID_PITCH_P", label: "P", min: 0, max: 200, step: 1 },
+      { param: "BF_PID_PITCH_I", label: "I", min: 0, max: 200, step: 1 },
+      { param: "BF_PID_PITCH_D", label: "D", min: 0, max: 200, step: 1 },
+      { param: "BF_PID_PITCH_F", label: "FF", min: 0, max: 2000, step: 1 },
+    ],
+  },
+  {
+    axis: "Yaw",
+    params: [
+      { param: "BF_PID_YAW_P", label: "P", min: 0, max: 200, step: 1 },
+      { param: "BF_PID_YAW_I", label: "I", min: 0, max: 200, step: 1 },
+      { param: "BF_PID_YAW_D", label: "D", min: 0, max: 200, step: 1 },
+      { param: "BF_PID_YAW_F", label: "FF", min: 0, max: 2000, step: 1 },
+    ],
+  },
+];
+
+// ── Betaflight filter params ──────────────────────────────
+
+export const BF_FILTER_PARAMS: PidParam[] = [
+  { param: "BF_GYRO_LPF_HZ", label: "Gyro LPF", min: 0, max: 1000, step: 1 },
+  { param: "BF_DTERM_LPF_HZ", label: "D-term LPF", min: 0, max: 1000, step: 1 },
+  { param: "BF_GYRO_NOTCH_HZ", label: "Gyro Notch", min: 0, max: 1000, step: 1 },
+  { param: "BF_GYRO_NOTCH_CUTOFF", label: "Gyro Notch Cutoff", min: 0, max: 1000, step: 1 },
+  { param: "BF_DTERM_NOTCH_HZ", label: "D-term Notch", min: 0, max: 1000, step: 1 },
+  { param: "BF_DTERM_NOTCH_CUTOFF", label: "D-term Notch Cutoff", min: 0, max: 1000, step: 1 },
+];
+
+// ── Betaflight PID presets ────────────────────────────────
+
+export const BF_PID_PRESETS: PidPreset[] = [
+  {
+    name: "Betaflight Default",
+    description: "Stock Betaflight 4.x defaults",
+    values: {
+      BF_PID_ROLL_P: 45, BF_PID_ROLL_I: 80, BF_PID_ROLL_D: 40, BF_PID_ROLL_F: 120,
+      BF_PID_PITCH_P: 47, BF_PID_PITCH_I: 84, BF_PID_PITCH_D: 46, BF_PID_PITCH_F: 125,
+      BF_PID_YAW_P: 45, BF_PID_YAW_I: 80, BF_PID_YAW_D: 0, BF_PID_YAW_F: 120,
+    },
+  },
+];

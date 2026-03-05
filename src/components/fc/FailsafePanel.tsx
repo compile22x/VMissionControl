@@ -20,6 +20,20 @@ import { StarredParam } from "./ParamStar";
 
 const RC_CHANNEL_COUNT = 8;
 
+// ── Betaflight Failsafe Params ─────────────────────────────
+const BF_FAILSAFE_PARAMS = [
+  'BF_FS_DELAY',
+  'BF_FS_OFF_DELAY',
+  'BF_FS_THROTTLE',
+  'BF_FS_PROCEDURE',
+] as const;
+
+const BF_FS_PROCEDURE_OPTIONS = [
+  { value: "0", label: "0 — Drop" },
+  { value: "1", label: "1 — Land" },
+  { value: "2", label: "2 — GPS Rescue" },
+];
+
 const RC_OPTION_VALUES = [
   { value: "0", label: "0 — Do Nothing", description: "No action assigned to this channel" },
   { value: "2", label: "2 — Flip", description: "Trigger a flip maneuver" },
@@ -86,18 +100,21 @@ export function FailsafePanel() {
 
   const { firmwareType } = useFirmwareCapabilities();
   const isPx4 = firmwareType === 'px4';
+  const isBetaflight = firmwareType === 'betaflight';
 
   const paramNames = useMemo(
-    () => [
-      ...SHARED_FS_PARAMS,
-      ...(isPlane ? PLANE_FS_PARAMS : COPTER_FS_PARAMS),
-      ...(isPx4 ? ["COM_POS_FS_DELAY", "COM_POS_FS_EPH", "COM_POS_FS_EPV", "COM_VEL_FS_EVH"] : []),
-    ],
-    [isPlane, isPx4],
+    () => isBetaflight
+      ? [...BF_FAILSAFE_PARAMS]
+      : [
+          ...SHARED_FS_PARAMS,
+          ...(isPlane ? PLANE_FS_PARAMS : COPTER_FS_PARAMS),
+          ...(isPx4 ? ["COM_POS_FS_DELAY", "COM_POS_FS_EPH", "COM_POS_FS_EPV", "COM_VEL_FS_EVH"] : []),
+        ],
+    [isPlane, isPx4, isBetaflight],
   );
   const optionalParams = useMemo(
-    () => isPlane ? COPTER_FS_PARAMS : PLANE_FS_PARAMS,
-    [isPlane],
+    () => isBetaflight ? [] : (isPlane ? COPTER_FS_PARAMS : PLANE_FS_PARAMS),
+    [isPlane, isBetaflight],
   );
 
   const {
@@ -145,8 +162,62 @@ export function FailsafePanel() {
           missingOptional={missingOptional}
         />
 
-        {/* Short Failsafe (Copter only) */}
-        {!isPlane && <Card icon={<ShieldAlert size={14} />} title="Short Failsafe" description="Triggered on brief signal loss">
+        {/* Betaflight Failsafe */}
+        {isBetaflight && (
+          <>
+            <Card icon={<ShieldAlert size={14} />} title="Stage 1 — Guard" description="Delay before failsafe activates after signal loss">
+              <Input
+                label="Guard Delay (x 0.1s)"
+                type="number"
+                step="1"
+                min="0"
+                max="200"
+                value={p("BF_FS_DELAY", "10")}
+                onChange={(e) => set("BF_FS_DELAY", e.target.value)}
+              />
+              <p className="text-[10px] text-text-tertiary">
+                Value of 10 = 1.0 second. During this period, the FC holds last known stick positions.
+              </p>
+              <Input
+                label="Throttle Value (Stage 1)"
+                type="number"
+                step="10"
+                min="1000"
+                max="2000"
+                unit="us"
+                value={p("BF_FS_THROTTLE", "1000")}
+                onChange={(e) => set("BF_FS_THROTTLE", e.target.value)}
+              />
+              <p className="text-[10px] text-text-tertiary">
+                Throttle PWM applied during Stage 1 guard period.
+              </p>
+            </Card>
+
+            <Card icon={<ShieldAlert size={14} />} title="Stage 2 — Action" description="What happens after guard delay expires">
+              <Select
+                label="Failsafe Procedure"
+                options={BF_FS_PROCEDURE_OPTIONS}
+                value={p("BF_FS_PROCEDURE", "0")}
+                onChange={(v) => set("BF_FS_PROCEDURE", v)}
+              />
+              <Input
+                label="Off Delay (x 0.1s)"
+                type="number"
+                step="1"
+                min="0"
+                max="200"
+                value={p("BF_FS_OFF_DELAY", "10")}
+                onChange={(e) => set("BF_FS_OFF_DELAY", e.target.value)}
+              />
+              <p className="text-[10px] text-text-tertiary">
+                For Land procedure: motors off after this delay. Value of 10 = 1.0 second.
+              </p>
+            </Card>
+          </>
+        )}
+
+        {/* Short Failsafe (Copter only, ArduPilot) */}
+        {!isBetaflight && !isPlane && <Card icon={<ShieldAlert size={14} />} title="Short Failsafe" description="Triggered on brief signal loss">
           <StarredParam param="FS_SHORT_ACTN">
             <Select
               label={lbl("FS_SHORT_ACTN — Action")}
@@ -171,8 +242,8 @@ export function FailsafePanel() {
           </StarredParam>
         </Card>}
 
-        {/* Long Failsafe (Copter only) */}
-        {!isPlane && <Card icon={<ShieldAlert size={14} />} title="Long Failsafe" description="Triggered on extended signal loss">
+        {/* Long Failsafe (Copter only, ArduPilot) */}
+        {!isBetaflight && !isPlane && <Card icon={<ShieldAlert size={14} />} title="Long Failsafe" description="Triggered on extended signal loss">
           <StarredParam param="FS_LONG_ACTN">
             <Select
               label={lbl("FS_LONG_ACTN — Action")}
@@ -198,8 +269,8 @@ export function FailsafePanel() {
           </StarredParam>
         </Card>}
 
-        {/* Battery Failsafe */}
-        <Card icon={<Battery size={14} />} title="Battery Failsafe" description="Triggered on low battery voltage">
+        {/* Battery Failsafe (ArduPilot/PX4) */}
+        {!isBetaflight && <Card icon={<Battery size={14} />} title="Battery Failsafe" description="Triggered on low battery voltage">
           <StarredParam param="BATT_FS_VOLTSRC">
             <Select
               label={lbl("BATT_FS_VOLTSRC — Voltage Source")}
@@ -235,10 +306,10 @@ export function FailsafePanel() {
               onChange={(v) => set("BATT_FS_LOW_ACT", v)}
             />
           </StarredParam>
-        </Card>
+        </Card>}
 
-        {/* GCS Failsafe (Copter only) */}
-        {!isPlane && <Card icon={<Radio size={14} />} title="GCS Failsafe" description="Triggered on GCS link loss">
+        {/* GCS Failsafe (Copter only, ArduPilot) */}
+        {!isBetaflight && !isPlane && <Card icon={<Radio size={14} />} title="GCS Failsafe" description="Triggered on GCS link loss">
           <StarredParam param="FS_GCS_ENABL">
             <Select
               label={lbl("FS_GCS_ENABL — GCS Failsafe")}
@@ -253,8 +324,8 @@ export function FailsafePanel() {
           </StarredParam>
         </Card>}
 
-        {/* Terrain Failsafe (Copter only) */}
-        {!isPlane && <Card icon={<Mountain size={14} />} title="Terrain Failsafe" description="Triggered when terrain data is unavailable during terrain-following">
+        {/* Terrain Failsafe (Copter only, ArduPilot) */}
+        {!isBetaflight && !isPlane && <Card icon={<Mountain size={14} />} title="Terrain Failsafe" description="Triggered when terrain data is unavailable during terrain-following">
           <Select
             label={lbl("TERRAIN_ENABLE — Terrain Following")}
             options={[
@@ -266,8 +337,8 @@ export function FailsafePanel() {
           />
         </Card>}
 
-        {/* Failsafe Options Bitmask (Copter only) */}
-        {!isPlane && <Card icon={<ShieldAlert size={14} />} title="Failsafe Options" description="FS_OPTIONS bitmask — additional failsafe behaviors">
+        {/* Failsafe Options Bitmask (Copter only, ArduPilot) */}
+        {!isBetaflight && !isPlane && <Card icon={<ShieldAlert size={14} />} title="Failsafe Options" description="FS_OPTIONS bitmask — additional failsafe behaviors">
           <div className="space-y-1.5">
             {FS_OPTION_BITS.map((bit) => {
               const current = Number(params.get("FS_OPTIONS") ?? 0);
@@ -290,8 +361,8 @@ export function FailsafePanel() {
           </p>
         </Card>}
 
-        {/* Throttle Failsafe PWM (Copter) */}
-        {!isPlane && <Card icon={<Gauge size={14} />} title="Throttle Failsafe PWM" description="PWM value below which throttle failsafe triggers">
+        {/* Throttle Failsafe PWM (Copter, ArduPilot) */}
+        {!isBetaflight && !isPlane && <Card icon={<Gauge size={14} />} title="Throttle Failsafe PWM" description="PWM value below which throttle failsafe triggers">
           <StarredParam param="FS_THR_VALUE">
             <Input
               label={lbl("FS_THR_VALUE — Throttle PWM Threshold")}
@@ -310,8 +381,8 @@ export function FailsafePanel() {
           </p>
         </Card>}
 
-        {/* Throttle Failsafe (Plane only) */}
-        {isPlane && <Card icon={<Gauge size={14} />} title="Throttle Failsafe" description="Triggered on RC throttle loss">
+        {/* Throttle Failsafe (Plane only, ArduPilot) */}
+        {!isBetaflight && isPlane && <Card icon={<Gauge size={14} />} title="Throttle Failsafe" description="Triggered on RC throttle loss">
           <Select
             label={lbl("THR_FAILSAFE — Throttle Failsafe")}
             options={[
@@ -333,8 +404,8 @@ export function FailsafePanel() {
           />
         </Card>}
 
-        {/* Per-Channel RC Options */}
-        <Card icon={<SlidersHorizontal size={14} />} title="RC Channel Options" description="Per-channel RC switch functions (RCn_OPTION)">
+        {/* Per-Channel RC Options (ArduPilot) */}
+        {!isBetaflight && <Card icon={<SlidersHorizontal size={14} />} title="RC Channel Options" description="Per-channel RC switch functions (RCn_OPTION)">
           <div className="space-y-2">
             {Array.from({ length: RC_CHANNEL_COUNT }, (_, i) => {
               const ch = i + 1;
@@ -352,10 +423,10 @@ export function FailsafePanel() {
               );
             })}
           </div>
-        </Card>
+        </Card>}
 
-        {/* Geofence */}
-        <Card icon={<MapPin size={14} />} title="Geofence" description="Geographical boundary enforcement">
+        {/* Geofence (ArduPilot) */}
+        {!isBetaflight && <Card icon={<MapPin size={14} />} title="Geofence" description="Geographical boundary enforcement">
           <Select
             label={lbl("FENCE_ENABLE — Fence Type")}
             options={[
@@ -387,7 +458,7 @@ export function FailsafePanel() {
           <Input label={lbl("FENCE_ALT_MAX — Max Altitude")} type="number" step="1" min="0" unit="m" value={p("FENCE_ALT_MAX", "100")} onChange={(e) => set("FENCE_ALT_MAX", e.target.value)} />
           <Input label={lbl("FENCE_RADIUS — Max Radius")} type="number" step="1" min="0" unit="m" value={p("FENCE_RADIUS", "300")} onChange={(e) => set("FENCE_RADIUS", e.target.value)} />
           <Input label={lbl("FENCE_ALT_MIN — Min Altitude")} type="number" step="0.5" min="-100" unit="m" value={p("FENCE_ALT_MIN")} onChange={(e) => set("FENCE_ALT_MIN", e.target.value)} />
-        </Card>
+        </Card>}
 
         {/* EKF Position Failsafe (PX4 only) */}
         {isPx4 && hasLoaded && (

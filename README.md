@@ -25,7 +25,7 @@ Altnautica Command is a web GCS that runs in any browser and also ships as a nat
 
 It replaces desktop-only tools like QGroundControl and Mission Planner with a modern web stack: React 19, TypeScript strict, real-time Zustand stores with ring-buffered telemetry, and a custom binary MAVLink v2 parser.
 
-~110K lines of TypeScript. 28 FC configuration panels. 7 pattern generators. 77 MAVLink message types. 31 Zustand stores. Full demo mode with zero setup.
+~110K lines of TypeScript. 36 FC configuration panels. 7 pattern generators. 77 MAVLink + 34 MSP message decoders. 31 Zustand stores. Full demo mode with zero setup.
 
 **[Live App](https://command.altnautica.com)** · **[Website](https://altnautica.com/command)** · **[Community](https://command.altnautica.com/community)**
 
@@ -71,7 +71,7 @@ Open [http://localhost:4000](http://localhost:4000) for 5 simulated drones with 
 
 ### Flight Controller Configuration
 
-- **28 configuration panels** covering calibration, receiver, outputs, PID tuning, failsafe, power, ports, OSD, firmware, PX4 airframe selection, PX4 actuator configuration, MAVLink shell, and more
+- **36 configuration panels** covering calibration, receiver, outputs, PID tuning, failsafe, power, ports, OSD, firmware, PX4 airframe/actuator, Betaflight modes/motors/VTX/GPS/blackbox/rates/adjustments, and more
 - **AI PID tuning** with FFT noise analysis, step response, tracking quality, and motor health. AI suggestions are rate-limited on the hosted version (3/week). Self-host with your own `GROQ_API_KEY` for unlimited use
 - **Board auto-detection** with 9 profiles (SpeedyBee F405 Wing/V3/V4, Matek H743, Pixhawk 4/6C/6X) and STM32 timer group maps
 - **Full parameter system** for searching, editing, and writing all FC parameters with real-time validation
@@ -138,10 +138,12 @@ Open [http://localhost:4000](http://localhost:4000) for 5 simulated drones with 
 ### Protocol Support
 
 - **MAVLink v2** binary parser with CRC validation and 77 message types
+- **MSP v1/v2** binary codec with CRC8 DVB-S2, 19-state streaming parser, 34 decoders, 21 encoders
 - **ArduPilot** with full support (all panels, calibration, missions, dataflash logs)
 - **PX4** with full support including airframe selection, actuator configuration, MAVLink shell, and 90+ parameter mappings
-- **Betaflight / iNav** planned (MSP interface stubs)
-- Multi-firmware `DroneProtocol` abstraction. Components never call MAVLink directly
+- **Betaflight** with full support including 8 new panels, 7 adapted panels, ~105 virtual params, OSD config
+- **iNav** architecture prepared, iNav-specific features planned
+- Multi-firmware `DroneProtocol` abstraction. Components never call MAVLink or MSP directly
 
 ### Demo Mode
 
@@ -270,7 +272,7 @@ These run inside Convex functions, not in Next.js. Only needed if you use cloud 
 | Maps | Leaflet + react-leaflet |
 | 3D | Cesium |
 | Charts | Recharts |
-| Protocol | Custom MAVLink v2 binary parser/encoder |
+| Protocol | Custom MAVLink v2 + MSP v1/v2 binary parsers/encoders |
 | Transport | WebSocket + WebSerial + WebUSB |
 | Storage | IndexedDB (offline plan library) |
 | Backend | Convex (optional, for cloud fleet ops) |
@@ -281,12 +283,12 @@ These run inside Convex functions, not in Next.js. Only needed if you use cloud 
 
 ## Firmware Support
 
-| Firmware | Status | Notes |
-|----------|--------|-------|
-| ArduPilot | **Full** | 77 message types, 20 commands, all panels, calibration, missions, logs |
-| PX4 | **Full** | 90+ param mappings, airframe selection, actuator config, MAVLink shell, calibration, missions |
-| Betaflight | Planned | MSP interface stub |
-| iNav | Planned | MSP interface stub |
+| Firmware | Protocol | Status | Notes |
+|----------|----------|--------|-------|
+| ArduPilot (Copter/Plane/Rover/Sub) | MAVLink v2 | **Full** | 77 message types, 20 commands, all panels, calibration, missions, logs |
+| PX4 | MAVLink v2 | **Full** | 90+ param mappings, airframe selection, actuator config, MAVLink shell, calibration, missions |
+| Betaflight | MSP v1/v2 | **Full** | 34 decoders, 21 encoders, ~105 virtual params, 15 panels, OSD config |
+| iNav | MSP v1/v2 | **Partial** | Architecture prepared, iNav-specific features planned |
 
 ---
 
@@ -295,9 +297,11 @@ These run inside Convex functions, not in Next.js. Only needed if you use cloud 
 | Metric | Count |
 |--------|-------|
 | Lines of TypeScript | ~110,000 |
-| FC configuration panels | 28 |
+| FC configuration panels | 36 |
 | Zustand stores | 31 |
 | MAVLink message decoders | 77 |
+| MSP message decoders | 34 |
+| MSP message encoders | 21 |
 | MAV_CMD handlers | 20 |
 | Pattern generators | 7 |
 | Board profiles | 9 |
@@ -325,7 +329,7 @@ npm run demo   # Test against simulated drones
 npm run lint   # Must pass before PR
 ```
 
-Areas where help is especially useful: Betaflight/iNav MSP, new board profiles, UDP transport, unit tests, and new pattern generators.
+Areas where help is especially useful: iNav MSP support, Betaflight hardware testing, new board profiles, UDP transport, unit tests, and new pattern generators.
 
 ---
 

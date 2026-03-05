@@ -79,7 +79,8 @@ import type {
 } from "@/lib/protocol/types";
 import { ArduCopterHandler } from "@/lib/protocol/firmware/ardupilot";
 import { PX4Handler } from "@/lib/protocol/firmware/px4";
-import { MOCK_PARAMS, PX4_MOCK_PARAMS, type MockParam } from "./mock-params";
+import { betaflightHandler } from "@/lib/protocol/firmware/betaflight";
+import { MOCK_PARAMS, PX4_MOCK_PARAMS, BETAFLIGHT_MOCK_PARAMS, type MockParam } from "./mock-params";
 
 // ── Helpers ─────────────────────────────────────────────────
 
@@ -129,6 +130,16 @@ const PX4_VEHICLE_INFO: VehicleInfo = {
   componentId: 1,
   autopilotType: 12,  // MAV_AUTOPILOT_PX4
   vehicleType: 2,     // MAV_TYPE_QUADROTOR
+};
+
+const BETAFLIGHT_VEHICLE_INFO: VehicleInfo = {
+  firmwareType: "betaflight",
+  vehicleClass: "copter",
+  firmwareVersionString: "Betaflight 4.5.0",
+  systemId: 1,
+  componentId: 1,
+  autopilotType: 0,   // Generic (MSP, not MAVLink)
+  vehicleType: 2,     // Quadrotor
 };
 
 // ── MockProtocol ────────────────────────────────────────────
@@ -196,11 +207,15 @@ export class MockProtocol implements DroneProtocol {
   private accelCalTimers: ReturnType<typeof setTimeout>[] = [];
   private compassCalTimers: ReturnType<typeof setTimeout | typeof setInterval>[] = [];
 
-  constructor(firmwareType: 'ardupilot-copter' | 'px4' = 'ardupilot-copter') {
+  constructor(firmwareType: 'ardupilot-copter' | 'px4' | 'betaflight' = 'ardupilot-copter') {
     if (firmwareType === 'px4') {
       this.handler = new PX4Handler();
       this.defaults = PX4_MOCK_PARAMS;
       this._vehicleInfo = PX4_VEHICLE_INFO;
+    } else if (firmwareType === 'betaflight') {
+      this.handler = betaflightHandler;
+      this.defaults = BETAFLIGHT_MOCK_PARAMS;
+      this._vehicleInfo = BETAFLIGHT_VEHICLE_INFO;
     } else {
       this.handler = new ArduCopterHandler();
       this.defaults = MOCK_PARAMS;

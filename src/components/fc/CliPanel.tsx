@@ -5,6 +5,7 @@ import { useDroneManager } from "@/stores/drone-manager";
 import { Button } from "@/components/ui/button";
 import { Trash2, Terminal, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useFirmwareCapabilities } from "@/hooks/use-firmware-capabilities";
 
 interface LogEntry {
   id: number;
@@ -44,6 +45,8 @@ let nextId = 0;
 
 export function CliPanel() {
   const getSelectedProtocol = useDroneManager((s) => s.getSelectedProtocol);
+  const { firmwareType } = useFirmwareCapabilities();
+  const isBetaflight = firmwareType === 'betaflight';
   const connected = !!getSelectedProtocol();
 
   const [entries, setEntries] = useState<LogEntry[]>([]);
@@ -209,7 +212,9 @@ export function CliPanel() {
             <p>ADOS Mission Control — FC Console</p>
             <p className="mt-1">
               {connected
-                ? "Listening for STATUSTEXT messages from flight controller..."
+                ? isBetaflight
+                  ? "Betaflight CLI active. Type `help` for available commands. Type `exit` to leave CLI mode."
+                  : "Listening for STATUSTEXT messages from flight controller..."
                 : "Connect a drone to receive FC messages."}
             </p>
           </div>

@@ -47,6 +47,14 @@ const POWER_PARAMS = [
   "BATT_FS_LOW_MAH", "BATT_FS_CRT_MAH",
 ];
 
+// ── Betaflight Battery Params ─────────────────────────────
+const BF_POWER_PARAMS = [
+  'BF_BATT_MIN_CELL',
+  'BF_BATT_MAX_CELL',
+  'BF_BATT_WARNING_CELL',
+  'BF_BATT_CAPACITY',
+] as const;
+
 const OPTIONAL_POWER_PARAMS = [
   "BATT2_MONITOR", "BATT2_CAPACITY", "BATT2_AMP_PERVLT", "BATT2_AMP_OFFSET",
   "BATT2_FS_LOW_VOLT", "BATT2_FS_LOW_ACT", "BATT2_FS_CRT_VOLT", "BATT2_FS_CRT_ACT",
@@ -71,6 +79,7 @@ export function PowerPanel() {
   const { toast } = useToast();
   const { firmwareType } = useFirmwareCapabilities();
   const isPx4 = firmwareType === 'px4';
+  const isBetaflight = firmwareType === 'betaflight';
   const { label: pl } = useParamLabel();
   const metadata = useParamMetadataMap();
   const lbl = (raw: string) => <ParamLabel label={pl(raw)} metadata={metadata} />;
@@ -78,11 +87,20 @@ export function PowerPanel() {
   const batteryBuffer = useTelemetryStore((s) => s.battery);
   const [saving, setSaving] = useState(false);
 
+  const powerParamNames = useMemo(
+    () => isBetaflight ? [...BF_POWER_PARAMS] : POWER_PARAMS,
+    [isBetaflight],
+  );
+  const optionalPowerParams = useMemo(
+    () => isBetaflight ? [] : OPTIONAL_POWER_PARAMS,
+    [isBetaflight],
+  );
+
   const {
     params, loading, error, dirtyParams, hasRamWrites,
     loadProgress, hasLoaded,
     refresh, setLocalValue, saveAllToRam, commitToFlash,
-  } = usePanelParams({ paramNames: POWER_PARAMS, optionalParams: OPTIONAL_POWER_PARAMS, panelId: "power", autoLoad: true });
+  } = usePanelParams({ paramNames: powerParamNames, optionalParams: optionalPowerParams, panelId: "power", autoLoad: true });
   useUnsavedGuard(dirtyParams.size > 0);
 
   const connected = !!getSelectedProtocol();
@@ -265,63 +283,128 @@ export function PowerPanel() {
           )}
         </div>
 
-        {/* Battery Settings */}
-        <div className="border border-border-default bg-bg-secondary p-4 space-y-3">
-          <div className="flex items-center gap-2 mb-1">
-            <Battery size={14} className="text-accent-primary" />
-            <h2 className="text-sm font-medium text-text-primary">Battery Settings</h2>
-          </div>
-          <StarredParam param="BATT_MONITOR">
-            <Select
-              label={lbl("BATT_MONITOR — Battery Monitor Type")}
-              options={BATT_MONITOR_OPTIONS}
-              value={p("BATT_MONITOR")}
-              onChange={(v) => set("BATT_MONITOR", v)}
-            />
-          </StarredParam>
-          <StarredParam param="BATT_CAPACITY">
+        {/* Betaflight Battery Settings */}
+        {isBetaflight && (
+          <div className="border border-border-default bg-bg-secondary p-4 space-y-3">
+            <div className="flex items-center gap-2 mb-1">
+              <Battery size={14} className="text-accent-primary" />
+              <h2 className="text-sm font-medium text-text-primary">Battery Settings</h2>
+            </div>
             <Input
-              label={lbl("BATT_CAPACITY — Battery Capacity")}
-              type="number"
-              step="100"
-              min="0"
-              unit="mAh"
-              value={p("BATT_CAPACITY")}
-              onChange={(e) => set("BATT_CAPACITY", e.target.value)}
-            />
-          </StarredParam>
-        </div>
-
-        {/* Current Sensor Calibration */}
-        <div className="border border-border-default bg-bg-secondary p-4 space-y-3">
-          <div className="flex items-center gap-2 mb-1">
-            <Zap size={14} className="text-accent-primary" />
-            <h2 className="text-sm font-medium text-text-primary">Current Sensor Calibration</h2>
-          </div>
-          <StarredParam param="BATT_AMP_PERVLT">
-            <Input
-              label={lbl("BATT_AMP_PERVLT — Amps Per Volt")}
-              type="number"
-              step="0.1"
-              unit="A/V"
-              value={p("BATT_AMP_PERVLT", "17.0")}
-              onChange={(e) => set("BATT_AMP_PERVLT", e.target.value)}
-            />
-          </StarredParam>
-          <StarredParam param="BATT_AMP_OFFSET">
-            <Input
-              label={lbl("BATT_AMP_OFFSET — Current Offset")}
+              label="Min Cell Voltage (V)"
               type="number"
               step="0.01"
-              unit="A"
-              value={p("BATT_AMP_OFFSET", "0.0")}
-              onChange={(e) => set("BATT_AMP_OFFSET", e.target.value)}
+              min="2.0"
+              max="4.5"
+              unit="V"
+              value={((Number(params.get("BF_BATT_MIN_CELL") ?? 330)) / 100).toFixed(2)}
+              onChange={(e) => setLocalValue("BF_BATT_MIN_CELL", Math.round(Number(e.target.value) * 100))}
             />
-          </StarredParam>
-        </div>
+            <p className="text-[10px] text-text-tertiary -mt-1">
+              Cell voltage below which failsafe triggers. Default: 3.30V
+            </p>
+            <Input
+              label="Max Cell Voltage (V)"
+              type="number"
+              step="0.01"
+              min="3.0"
+              max="5.0"
+              unit="V"
+              value={((Number(params.get("BF_BATT_MAX_CELL") ?? 430)) / 100).toFixed(2)}
+              onChange={(e) => setLocalValue("BF_BATT_MAX_CELL", Math.round(Number(e.target.value) * 100))}
+            />
+            <p className="text-[10px] text-text-tertiary -mt-1">
+              Full charge voltage per cell. Used for cell count auto-detection. Default: 4.30V
+            </p>
+            <Input
+              label="Warning Cell Voltage (V)"
+              type="number"
+              step="0.01"
+              min="2.0"
+              max="4.5"
+              unit="V"
+              value={((Number(params.get("BF_BATT_WARNING_CELL") ?? 350)) / 100).toFixed(2)}
+              onChange={(e) => setLocalValue("BF_BATT_WARNING_CELL", Math.round(Number(e.target.value) * 100))}
+            />
+            <p className="text-[10px] text-text-tertiary -mt-1">
+              Cell voltage warning threshold. Default: 3.50V
+            </p>
+            <Input
+              label="Capacity (mAh)"
+              type="number"
+              step="50"
+              min="0"
+              unit="mAh"
+              value={String(params.get("BF_BATT_CAPACITY") ?? 0)}
+              onChange={(e) => setLocalValue("BF_BATT_CAPACITY", Number(e.target.value) || 0)}
+            />
+            <p className="text-[10px] text-text-tertiary -mt-1">
+              Battery capacity in mAh. Set to 0 for auto-detect.
+            </p>
+          </div>
+        )}
 
-        {/* Battery 1 Failsafe */}
-        <div className="border border-border-default bg-bg-secondary p-4 space-y-3">
+        {/* Battery Settings (ArduPilot) */}
+        {!isBetaflight && (
+          <div className="border border-border-default bg-bg-secondary p-4 space-y-3">
+            <div className="flex items-center gap-2 mb-1">
+              <Battery size={14} className="text-accent-primary" />
+              <h2 className="text-sm font-medium text-text-primary">Battery Settings</h2>
+            </div>
+            <StarredParam param="BATT_MONITOR">
+              <Select
+                label={lbl("BATT_MONITOR — Battery Monitor Type")}
+                options={BATT_MONITOR_OPTIONS}
+                value={p("BATT_MONITOR")}
+                onChange={(v) => set("BATT_MONITOR", v)}
+              />
+            </StarredParam>
+            <StarredParam param="BATT_CAPACITY">
+              <Input
+                label={lbl("BATT_CAPACITY — Battery Capacity")}
+                type="number"
+                step="100"
+                min="0"
+                unit="mAh"
+                value={p("BATT_CAPACITY")}
+                onChange={(e) => set("BATT_CAPACITY", e.target.value)}
+              />
+            </StarredParam>
+          </div>
+        )}
+
+        {/* Current Sensor Calibration (ArduPilot) */}
+        {!isBetaflight && (
+          <div className="border border-border-default bg-bg-secondary p-4 space-y-3">
+            <div className="flex items-center gap-2 mb-1">
+              <Zap size={14} className="text-accent-primary" />
+              <h2 className="text-sm font-medium text-text-primary">Current Sensor Calibration</h2>
+            </div>
+            <StarredParam param="BATT_AMP_PERVLT">
+              <Input
+                label={lbl("BATT_AMP_PERVLT — Amps Per Volt")}
+                type="number"
+                step="0.1"
+                unit="A/V"
+                value={p("BATT_AMP_PERVLT", "17.0")}
+                onChange={(e) => set("BATT_AMP_PERVLT", e.target.value)}
+              />
+            </StarredParam>
+            <StarredParam param="BATT_AMP_OFFSET">
+              <Input
+                label={lbl("BATT_AMP_OFFSET — Current Offset")}
+                type="number"
+                step="0.01"
+                unit="A"
+                value={p("BATT_AMP_OFFSET", "0.0")}
+                onChange={(e) => set("BATT_AMP_OFFSET", e.target.value)}
+              />
+            </StarredParam>
+          </div>
+        )}
+
+        {/* Battery 1 Failsafe (ArduPilot) */}
+        {!isBetaflight && <div className="border border-border-default bg-bg-secondary p-4 space-y-3">
           <div className="flex items-center gap-2 mb-1">
             <ShieldAlert size={14} className="text-accent-primary" />
             <h2 className="text-sm font-medium text-text-primary">Battery 1 Failsafe</h2>
@@ -376,10 +459,10 @@ export function PowerPanel() {
               onChange={(e) => set("BATT_FS_CRT_MAH", e.target.value)}
             />
           </div>
-        </div>
+        </div>}
 
-        {/* Battery 2 */}
-        {p("BATT2_MONITOR") !== "0" && (
+        {/* Battery 2 (ArduPilot) */}
+        {!isBetaflight && p("BATT2_MONITOR") !== "0" && (
           <>
             <div className="border border-border-default bg-bg-secondary p-4 space-y-3">
               <div className="flex items-center gap-2 mb-1">

@@ -501,6 +501,7 @@ export function CalibrationPanel() {
   const connected = !!getSelectedProtocol();
   const { firmwareType } = useFirmwareCapabilities();
   const isPx4 = firmwareType === "px4";
+  const isBetaflight = firmwareType === "betaflight";
 
   const [accel, setAccel] = useState<CalibrationState>(INITIAL_STATE);
   const [gyro, setGyro] = useState<CalibrationState>(INITIAL_STATE);
@@ -1468,8 +1469,36 @@ export function CalibrationPanel() {
             )}
           </div>
 
-          {/* Accelerometer — 6-position */}
-          <CalibrationWizard
+          {/* Betaflight: simplified calibration (accel only, no progress tracking) */}
+          {isBetaflight && (
+            <>
+              <CalibrationWizard
+                title="Accelerometer Calibration"
+                description="Place the quad on a flat surface and keep it still. Betaflight calibration takes about 5 seconds."
+                steps={[{ label: "Calibrating", description: "Keep the quad perfectly still on a flat surface" }]}
+                currentStep={accel.currentStep}
+                status={accel.status}
+                progress={accel.progress}
+                statusMessage={accel.message || (accel.status === "in_progress" ? "Calibrating... keep the quad still" : undefined)}
+                onStart={() => startCalibration("accel", setAccel, 1)}
+                onCancel={() => cancelCalibration("accel", setAccel)}
+              />
+
+              <div className="border border-border-default bg-bg-secondary p-4 space-y-2">
+                <h3 className="text-sm font-medium text-text-primary">Betaflight Calibration</h3>
+                <p className="text-xs text-text-tertiary">
+                  Betaflight supports accelerometer calibration via MSP. Gyro calibration runs automatically on every boot.
+                  Compass calibration (if a magnetometer is present) should be done through the Betaflight Configurator or CLI.
+                </p>
+                <p className="text-xs text-text-tertiary">
+                  Other calibration types (level, airspeed, barometer, ESC, RC, CompassMot) are ArduPilot-specific and not available on Betaflight.
+                </p>
+              </div>
+            </>
+          )}
+
+          {/* Accelerometer — 6-position (ArduPilot/PX4) */}
+          {!isBetaflight && <CalibrationWizard
             title="Accelerometer Calibration"
             description="6-position calibration. Place vehicle in each orientation when prompted."
             steps={ACCEL_STEPS}
@@ -1481,10 +1510,10 @@ export function CalibrationPanel() {
             onConfirm={confirmAccelPosition}
             onStart={() => startCalibration("accel", setAccel, ACCEL_STEPS.length)}
             onCancel={() => cancelCalibration("accel", setAccel)}
-          />
+          />}
 
-          {/* Gyroscope */}
-          <CalibrationWizard
+          {/* Gyroscope (ArduPilot/PX4) */}
+          {!isBetaflight && <CalibrationWizard
             title="Gyroscope Calibration"
             description="Keep vehicle perfectly still during calibration."
             steps={GYRO_STEPS}
@@ -1494,11 +1523,10 @@ export function CalibrationPanel() {
             statusMessage={gyro.message}
             onStart={() => startCalibration("gyro", setGyro, GYRO_STEPS.length)}
             onCancel={() => cancelCalibration("gyro", setGyro)}
-          />
+          />}
 
-          {/* Compass pre-calibration param checks */}
-          {/* ArduPilot compass pre-flight checks — not applicable for PX4 */}
-          {connected && !isPx4 && compass.status === "idle" && (
+          {/* Compass pre-calibration param checks (ArduPilot only) */}
+          {!isBetaflight && connected && !isPx4 && compass.status === "idle" && (
             <div className="border border-border-default bg-bg-secondary p-4">
               <h3 className="text-xs font-medium text-text-primary mb-2">Compass Pre-flight Checks</h3>
               <div className="space-y-1.5">
@@ -1596,8 +1624,8 @@ export function CalibrationPanel() {
             </div>
           )}
 
-          {/* Compass */}
-          <CalibrationWizard
+          {/* Compass (ArduPilot/PX4) */}
+          {!isBetaflight && <CalibrationWizard
             title="Compass Calibration"
             description="Rotate vehicle slowly in all orientations until complete."
             steps={COMPASS_STEPS}
@@ -1620,15 +1648,15 @@ export function CalibrationPanel() {
             ]}
             onStart={() => startCalibration("compass", setCompass, COMPASS_STEPS.length)}
             onCancel={() => cancelCalibration("compass", setCompass)}
-          />
+          />}
 
-          {/* Compass Reboot Required Banner */}
-          {compass.needsReboot && compass.status === "success" && (
+          {/* Compass Reboot Required Banner (ArduPilot/PX4) */}
+          {!isBetaflight && compass.needsReboot && compass.status === "success" && (
             <CalibrationRebootBanner label="Compass offsets saved" onReboot={() => { const p = getSelectedProtocol(); if (p) p.reboot(); }} />
           )}
 
-          {/* Orientation change alert */}
-          {compass.status === "success" && compassResultEntries.some(
+          {/* Orientation change alert (ArduPilot/PX4) */}
+          {!isBetaflight && compass.status === "success" && compassResultEntries.some(
             (r) => r.oldOrientation !== r.newOrientation && r.newOrientation !== 0
           ) && (
             <div className="border border-status-warning/30 bg-status-warning/10 px-4 py-3">
@@ -1645,7 +1673,9 @@ export function CalibrationPanel() {
             <CalibrationRebootBanner label="Accelerometer calibration saved" onReboot={() => { const p = getSelectedProtocol(); if (p) p.reboot(); }} />
           )}
 
-          {/* Level */}
+          {/* Level through CompassMot: ArduPilot/PX4 only */}
+          {!isBetaflight && (
+          <>
           <CalibrationWizard
             title="Level Calibration"
             description="Set the reference level horizon for the flight controller."
@@ -1759,6 +1789,8 @@ export function CalibrationPanel() {
           {/* CompassMot Reboot Banner */}
           {compassmot.needsReboot && compassmot.status === "success" && (
             <CalibrationRebootBanner label="CompassMot calibration saved" onReboot={() => { const p = getSelectedProtocol(); if (p) p.reboot(); }} />
+          )}
+          </>
           )}
 
           {/* PX4-Only Calibrations */}

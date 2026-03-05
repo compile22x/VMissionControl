@@ -273,6 +273,13 @@ const PX4_CAPABILITIES: ProtocolCapabilities = {
   supportsOpticalFlow: true,
   supportsObstacleAvoidance: true,
   supportsDebugValues: true,
+  supportsAuxModes: false,
+  supportsVtx: false,
+  supportsBlackbox: false,
+  supportsBetaflightConfig: false,
+  supportsGpsConfig: false,
+  supportsRateProfiles: false,
+  supportsAdjustments: false,
   manualControlHz: 50,
   parameterCount: 1000,
 }

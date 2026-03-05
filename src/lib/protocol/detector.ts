@@ -7,6 +7,8 @@
  * @module protocol/detector
  */
 
+// When result.protocol === 'msp', callers should create MSPAdapter
+// import { MSPAdapter } from './msp-adapter'
 import type { FirmwareType } from './types'
 
 // ---------------------------------------------------------------------------
@@ -178,11 +180,12 @@ function parseMavlinkHeartbeat(data: Uint8Array): {
 
 /**
  * Try to parse an MSP response from incoming data.
+ * Handles both MSPv1 ("$M>") and MSPv2 ("$X>") response frames.
  * Returns the FC variant string if found.
  */
 function parseMspResponse(data: Uint8Array): { variant: string } | null {
-  // Look for MSP response: "$M>" (0x24 0x4d 0x3e) + size + command + data + checksum
   for (let i = 0; i < data.length - 3; i++) {
+    // MSPv1 response: "$M>" (0x24 0x4d 0x3e) + size + command + data + checksum
     if (data[i] === 0x24 && data[i + 1] === 0x4d && data[i + 2] === 0x3e) {
       const size = data[i + 3]
       const command = data[i + 4]
@@ -199,6 +202,28 @@ function parseMspResponse(data: Uint8Array): { variant: string } | null {
       // API_VERSION response — confirms MSP is active
       if (command === MSP_API_VERSION) {
         return { variant: '' } // Unknown variant, but MSP confirmed
+      }
+    }
+
+    // MSPv2 response: "$X>" (0x24 0x58 0x3e) + flags(1) + cmd(2 LE) + len(2 LE) + data + crc8
+    if (data[i] === 0x24 && data[i + 1] === 0x58 && data[i + 2] === 0x3e) {
+      if (i + 8 > data.length) continue
+      // const flags = data[i + 3]
+      const cmd = data[i + 4] | (data[i + 5] << 8)
+      const len = data[i + 6] | (data[i + 7] << 8)
+      if (i + 8 + len >= data.length) continue
+
+      if (cmd === MSP_FC_VARIANT && len >= 4) {
+        const variant = String.fromCharCode(
+          data[i + 8],
+          data[i + 9],
+          data[i + 10],
+          data[i + 11],
+        )
+        return { variant: variant.trim() }
+      }
+      if (cmd === MSP_API_VERSION) {
+        return { variant: '' }
       }
     }
   }

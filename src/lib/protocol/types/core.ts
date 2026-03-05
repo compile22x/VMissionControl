@@ -70,6 +70,21 @@ export interface ProtocolCapabilities {
   supportsOpticalFlow: boolean;
   supportsObstacleAvoidance: boolean;
   supportsDebugValues: boolean;
+  // MSP / Betaflight / iNav capabilities
+  /** Betaflight aux mode configuration */
+  supportsAuxModes: boolean;
+  /** VTX configuration (SmartAudio/Tramp) */
+  supportsVtx: boolean;
+  /** Blackbox logging configuration */
+  supportsBlackbox: boolean;
+  /** Betaflight-specific configuration panel (features, beeper, arming) */
+  supportsBetaflightConfig: boolean;
+  /** GPS configuration (provider, SBAS, rescue) */
+  supportsGpsConfig: boolean;
+  /** Rate profile switching */
+  supportsRateProfiles: boolean;
+  /** Adjustment ranges (mid-flight param tweaking) */
+  supportsAdjustments: boolean;
   // Metadata
   manualControlHz: number;
   parameterCount: number;
