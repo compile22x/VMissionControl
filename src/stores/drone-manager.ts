@@ -156,6 +156,10 @@ function bridgeTelemetry(
     ...(protocol.onEstimatorStatus ? [protocol.onEstimatorStatus((data) => telemetry.pushEstimatorStatus(data))] : []),
     ...(protocol.onCameraTrigger ? [protocol.onCameraTrigger((data) => telemetry.pushCameraTrigger(data))] : []),
     ...(protocol.onNavController ? [protocol.onNavController((data) => telemetry.pushNavController(data))] : []),
+    ...(protocol.onLocalPosition ? [protocol.onLocalPosition((data) => telemetry.pushLocalPosition(data))] : []),
+    ...(protocol.onDebug ? [protocol.onDebug((data) => telemetry.pushDebug(data))] : []),
+    ...(protocol.onGimbalAttitude ? [protocol.onGimbalAttitude((data) => telemetry.pushGimbal(data))] : []),
+    ...(protocol.onObstacleDistance ? [protocol.onObstacleDistance((data) => telemetry.pushObstacle(data))] : []),
 
     protocol.onMissionProgress((data) => {
       if (data.reachedSeq !== undefined) {

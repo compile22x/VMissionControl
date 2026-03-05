@@ -3,7 +3,7 @@
 /**
  * @module MissionPlannerPage
  * @description Top-level page component for the mission planner view.
- * Pure layout — all logic lives in {@link usePlanner} and {@link useKeyboardShortcuts}.
+ * Pure layout -- all logic lives in {@link usePlanner} and {@link useKeyboardShortcuts}.
  * @license GPL-3.0-only
  */
 
@@ -30,6 +30,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { CollapsibleSection } from "@/components/ui/collapsible-section";
 import { usePlannerStore } from "@/stores/planner-store";
 import { useDroneManager } from "@/stores/drone-manager";
+import { useFirmwareCapabilities } from "@/hooks/use-firmware-capabilities";
 import { usePlanner } from "./use-planner";
 import { useKeyboardShortcuts } from "./use-keyboard-shortcuts";
 
@@ -49,6 +50,10 @@ export default function MissionPlannerPage() {
   const droneCount = useDroneManager((s) => s.drones.size);
   const hasDrone = droneCount > 0;
   const isDownloading = p.downloadState === "downloading";
+  const { supports } = useFirmwareCapabilities();
+  // Show geofence/rally when no drone connected (offline planning) or when firmware supports it
+  const showGeofence = !hasDrone || supports("supportsGeoFence");
+  const showRally = !hasDrone || supports("supportsRally");
 
   // Controlled open state for sections toggled by keyboard shortcuts
   const [patternOpen, setPatternOpen] = useState(false);
@@ -86,7 +91,7 @@ export default function MissionPlannerPage() {
     <>
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         <div className="flex-1 flex overflow-hidden">
-          {/* LEFT PANEL — Flight Plan Library */}
+          {/* LEFT PANEL -- Flight Plan Library */}
           <FlightPlanLibrary
             context="plan"
             onPlanLoaded={p.handlePlanLoaded}
@@ -222,38 +227,42 @@ export default function MissionPlannerPage() {
                   </CollapsibleSection>
                 )}
 
-                <CollapsibleSection
-                  title="Geofence"
-                  trailing={
-                    <span className="text-[10px] font-mono text-text-tertiary">
-                      {p.geofenceEnabled ? "on" : "off"}
-                    </span>
-                  }
-                >
-                  <GeofenceEditor
-                    enabled={p.geofenceEnabled}
-                    onToggle={p.setGeofenceEnabled}
-                    type={p.geofenceType}
-                    onTypeChange={p.setGeofenceType}
-                    maxAlt={p.geofenceMaxAlt}
-                    onMaxAltChange={p.setGeofenceMaxAlt}
-                    action={p.geofenceAction}
-                    onActionChange={p.setGeofenceAction}
-                    onDrawOnMap={(fenceDrawType) =>
-                      p.setActiveTool(fenceDrawType === "polygon" ? "polygon" : "circle")
+                {showGeofence && (
+                  <CollapsibleSection
+                    title="Geofence"
+                    trailing={
+                      <span className="text-[10px] font-mono text-text-tertiary">
+                        {p.geofenceEnabled ? "on" : "off"}
+                      </span>
                     }
-                  />
-                </CollapsibleSection>
+                  >
+                    <GeofenceEditor
+                      enabled={p.geofenceEnabled}
+                      onToggle={p.setGeofenceEnabled}
+                      type={p.geofenceType}
+                      onTypeChange={p.setGeofenceType}
+                      maxAlt={p.geofenceMaxAlt}
+                      onMaxAltChange={p.setGeofenceMaxAlt}
+                      action={p.geofenceAction}
+                      onActionChange={p.setGeofenceAction}
+                      onDrawOnMap={(fenceDrawType) =>
+                        p.setActiveTool(fenceDrawType === "polygon" ? "polygon" : "circle")
+                      }
+                    />
+                  </CollapsibleSection>
+                )}
 
-                <CollapsibleSection
-                  title="Rally Points"
-                  count={p.rallyPoints.length}
-                >
-                  <RallyPointEditor
-                    addingRallyPoint={p.addingRallyPoint}
-                    onToggleAdding={p.setAddingRallyPoint}
-                  />
-                </CollapsibleSection>
+                {showRally && (
+                  <CollapsibleSection
+                    title="Rally Points"
+                    count={p.rallyPoints.length}
+                  >
+                    <RallyPointEditor
+                      addingRallyPoint={p.addingRallyPoint}
+                      onToggleAdding={p.setAddingRallyPoint}
+                    />
+                  </CollapsibleSection>
+                )}
 
                 <CollapsibleSection title="Terrain Profile" open={terrainOpen} onToggle={toggleTerrain}>
                   <TerrainProfileChart waypoints={p.waypoints} />

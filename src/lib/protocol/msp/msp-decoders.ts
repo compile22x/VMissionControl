@@ -130,6 +130,15 @@ export interface MspModeRange {
   rangeEnd: number;
 }
 
+export interface MspAdjustmentRange {
+  slotIndex: number;
+  auxChannelIndex: number;
+  rangeStart: number;
+  rangeEnd: number;
+  adjustmentFunction: number;
+  auxSwitchChannelIndex: number;
+}
+
 export interface MspPidSet {
   p: number;
   i: number;
@@ -585,6 +594,29 @@ export function decodeMspModeRanges(dv: DataView): MspModeRange[] {
       auxChannel: readU8(dv, off + 1),
       rangeStart: 900 + readU8(dv, off + 2) * 25,
       rangeEnd: 900 + readU8(dv, off + 3) * 25,
+    });
+  }
+  return ranges;
+}
+
+/**
+ * MSP_ADJUSTMENT_RANGES (52)
+ * 6 bytes per range: U8 slotIndex, U8 auxChannelIndex, U8 startStep, U8 endStep,
+ *                    U8 adjustmentFunction, U8 auxSwitchChannelIndex
+ * PWM = step * 25 + 900
+ */
+export function decodeMspAdjustmentRanges(dv: DataView): MspAdjustmentRange[] {
+  const count = dv.byteLength / 6;
+  const ranges: MspAdjustmentRange[] = [];
+  for (let i = 0; i < count; i++) {
+    const off = i * 6;
+    ranges.push({
+      slotIndex: readU8(dv, off),
+      auxChannelIndex: readU8(dv, off + 1),
+      rangeStart: 900 + readU8(dv, off + 2) * 25,
+      rangeEnd: 900 + readU8(dv, off + 3) * 25,
+      adjustmentFunction: readU8(dv, off + 4),
+      auxSwitchChannelIndex: readU8(dv, off + 5),
     });
   }
   return ranges;
