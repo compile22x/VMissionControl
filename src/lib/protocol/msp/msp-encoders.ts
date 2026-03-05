@@ -33,6 +33,34 @@ function push32(dv: DataView, offset: number, val: number): void {
 // ── Encoder functions ────────────────────────────────────────
 
 /**
+ * MSP_SET_ADJUSTMENT_RANGE (53)
+ * 7 bytes: U8 index, U8 slotIndex, U8 auxChannelIndex, U8 startStep, U8 endStep,
+ *          U8 adjustmentFunction, U8 auxSwitchChannelIndex
+ * Steps are PWM-to-step: step = (PWM - 900) / 25
+ */
+export function encodeMspSetAdjustmentRange(
+  index: number,
+  range: {
+    slotIndex: number;
+    auxChannelIndex: number;
+    rangeStart: number;
+    rangeEnd: number;
+    adjustmentFunction: number;
+    auxSwitchChannelIndex: number;
+  },
+): Uint8Array {
+  const { buf, dv } = makeBuffer(7);
+  push8(dv, 0, index);
+  push8(dv, 1, range.slotIndex);
+  push8(dv, 2, range.auxChannelIndex);
+  push8(dv, 3, Math.round((range.rangeStart - 900) / 25));
+  push8(dv, 4, Math.round((range.rangeEnd - 900) / 25));
+  push8(dv, 5, range.adjustmentFunction);
+  push8(dv, 6, range.auxSwitchChannelIndex);
+  return buf;
+}
+
+/**
  * MSP_SET_PID (202)
  * 3 bytes per axis (P, I, D)
  */
