@@ -13,6 +13,7 @@ import { PidAnalysisSummary } from "./PidAnalysisSummary";
 import { PidAiRecommendations } from "./PidAiRecommendations";
 import { PidComparisonView } from "./PidComparisonView";
 import { ChevronLeft, ChevronRight, AlertTriangle, Save } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { AiSuggestionsGate } from "../shared/AiSuggestionsGate";
 import { STEPS, ANALYSIS_TABS, StepIndicator, type AnalysisTab } from "./pid-wizard-steps";
 import type { VehicleType } from "./pid-constants";

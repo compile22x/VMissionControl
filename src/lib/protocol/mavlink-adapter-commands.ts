@@ -1,10 +1,5 @@
 /**
- * MAVLink adapter — command methods.
- *
- * All MAV_CMD sending functions: arm, disarm, takeoff, land, RTL,
- * mode set, calibration, motor test, reboot, guided flight, fence,
- * servo, gimbal, message rate, etc.
- *
+ * MAVLink adapter — command methods (arm, disarm, takeoff, calibration, etc).
  * @module protocol/mavlink-adapter-commands
  */
 
