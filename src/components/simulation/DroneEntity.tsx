@@ -24,6 +24,8 @@ interface DroneEntityProps {
   headingProperty: SampledProperty | null;
   /** When true, positions are absolute (terrain-resolved). Use HeightReference.NONE. */
   useAbsoluteAlt?: boolean;
+  /** When false, hides the drone entity (prevents visual pop during terrain loading). */
+  visible?: boolean;
 }
 
 const DRONE_ENTITY_ID = "sim-drone";
@@ -33,7 +35,7 @@ const ARROW_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32
 </svg>`;
 const ARROW_DATA_URL = `data:image/svg+xml;base64,${typeof window !== "undefined" ? btoa(ARROW_SVG) : ""}`;
 
-export function DroneEntity({ viewer, positionProperty, headingProperty, useAbsoluteAlt = false }: DroneEntityProps) {
+export function DroneEntity({ viewer, positionProperty, headingProperty, useAbsoluteAlt = false, visible = true }: DroneEntityProps) {
   const droneRef = useRef<Entity | null>(null);
 
   useEffect(() => {
@@ -57,6 +59,7 @@ export function DroneEntity({ viewer, positionProperty, headingProperty, useAbso
         rotation: rotationProperty,
         heightReference: useAbsoluteAlt ? HeightReference.NONE : HeightReference.RELATIVE_TO_GROUND,
         disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        show: visible,
       },
     });
     droneRef.current = drone;
@@ -65,7 +68,7 @@ export function DroneEntity({ viewer, positionProperty, headingProperty, useAbso
       if (viewer && !viewer.isDestroyed()) viewer.entities.removeById(DRONE_ENTITY_ID);
       droneRef.current = null;
     };
-  }, [viewer, positionProperty, headingProperty, useAbsoluteAlt]);
+  }, [viewer, positionProperty, headingProperty, useAbsoluteAlt, visible]);
 
   return null;
 }

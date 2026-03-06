@@ -29,7 +29,9 @@ import { useSimulationStore, type CameraMode } from "@/stores/simulation-store";
 export function useSimCamera(
   viewer: CesiumViewer | null,
   waypoints: Waypoint[],
-  flightPlan: FlightPlan
+  flightPlan: FlightPlan,
+  /** Terrain-resolved waypoint positions (absolute altitude). Use for accurate bounding. */
+  resolvedWaypointPositions?: Cartesian3[]
 ): void {
   const cameraMode = useSimulationStore((s) => s.cameraMode);
   const prevModeRef = useRef<CameraMode>("topdown");
@@ -49,9 +51,8 @@ export function useSimCamera(
     }
 
     if (cameraMode === "topdown") {
-      const positions = waypoints.map((wp) =>
-        Cartesian3.fromDegrees(wp.lon, wp.lat, wp.alt)
-      );
+      const positions = resolvedWaypointPositions
+        ?? waypoints.map((wp) => Cartesian3.fromDegrees(wp.lon, wp.lat, wp.alt));
       const sphere = BoundingSphere.fromPoints(positions);
       const range = Math.max(sphere.radius * 3, 500);
       viewer.camera.flyToBoundingSphere(sphere, {
@@ -60,25 +61,35 @@ export function useSimCamera(
       });
     } else if (cameraMode === "follow") {
       // Instant lookAtTransform setup — ScreenSpaceCameraController respects this
-      const elapsed = useSimulationStore.getState().elapsed;
-      const pos = interpolatePosition(flightPlanRef.current.segments, waypoints, elapsed);
-      // Terrain-adjust: pos.alt is AGL, offset by terrain height for correct world position
-      const carto = Cartographic.fromDegrees(pos.lon, pos.lat);
-      const terrainH = viewer.scene.globe.getHeight(carto) ?? 0;
-      const target = Cartesian3.fromDegrees(pos.lon, pos.lat, pos.alt + terrainH);
+      const synced = useSimulationStore.getState().syncedPosition;
+      let target: Cartesian3;
+      let heading: number;
+      if (synced) {
+        // Use synced position from CesiumJS (already terrain-adjusted)
+        const carto = Cartographic.fromDegrees(synced.lon, synced.lat);
+        const terrainH = viewer.scene.globe.getHeight(carto) ?? 0;
+        target = Cartesian3.fromDegrees(synced.lon, synced.lat, synced.altAgl + terrainH);
+        heading = synced.heading;
+      } else {
+        const elapsed = useSimulationStore.getState().elapsed;
+        const pos = interpolatePosition(flightPlanRef.current.segments, waypoints, elapsed);
+        const carto = Cartographic.fromDegrees(pos.lon, pos.lat);
+        const terrainH = viewer.scene.globe.getHeight(carto) ?? 0;
+        target = Cartesian3.fromDegrees(pos.lon, pos.lat, pos.alt + terrainH);
+        heading = pos.heading;
+      }
       const transform = Transforms.eastNorthUpToFixedFrame(target);
       viewer.camera.lookAtTransform(
         transform,
         new HeadingPitchRange(
-          CesiumMath.toRadians(pos.heading),
+          CesiumMath.toRadians(heading),
           CesiumMath.toRadians(-30),
           200
         )
       );
     } else if (cameraMode === "orbit") {
-      const positions = waypoints.map((wp) =>
-        Cartesian3.fromDegrees(wp.lon, wp.lat, wp.alt)
-      );
+      const positions = resolvedWaypointPositions
+        ?? waypoints.map((wp) => Cartesian3.fromDegrees(wp.lon, wp.lat, wp.alt));
       const sphere = BoundingSphere.fromPoints(positions);
       viewer.camera.flyToBoundingSphere(sphere, {
         duration: 0.8,
@@ -91,5 +102,5 @@ export function useSimCamera(
     } else if (cameraMode === "free") {
       viewer.camera.lookAtTransform(Matrix4.IDENTITY);
     }
-  }, [viewer, cameraMode, waypoints]);
+  }, [viewer, cameraMode, waypoints, resolvedWaypointPositions]);
 }

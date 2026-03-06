@@ -14,6 +14,16 @@ import { JulianDate, type Viewer as CesiumViewer } from "cesium";
 export type PlaybackState = "stopped" | "playing" | "paused";
 export type CameraMode = "topdown" | "follow" | "orbit" | "free";
 
+/** Position synced from CesiumJS 3D entity each tick (authoritative for HUD). */
+export interface SyncedPosition {
+  lat: number;
+  lon: number;
+  altAgl: number;
+  heading: number;
+  speed: number;
+  waypointIndex: number;
+}
+
 interface SimulationStoreState {
   playbackState: PlaybackState;
   playbackSpeed: number;
@@ -22,6 +32,10 @@ interface SimulationStoreState {
   cameraMode: CameraMode;
   /** ID of the library plan being simulated (for plan-to-simulate tracking). */
   sourceLibraryPlanId: string | null;
+  /** Position synced from 3D entity — null until first tick with resolved positions. */
+  syncedPosition: SyncedPosition | null;
+  /** Whether follow camera heading is locked to flight heading. */
+  followHeadingLocked: boolean;
 
   play: () => void;
   pause: () => void;
@@ -34,6 +48,8 @@ interface SimulationStoreState {
   setTotalDuration: (duration: number) => void;
   setSourcePlanId: (id: string | null) => void;
   syncFromClock: () => void;
+  syncPosition: (pos: SyncedPosition) => void;
+  toggleFollowHeading: () => void;
   reset: () => void;
 }
 
@@ -79,6 +95,8 @@ export const useSimulationStore = create<SimulationStoreState>()((set, get) => (
   totalDuration: 0,
   cameraMode: "topdown",
   sourceLibraryPlanId: null,
+  syncedPosition: null,
+  followHeadingLocked: true,
 
   play: () => {
     if (!_viewer || _viewer.isDestroyed()) return;
@@ -142,6 +160,10 @@ export const useSimulationStore = create<SimulationStoreState>()((set, get) => (
 
   setSourcePlanId: (sourceLibraryPlanId) => set({ sourceLibraryPlanId }),
 
+  syncPosition: (syncedPosition) => set({ syncedPosition }),
+
+  toggleFollowHeading: () => set((s) => ({ followHeadingLocked: !s.followHeadingLocked })),
+
   setTotalDuration: (totalDuration) => {
     set({ totalDuration });
     if (_viewer && !_viewer.isDestroyed() && _startJulian) {
@@ -176,6 +198,8 @@ export const useSimulationStore = create<SimulationStoreState>()((set, get) => (
       totalDuration: 0,
       cameraMode: "topdown",
       sourceLibraryPlanId: null,
+      syncedPosition: null,
+      followHeadingLocked: true,
     });
     if (_viewer && !_viewer.isDestroyed()) {
       _viewer.clock.shouldAnimate = false;

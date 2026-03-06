@@ -13,6 +13,8 @@ import {
   SkipForward,
   ChevronLeft,
   ChevronRight,
+  Lock,
+  Unlock,
 } from "lucide-react";
 import { useSimulationStore } from "@/stores/simulation-store";
 import { Select } from "@/components/ui/select";
@@ -36,6 +38,8 @@ interface PlaybackControlsProps {
 export function PlaybackControls({ waypoints, totalDuration }: PlaybackControlsProps) {
   const playbackState = useSimulationStore((s) => s.playbackState);
   const playbackSpeed = useSimulationStore((s) => s.playbackSpeed);
+  const cameraMode = useSimulationStore((s) => s.cameraMode);
+  const followHeadingLocked = useSimulationStore((s) => s.followHeadingLocked);
   const elapsed = useThrottledElapsed();
   const play = useSimulationStore((s) => s.play);
   const pause = useSimulationStore((s) => s.pause);
@@ -44,6 +48,7 @@ export function PlaybackControls({ waypoints, totalDuration }: PlaybackControlsP
   const stepForward = useSimulationStore((s) => s.stepForward);
   const stepBack = useSimulationStore((s) => s.stepBack);
   const setSpeed = useSimulationStore((s) => s.setSpeed);
+  const toggleFollowHeading = useSimulationStore((s) => s.toggleFollowHeading);
 
   const disabled = waypoints.length < 2;
   const progress = totalDuration > 0 ? elapsed / totalDuration : 0;
@@ -126,6 +131,17 @@ export function PlaybackControls({ waypoints, totalDuration }: PlaybackControlsP
         options={SPEED_OPTIONS}
         className="text-[10px] font-mono"
       />
+
+      {/* Follow-camera heading lock toggle (only visible in follow mode) */}
+      {cameraMode === "follow" && (
+        <button
+          onClick={toggleFollowHeading}
+          className="p-1 text-text-secondary hover:text-text-primary cursor-pointer"
+          title={followHeadingLocked ? "Unlock camera heading (free rotate)" : "Lock camera heading (track drone)"}
+        >
+          {followHeadingLocked ? <Lock size={12} /> : <Unlock size={12} />}
+        </button>
+      )}
     </div>
   );
 }

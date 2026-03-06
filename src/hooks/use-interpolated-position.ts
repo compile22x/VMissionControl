@@ -9,6 +9,7 @@
 import { useMemo } from "react";
 import { useMissionStore } from "@/stores/mission-store";
 import { usePlannerStore } from "@/stores/planner-store";
+import { useSimulationStore } from "@/stores/simulation-store";
 import { useThrottledElapsed } from "./use-throttled-elapsed";
 import {
   computeFlightPlan,
@@ -45,16 +46,32 @@ export function useInterpolatedPosition(): {
   const waypoints = useMissionStore((s) => s.waypoints);
   const defaultSpeed = usePlannerStore((s) => s.defaultSpeed);
   const elapsed = useThrottledElapsed();
+  const syncedPosition = useSimulationStore((s) => s.syncedPosition);
 
   const flightPlan = useMemo(
     () => computeFlightPlan(waypoints, defaultSpeed),
     [waypoints, defaultSpeed]
   );
 
-  const pos = useMemo(
-    () => interpolateCached(flightPlan.segments, waypoints, elapsed),
-    [flightPlan, waypoints, elapsed]
-  );
+  const pos = useMemo(() => {
+    // When 3D viewer has synced a position, use it — it's authoritative
+    // (matches the CesiumJS entity position exactly, including terrain following)
+    if (syncedPosition) {
+      return {
+        lat: syncedPosition.lat,
+        lon: syncedPosition.lon,
+        alt: syncedPosition.altAgl,
+        heading: syncedPosition.heading,
+        speed: syncedPosition.speed,
+        currentWaypointIndex: syncedPosition.waypointIndex,
+        progress: flightPlan.totalDuration > 0
+          ? Math.min(elapsed / flightPlan.totalDuration, 1)
+          : 0,
+      } satisfies InterpolatedPosition;
+    }
+    // Fallback: geodetic interpolation (before terrain resolution)
+    return interpolateCached(flightPlan.segments, waypoints, elapsed);
+  }, [syncedPosition, flightPlan, waypoints, elapsed]);
 
   return { pos, flightPlan, elapsed };
 }

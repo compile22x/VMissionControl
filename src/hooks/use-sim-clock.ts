@@ -14,6 +14,7 @@ import {
   HeadingPitchRange,
   Cartesian3,
   Cartographic,
+  Math as CesiumMath,
   type Viewer as CesiumViewer,
   type Clock,
 } from "cesium";
@@ -23,6 +24,7 @@ import {
   unbindSimViewer,
 } from "@/stores/simulation-store";
 import type { SampledProperties } from "@/lib/build-sampled-properties";
+import type { FlightPlan } from "@/lib/simulation-utils";
 
 /** Distance threshold for terrain cache invalidation (~10m in radians). */
 const CACHE_THRESHOLD_RAD = 10 / 6_371_000;
@@ -36,13 +38,17 @@ export function useSimClock(
   sampled: SampledProperties | null,
   totalDuration: number,
   /** When true, sampled positions are absolute — skip terrain adjustment in follow cam. */
-  useAbsolutePositions = false
+  useAbsolutePositions = false,
+  /** Flight plan for speed/waypoint-index derivation in synced position. */
+  flightPlan?: FlightPlan
 ): void {
   // Refs for onTick callback (avoids stale closures)
   const sampledRef = useRef(sampled);
   sampledRef.current = sampled;
   const absoluteRef = useRef(useAbsolutePositions);
   absoluteRef.current = useAbsolutePositions;
+  const flightPlanRef = useRef(flightPlan);
+  flightPlanRef.current = flightPlan;
 
   // Terrain height cache — avoids per-frame globe.getHeight() calls
   const terrainCache = useRef({ lon: 0, lat: 0, height: 0 });
@@ -77,9 +83,73 @@ export function useSimClock(
       // 1. Sync elapsed to store (drives HUD, scrubber, all consumers)
       useSimulationStore.getState().syncFromClock();
 
-      // 2. Follow camera (reads entity position directly — already interpolated by CesiumJS)
-      const { cameraMode } = useSimulationStore.getState();
       const s = sampledRef.current;
+
+      // 2. Sync geodetic position from CesiumJS entity to store (authoritative for HUD)
+      if (s?.sampledPosition && s?.sampledHeading) {
+        const pos = s.sampledPosition.getValue(clock.currentTime);
+        const hdg = s.sampledHeading.getValue(clock.currentTime);
+        if (pos) {
+          const carto = Cartographic.fromCartesian(pos);
+          const lat = CesiumMath.toDegrees(carto.latitude);
+          const lon = CesiumMath.toDegrees(carto.longitude);
+          const headingDeg = typeof hdg === "number"
+            ? (((-CesiumMath.toDegrees(hdg)) % 360) + 360) % 360
+            : 0;
+
+          // Get terrain height for AGL computation
+          const cache = terrainCache.current;
+          const dLon = Math.abs(carto.longitude - cache.lon);
+          const dLat = Math.abs(carto.latitude - cache.lat);
+          if (dLon > CACHE_THRESHOLD_RAD || dLat > CACHE_THRESHOLD_RAD) {
+            const h = viewer.scene.globe.getHeight(carto);
+            if (h !== undefined) {
+              cache.lon = carto.longitude;
+              cache.lat = carto.latitude;
+              cache.height = h;
+            }
+          }
+
+          const altAgl = absoluteRef.current
+            ? carto.height - cache.height
+            : carto.height; // AGL mode: position height IS the AGL value
+
+          // Derive speed + waypoint index from flight plan segments
+          const fp = flightPlanRef.current;
+          const elapsed = useSimulationStore.getState().elapsed;
+          let speed = 0;
+          let waypointIndex = 0;
+          if (fp && fp.segments.length > 0) {
+            const segsDuration = fp.segments[fp.segments.length - 1].cumulativeDuration;
+            if (elapsed >= segsDuration) {
+              speed = 0;
+              waypointIndex = fp.segments[fp.segments.length - 1].toIndex;
+            } else {
+              for (const seg of fp.segments) {
+                if (elapsed <= seg.cumulativeDuration) {
+                  const segStart = seg.fromIndex > 0
+                    ? fp.segments[seg.fromIndex - 1]?.cumulativeDuration ?? 0
+                    : 0;
+                  const holdTime = 0; // hold time already baked into segment duration
+                  const timeInSeg = elapsed - segStart;
+                  const travelDur = seg.duration - holdTime;
+                  const t = travelDur > 0 ? Math.min(timeInSeg / travelDur, 1) : 1;
+                  speed = seg.speed;
+                  waypointIndex = t > 0.5 ? seg.toIndex : seg.fromIndex;
+                  break;
+                }
+              }
+            }
+          }
+
+          useSimulationStore.getState().syncPosition({
+            lat, lon, altAgl, heading: headingDeg, speed, waypointIndex,
+          });
+        }
+      }
+
+      // 3. Follow camera (reads entity position directly — already interpolated by CesiumJS)
+      const { cameraMode, followHeadingLocked } = useSimulationStore.getState();
       if (cameraMode === "follow" && s?.sampledPosition && s?.sampledHeading) {
         const pos = s.sampledPosition.getValue(clock.currentTime);
         const hdg = s.sampledHeading.getValue(clock.currentTime);
@@ -90,35 +160,27 @@ export function useSimClock(
             // Positions are already absolute — no terrain adjustment needed
             adjustedPos = pos;
           } else {
-            // AGL mode: offset by terrain height with caching
+            // AGL mode: offset by terrain height with caching (cache already updated above)
             const carto = Cartographic.fromCartesian(pos);
-            const cache = terrainCache.current;
-            const dLon = Math.abs(carto.longitude - cache.lon);
-            const dLat = Math.abs(carto.latitude - cache.lat);
-
-            if (dLon > CACHE_THRESHOLD_RAD || dLat > CACHE_THRESHOLD_RAD) {
-              const h = viewer.scene.globe.getHeight(carto);
-              if (h !== undefined) {
-                cache.lon = carto.longitude;
-                cache.lat = carto.latitude;
-                cache.height = h;
-              }
-            }
-
             adjustedPos = Cartesian3.fromRadians(
               carto.longitude,
               carto.latitude,
-              carto.height + cache.height
+              carto.height + terrainCache.current.height
             );
           }
 
           const transform = Transforms.eastNorthUpToFixedFrame(adjustedPos);
           const rawRange = Cartesian3.magnitude(viewer.camera.position);
           const range = Math.max(20, Math.min(10000, rawRange > 0 ? rawRange : 200));
+
+          const cameraHeading = followHeadingLocked
+            ? (typeof hdg === "number" ? -hdg : 0)
+            : viewer.camera.heading;
+
           viewer.camera.lookAtTransform(
             transform,
             new HeadingPitchRange(
-              typeof hdg === "number" ? -hdg : 0,
+              cameraHeading,
               viewer.camera.pitch,
               range
             )
@@ -126,7 +188,7 @@ export function useSimClock(
         }
       }
 
-      // 3. Request render for requestRenderMode support
+      // 4. Request render for requestRenderMode support
       viewer.scene.requestRender();
     };
 

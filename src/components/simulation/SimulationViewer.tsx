@@ -121,7 +121,7 @@ export function SimulationViewer({ waypoints, defaultSpeed }: SimulationViewerPr
     return () => { cancelled = true; };
   }, [viewer, waypoints, terrainReady, terrainVersion]);
 
-  // Extract waypoint-only resolved positions for drone sampled properties
+  // Extract waypoint-only resolved positions for WaypointEntities + camera
   const waypointPositions = useMemo(() => {
     if (!resolvedPath) return undefined;
     return resolvedPath.waypointIndices.map((idx) => resolvedPath.positions[idx]);
@@ -130,8 +130,14 @@ export function SimulationViewer({ waypoints, defaultSpeed }: SimulationViewerPr
   const hasAbsolutePositions = !!waypointPositions;
 
   const sampled = useMemo(
-    () => buildSampledProperties(waypoints, flightPlan, waypointPositions),
-    [waypoints, flightPlan, waypointPositions]
+    () => buildSampledProperties(
+      waypoints,
+      flightPlan,
+      waypointPositions,
+      resolvedPath?.positions,
+      resolvedPath?.waypointIndices
+    ),
+    [waypoints, flightPlan, waypointPositions, resolvedPath]
   );
 
   // Reset simulation when waypoints change
@@ -146,8 +152,8 @@ export function SimulationViewer({ waypoints, defaultSpeed }: SimulationViewerPr
   }, [flightPlan.totalDuration]);
 
   // Hooks handle all CesiumJS lifecycle
-  useSimClock(viewer, sampled, flightPlan.totalDuration, hasAbsolutePositions);
-  useSimCamera(viewer, waypoints, flightPlan);
+  useSimClock(viewer, sampled, flightPlan.totalDuration, hasAbsolutePositions, flightPlan);
+  useSimCamera(viewer, waypoints, flightPlan, waypointPositions);
   useSimCompletion(waypoints);
 
   const handleViewerReady = useCallback((v: CesiumViewer) => setViewer(v), []);
@@ -179,6 +185,7 @@ export function SimulationViewer({ waypoints, defaultSpeed }: SimulationViewerPr
         positionProperty={sampled?.sampledPosition ?? null}
         headingProperty={sampled?.sampledHeading ?? null}
         useAbsoluteAlt={hasAbsolutePositions}
+        visible={!terrainResolving || hasAbsolutePositions}
       />
       <DroneTrailEntity
         viewer={viewer}
