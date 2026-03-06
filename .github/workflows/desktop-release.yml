@@ -121,6 +121,7 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               release_id: release.id,
+              draft: false,
               body: [
                 `## Altnautica Command ${tag}`,
                 '',
