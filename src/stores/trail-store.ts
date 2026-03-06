@@ -26,8 +26,6 @@ export const useTrailStore = create<TrailStoreState>((set, get) => ({
   maxPoints: 1000,
 
   pushPoint: (lat, lon, alt = 0) => {
-    // Reject invalid (0,0) positions — GPS not yet fixed
-    if (Math.abs(lat) < 0.001 && Math.abs(lon) < 0.001) return;
     const { trail, maxPoints } = get();
     // Skip if position hasn't changed significantly (< ~1m)
     if (trail.length > 0) {

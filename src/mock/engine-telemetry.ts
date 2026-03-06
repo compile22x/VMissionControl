@@ -174,7 +174,7 @@ export function emitSelectedDroneTelemetry(ctx: TelemetryTickContext): number {
   if (ctx.tickCount % 5 === 0) {
     ctx.protocol.emitTerrain({
       timestamp: now, lat: ctx.pos.lat, lon: ctx.pos.lon,
-      terrainHeight: 920, currentHeight: ctx.pos.alt,
+      terrainHeight: 0, currentHeight: ctx.pos.alt,
       spacing: 30, pending: 0, loaded: 4,
     });
   }
@@ -200,7 +200,7 @@ export function emitSelectedDroneTelemetry(ctx: TelemetryTickContext): number {
     const homePath = FLIGHT_PATHS[ctx.pathIndex];
     const homeWp = homePath?.[0];
     if (homeWp) {
-      ctx.protocol.emitHomePosition({ timestamp: now, lat: homeWp.lat, lon: homeWp.lon, alt: 920 });
+      ctx.protocol.emitHomePosition({ timestamp: now, lat: homeWp.lat, lon: homeWp.lon, alt: 0 });
     }
   }
 

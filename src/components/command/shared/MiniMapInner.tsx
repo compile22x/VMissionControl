@@ -14,7 +14,7 @@ export default function MiniMapInner() {
   return (
     <MapContainer
       center={DEFAULT_CENTER}
-      zoom={3}
+      zoom={14}
       style={{ width: "100%", height: "100%" }}
       zoomControl={false}
       attributionControl={false}

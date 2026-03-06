@@ -25,7 +25,7 @@ export const MOCK_ACTIVE_MISSIONS: MockMission[] = [
     droneId: "alpha-1",
     mission: {
       id: "msn-alpha",
-      name: "Cubbon Park Perimeter",
+      name: "Sector A Perimeter",
       droneId: "alpha-1",
       suiteType: "sentry" as SuiteType,
       templateName: "perimeter_patrol",
@@ -42,7 +42,7 @@ export const MOCK_ACTIVE_MISSIONS: MockMission[] = [
     droneId: "bravo-2",
     mission: {
       id: "msn-bravo",
-      name: "Ulsoor Lake Survey",
+      name: "Grid Survey Alpha",
       droneId: "bravo-2",
       suiteType: "survey" as SuiteType,
       templateName: "photogrammetry_grid",
@@ -59,7 +59,7 @@ export const MOCK_ACTIVE_MISSIONS: MockMission[] = [
     droneId: "echo-5",
     mission: {
       id: "msn-echo",
-      name: "Whitefield Search Grid",
+      name: "SAR Search Grid",
       droneId: "echo-5",
       suiteType: "sar" as SuiteType,
       templateName: "expanding_square",

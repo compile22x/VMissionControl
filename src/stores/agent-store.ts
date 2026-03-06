@@ -104,6 +104,10 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
     try {
       const status = await client.getStatus();
       set({ connected: true, status });
+      // Fetch initial data immediately so tabs aren't empty for 3s
+      get().fetchServices();
+      get().fetchResources();
+      get().fetchLogs();
       get().startPolling();
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Connection failed";
@@ -223,7 +227,7 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
     const { client } = get();
     if (!client) return;
     try {
-      const peripherals = await (client as AgentClient & { getPeripherals: () => Promise<PeripheralInfo[]> }).getPeripherals();
+      const peripherals = await client.getPeripherals();
       set({ peripherals });
     } catch { /* silent */ }
   },
@@ -232,7 +236,7 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
     const { client } = get();
     if (!client) return;
     try {
-      const peripherals = await (client as AgentClient & { scanPeripherals: () => Promise<PeripheralInfo[]> }).scanPeripherals();
+      const peripherals = await client.scanPeripherals();
       set({ peripherals });
     } catch { /* silent */ }
   },
@@ -243,7 +247,7 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
     const { client } = get();
     if (!client) return;
     try {
-      const scripts = await (client as AgentClient & { getScripts: () => Promise<ScriptInfo[]> }).getScripts();
+      const scripts = await client.getScripts();
       set({ scripts });
     } catch { /* silent */ }
   },
@@ -252,7 +256,7 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
     const { client } = get();
     if (!client) return null;
     try {
-      const script = await (client as AgentClient & { saveScript: (n: string, c: string, s?: string) => Promise<ScriptInfo> }).saveScript(name, content, suite);
+      const script = await client.saveScript(name, content, suite);
       await get().fetchScripts();
       return script;
     } catch {
@@ -264,7 +268,7 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
     const { client } = get();
     if (!client) return;
     try {
-      await (client as AgentClient & { deleteScript: (id: string) => Promise<CommandResult> }).deleteScript(id);
+      await client.deleteScript(id);
       await get().fetchScripts();
     } catch { /* silent */ }
   },
@@ -274,7 +278,7 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
     if (!client) return;
     set({ runningScript: id, scriptOutput: null });
     try {
-      const result = await (client as AgentClient & { runScript: (id: string) => Promise<ScriptRunResult> }).runScript(id);
+      const result = await client.runScript(id);
       set({ scriptOutput: result, runningScript: null });
     } catch {
       set({
@@ -290,7 +294,7 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
     const { client } = get();
     if (!client) return;
     try {
-      const suites = await (client as AgentClient & { getSuites: () => Promise<SuiteInfo[]> }).getSuites();
+      const suites = await client.getSuites();
       set({ suites });
     } catch { /* silent */ }
   },
@@ -299,7 +303,7 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
     const { client } = get();
     if (!client) return;
     try {
-      await (client as AgentClient & { installSuite: (id: string) => Promise<CommandResult> }).installSuite(id);
+      await client.installSuite(id);
       await get().fetchSuites();
     } catch { /* silent */ }
   },
@@ -308,7 +312,7 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
     const { client } = get();
     if (!client) return;
     try {
-      await (client as AgentClient & { uninstallSuite: (id: string) => Promise<CommandResult> }).uninstallSuite(id);
+      await client.uninstallSuite(id);
       await get().fetchSuites();
     } catch { /* silent */ }
   },
@@ -317,7 +321,7 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
     const { client } = get();
     if (!client) return;
     try {
-      await (client as AgentClient & { activateSuite: (id: string) => Promise<CommandResult> }).activateSuite(id);
+      await client.activateSuite(id);
       await get().fetchSuites();
     } catch { /* silent */ }
   },
@@ -328,7 +332,7 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
     const { client } = get();
     if (!client) return;
     try {
-      const enrollment = await (client as AgentClient & { getEnrollment: () => Promise<DroneNetEnrollment> }).getEnrollment();
+      const enrollment = await client.getEnrollment();
       set({ enrollment });
     } catch { /* silent */ }
   },
@@ -337,7 +341,7 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
     const { client } = get();
     if (!client) return;
     try {
-      const peers = await (client as AgentClient & { getPeers: () => Promise<NetworkPeer[]> }).getPeers();
+      const peers = await client.getPeers();
       set({ peers });
     } catch { /* silent */ }
   },
