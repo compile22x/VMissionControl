@@ -1,0 +1,95 @@
+"use client";
+
+import { RotateCw } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { formatDuration } from "@/lib/utils";
+import type { ServiceInfo } from "@/lib/agent/types";
+
+interface ServiceTableProps {
+  services: ServiceInfo[];
+  onRestart: (name: string) => void;
+}
+
+function statusBadge(status: ServiceInfo["status"]) {
+  const colors = {
+    running: "bg-status-success/20 text-status-success",
+    stopped: "bg-text-tertiary/20 text-text-tertiary",
+    error: "bg-status-error/20 text-status-error",
+  };
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium rounded",
+        colors[status]
+      )}
+    >
+      {status}
+    </span>
+  );
+}
+
+export function ServiceTable({ services, onRestart }: ServiceTableProps) {
+  if (services.length === 0) {
+    return (
+      <div className="border border-border-default rounded-lg p-4">
+        <h3 className="text-sm font-medium text-text-primary mb-2">Services</h3>
+        <p className="text-xs text-text-tertiary">No services reported</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="border border-border-default rounded-lg p-4">
+      <h3 className="text-sm font-medium text-text-primary mb-3">Services</h3>
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="border-b border-border-default text-text-tertiary">
+              <th className="text-left py-1.5 pr-3 font-medium">Name</th>
+              <th className="text-left py-1.5 pr-3 font-medium">Status</th>
+              <th className="text-right py-1.5 pr-3 font-medium">PID</th>
+              <th className="text-right py-1.5 pr-3 font-medium">CPU %</th>
+              <th className="text-right py-1.5 pr-3 font-medium">RAM (MB)</th>
+              <th className="text-right py-1.5 pr-3 font-medium">Uptime</th>
+              <th className="text-right py-1.5 font-medium">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {services.map((svc) => (
+              <tr
+                key={svc.name}
+                className="border-b border-border-default last:border-b-0"
+              >
+                <td className="py-1.5 pr-3 text-text-primary font-mono">
+                  {svc.name}
+                </td>
+                <td className="py-1.5 pr-3">{statusBadge(svc.status)}</td>
+                <td className="py-1.5 pr-3 text-right text-text-secondary font-mono">
+                  {svc.pid ?? "-"}
+                </td>
+                <td className="py-1.5 pr-3 text-right text-text-secondary font-mono">
+                  {svc.cpu_percent.toFixed(1)}
+                </td>
+                <td className="py-1.5 pr-3 text-right text-text-secondary font-mono">
+                  {svc.memory_mb.toFixed(1)}
+                </td>
+                <td className="py-1.5 pr-3 text-right text-text-secondary font-mono">
+                  {formatDuration(svc.uptime_seconds)}
+                </td>
+                <td className="py-1.5 text-right">
+                  <button
+                    onClick={() => onRestart(svc.name)}
+                    className="p-1 text-text-tertiary hover:text-accent-primary transition-colors"
+                    title={`Restart ${svc.name}`}
+                  >
+                    <RotateCw size={12} />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}

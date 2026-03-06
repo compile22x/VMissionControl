@@ -1,0 +1,173 @@
+"use client";
+
+/**
+ * @module ScriptsTab
+ * @description Text command interface for sending commands to the ADOS Drone Agent.
+ * @license GPL-3.0-only
+ */
+
+import { useState, useRef, useEffect, useCallback } from "react";
+import { Send, Trash2 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useAgentStore } from "@/stores/agent-store";
+import type { CommandResult } from "@/lib/agent/types";
+
+interface HistoryEntry {
+  id: number;
+  command: string;
+  result: CommandResult | null;
+  timestamp: number;
+}
+
+const quickCommands = [
+  { label: "Arm", cmd: "arm" },
+  { label: "Disarm", cmd: "disarm" },
+  { label: "Takeoff", cmd: "takeoff", args: [10] },
+  { label: "Land", cmd: "land" },
+  { label: "RTL", cmd: "rtl" },
+  { label: "Stabilize", cmd: "mode", args: ["stabilize"] },
+  { label: "Loiter", cmd: "mode", args: ["loiter"] },
+];
+
+export function ScriptsTab() {
+  const [input, setInput] = useState("");
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [nextId, setNextId] = useState(1);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const connected = useAgentStore((s) => s.connected);
+  const sendCommand = useAgentStore((s) => s.sendCommand);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [history]);
+
+  const executeCommand = useCallback(
+    async (cmd: string, args?: unknown[]) => {
+      if (!connected) return;
+      const id = nextId;
+      setNextId((n) => n + 1);
+      const result = await sendCommand(cmd, args);
+      setHistory((prev) => [
+        ...prev,
+        { id, command: args ? `${cmd} ${JSON.stringify(args)}` : cmd, result, timestamp: Date.now() },
+      ]);
+    },
+    [connected, sendCommand, nextId]
+  );
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const trimmed = input.trim();
+    if (!trimmed) return;
+    const parts = trimmed.split(/\s+/);
+    const cmd = parts[0];
+    const args = parts.slice(1);
+    executeCommand(cmd, args.length > 0 ? args : undefined);
+    setInput("");
+  }
+
+  if (!connected) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center space-y-2">
+          <p className="text-sm text-text-secondary">Connect to an agent to send commands</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col h-full p-4 gap-4 max-w-3xl">
+      {/* Quick commands */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-xs text-text-tertiary">Quick:</span>
+        {quickCommands.map((qc) => (
+          <button
+            key={qc.cmd + (qc.args ? JSON.stringify(qc.args) : "")}
+            onClick={() => executeCommand(qc.cmd, qc.args)}
+            className="px-2.5 py-1 text-xs border border-border-default rounded hover:border-accent-primary hover:text-accent-primary text-text-secondary transition-colors"
+          >
+            {qc.label}
+          </button>
+        ))}
+      </div>
+
+      {/* History */}
+      <div
+        ref={scrollRef}
+        className="flex-1 border border-border-default rounded-lg overflow-y-auto p-3 font-mono text-xs space-y-2 min-h-[200px]"
+      >
+        {history.length === 0 ? (
+          <p className="text-text-tertiary text-center py-8">
+            Command history will appear here
+          </p>
+        ) : (
+          history.map((entry) => (
+            <div key={entry.id} className="space-y-0.5">
+              <div className="flex items-center gap-2">
+                <span className="text-accent-primary">$</span>
+                <span className="text-text-primary">{entry.command}</span>
+                <span className="text-text-tertiary ml-auto">
+                  {new Date(entry.timestamp).toLocaleTimeString("en-IN", {
+                    hour12: false,
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    second: "2-digit",
+                  })}
+                </span>
+              </div>
+              {entry.result && (
+                <div
+                  className={cn(
+                    "pl-4",
+                    entry.result.success
+                      ? "text-status-success"
+                      : "text-status-error"
+                  )}
+                >
+                  {entry.result.message}
+                </div>
+              )}
+              {!entry.result && (
+                <div className="pl-4 text-status-error">No response</div>
+              )}
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Input */}
+      <form onSubmit={handleSubmit} className="flex items-center gap-2">
+        <div className="flex-1 flex items-center gap-2 border border-border-default rounded-lg px-3 py-2 focus-within:border-accent-primary transition-colors">
+          <span className="text-accent-primary text-xs font-mono">$</span>
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Enter command (e.g. arm, takeoff 10, mode loiter)"
+            className="flex-1 bg-transparent text-xs text-text-primary placeholder:text-text-tertiary outline-none font-mono"
+          />
+        </div>
+        <button
+          type="submit"
+          disabled={!input.trim()}
+          className="p-2 text-accent-primary hover:bg-bg-tertiary rounded transition-colors disabled:opacity-30"
+          title="Send command"
+        >
+          <Send size={14} />
+        </button>
+        <button
+          type="button"
+          onClick={() => setHistory([])}
+          className="p-2 text-text-tertiary hover:text-status-error hover:bg-bg-tertiary rounded transition-colors"
+          title="Clear history"
+        >
+          <Trash2 size={14} />
+        </button>
+      </form>
+    </div>
+  );
+}

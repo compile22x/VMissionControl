@@ -2,14 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Route, Play, History } from "lucide-react";
+import { LayoutDashboard, Terminal, Route, Play, History } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const tabs = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/" },
+  { icon: Terminal, label: "Command", href: "/command" },
   { icon: Route, label: "Plan", href: "/plan" },
   { icon: Play, label: "Simulate", href: "/simulate" },
-{ icon: History, label: "History", href: "/history" },
+  { icon: History, label: "History", href: "/history" },
 ] as const;
 
 export function CommandNav() {
