@@ -99,11 +99,15 @@ export function GcsEntity({ viewer }: GcsEntityProps) {
 
     const cartesian = Cartesian3.fromDegrees(position.lon, position.lat, 0);
 
-    if (billboardRef.current?.position instanceof ConstantPositionProperty) {
-      billboardRef.current.position.setValue(cartesian);
+    if (billboardRef.current) {
+      billboardRef.current.position = new ConstantPositionProperty(cartesian);
     }
-    if (ellipseRef.current?.position instanceof ConstantPositionProperty) {
-      ellipseRef.current.position.setValue(cartesian);
+    if (ellipseRef.current) {
+      ellipseRef.current.position = new ConstantPositionProperty(cartesian);
+      if (ellipseRef.current.ellipse) {
+        (ellipseRef.current.ellipse as any).semiMajorAxis = Math.max(position.accuracy, 5);
+        (ellipseRef.current.ellipse as any).semiMinorAxis = Math.max(position.accuracy, 5);
+      }
     }
   }, [viewer, position]);
 

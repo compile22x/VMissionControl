@@ -125,15 +125,12 @@ export function useSimClock(
               speed = 0;
               waypointIndex = fp.segments[fp.segments.length - 1].toIndex;
             } else {
-              for (const seg of fp.segments) {
+              for (let i = 0; i < fp.segments.length; i++) {
+                const seg = fp.segments[i];
                 if (elapsed <= seg.cumulativeDuration) {
-                  const segStart = seg.fromIndex > 0
-                    ? fp.segments[seg.fromIndex - 1]?.cumulativeDuration ?? 0
-                    : 0;
-                  const holdTime = 0; // hold time already baked into segment duration
+                  const segStart = i > 0 ? fp.segments[i - 1].cumulativeDuration : 0;
                   const timeInSeg = elapsed - segStart;
-                  const travelDur = seg.duration - holdTime;
-                  const t = travelDur > 0 ? Math.min(timeInSeg / travelDur, 1) : 1;
+                  const t = seg.duration > 0 ? Math.min(timeInSeg / seg.duration, 1) : 1;
                   speed = seg.speed;
                   waypointIndex = t > 0.5 ? seg.toIndex : seg.fromIndex;
                   break;

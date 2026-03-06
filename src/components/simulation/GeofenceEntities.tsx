@@ -11,6 +11,7 @@
 import { useEffect } from "react";
 import {
   Cartesian3,
+  Cartographic,
   Color,
   HeightReference,
   PolygonHierarchy,
@@ -104,9 +105,14 @@ export function GeofenceEntities({ viewer }: GeofenceEntitiesProps) {
       }
 
       if (centerLat !== 0 || centerLon !== 0) {
-        // Represent ceiling as a translucent ellipse at maxAltitude
+        // Sample terrain height at fence center so AGL ceiling renders correctly
+        const carto = Cartographic.fromDegrees(centerLon, centerLat);
+        const terrainHeight = viewer.scene.globe.getHeight(carto) ?? 0;
+        const ceilingHeight = terrainHeight + maxAltitude;
+
+        // Represent ceiling as a translucent ellipse at maxAltitude above terrain
         const ceilingEntity = viewer.entities.add({
-          position: Cartesian3.fromDegrees(centerLon, centerLat, maxAltitude),
+          position: Cartesian3.fromDegrees(centerLon, centerLat, ceilingHeight),
           ellipse: {
             semiMajorAxis: fenceType === "circle" ? circleRadius : 500,
             semiMinorAxis: fenceType === "circle" ? circleRadius : 500,
@@ -114,7 +120,7 @@ export function GeofenceEntities({ viewer }: GeofenceEntitiesProps) {
             outline: true,
             outlineColor: Color.RED.withAlpha(0.3),
             outlineWidth: 1,
-            height: maxAltitude,
+            height: ceilingHeight,
           },
         });
         entities.push(ceilingEntity);

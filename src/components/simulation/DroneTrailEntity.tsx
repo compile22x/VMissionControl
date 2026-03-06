@@ -26,6 +26,7 @@ interface DroneTrailEntityProps {
 const TRAIL_ENTITY_ID = "sim-drone-trail";
 const TRAIL_COLOR = Color.fromCssColorString("#dff140").withAlpha(0.5);
 const UPDATE_INTERVAL = 500; // ms between position samples
+const MAX_TRAIL_POSITIONS = 7200; // 60 min at 500ms intervals
 
 export function DroneTrailEntity({ viewer, positionProperty }: DroneTrailEntityProps) {
   const positionsRef = useRef<Cartesian3[]>([]);
@@ -69,6 +70,11 @@ export function DroneTrailEntity({ viewer, positionProperty }: DroneTrailEntityP
       const pos = positionProperty.getValue(time);
       if (pos) {
         positionsRef.current.push(Cartesian3.clone(pos));
+        if (positionsRef.current.length > MAX_TRAIL_POSITIONS) {
+          positionsRef.current = positionsRef.current.slice(
+            Math.floor(MAX_TRAIL_POSITIONS * 0.1)
+          );
+        }
         viewer.scene.requestRender();
       }
     }, UPDATE_INTERVAL);

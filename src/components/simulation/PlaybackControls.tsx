@@ -115,7 +115,7 @@ export function PlaybackControls({ waypoints, totalDuration }: PlaybackControlsP
         type="range"
         min={0}
         max={totalDuration || 1}
-        step={0.1}
+        step={Math.max(0.1, totalDuration / 1000)}
         value={elapsed}
         onChange={(e) => seek(Number(e.target.value))}
         disabled={disabled}

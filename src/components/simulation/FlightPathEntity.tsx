@@ -122,8 +122,7 @@ export function FlightPathEntity({
           if (cmd === "ROI") {
             roiActive = true;
           }
-          // ROI is cancelled by a WAYPOINT after it
-          if (cmd === "WAYPOINT" && roiActive && i > 0 && waypoints[i - 1].command !== "ROI") {
+          if (cmd === "DO_SET_ROI_NONE") {
             roiActive = false;
           }
 

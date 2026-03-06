@@ -11,6 +11,7 @@ import { useEffect } from "react";
 import {
   Cartesian2,
   Cartesian3,
+  Cartographic,
   Color,
   HeightReference,
   VerticalOrigin,
@@ -71,9 +72,11 @@ export function RallyPointEntities({ viewer }: RallyPointEntitiesProps) {
       });
       entities.push(marker);
 
-      // Altitude pillar from ground to rally point
-      const groundPos = Cartesian3.fromDegrees(rp.lon, rp.lat, 0);
-      const topPos = Cartesian3.fromDegrees(rp.lon, rp.lat, rp.alt);
+      // Altitude pillar from ground to rally point (terrain-aware)
+      const carto = Cartographic.fromDegrees(rp.lon, rp.lat);
+      const terrainHeight = viewer.scene.globe.getHeight(carto) ?? 0;
+      const groundPos = Cartesian3.fromDegrees(rp.lon, rp.lat, terrainHeight);
+      const topPos = Cartesian3.fromDegrees(rp.lon, rp.lat, terrainHeight + rp.alt);
 
       const pillar = viewer.entities.add({
         polyline: {
