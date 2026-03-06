@@ -7,6 +7,7 @@
  * @license GPL-3.0-only
  */
 
+import { useState } from "react";
 import {
   ArrowUpRight,
   Radio,
@@ -17,6 +18,8 @@ import {
   Code2,
   AlertTriangle,
   Cpu,
+  Copy,
+  Check,
 } from "lucide-react";
 
 const capabilities = [
@@ -64,7 +67,18 @@ const steps = [
   "Enter the agent's IP:8080 in the URL bar above and click Connect",
 ];
 
+const INSTALL_COMMAND = "curl -sSL https://install.ados.altnautica.com | bash";
+
 export function AgentDisconnectedPage() {
+  const [copied, setCopied] = useState(false);
+
+  function handleCopy() {
+    navigator.clipboard.writeText(INSTALL_COMMAND).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
   return (
     <div className="flex-1 overflow-y-auto">
       <div className="max-w-4xl mx-auto px-6 py-10 space-y-10">
@@ -92,6 +106,39 @@ export function AgentDisconnectedPage() {
             This tab manages the ADOS Drone Agent, the software that runs on
             your drone&apos;s companion computer. It handles MAVLink routing,
             video streaming, sensor management, scripting, and fleet networking.
+          </p>
+        </div>
+
+        {/* Quick Install */}
+        <div className="space-y-3">
+          <h2 className="text-sm font-medium text-text-primary text-center">
+            Quick Install
+          </h2>
+          <div className="relative bg-[#0A0A0F] border border-border-default rounded overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3">
+              <code className="text-xs font-mono text-text-secondary select-all">
+                {INSTALL_COMMAND}
+              </code>
+              <button
+                onClick={handleCopy}
+                className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium text-text-tertiary hover:text-text-primary bg-bg-secondary border border-border-default rounded transition-colors shrink-0 ml-4"
+              >
+                {copied ? (
+                  <>
+                    <Check size={12} className="text-status-success" />
+                    Copied
+                  </>
+                ) : (
+                  <>
+                    <Copy size={12} />
+                    Copy
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+          <p className="text-[11px] text-text-tertiary text-center">
+            Coming soon. First public build in progress.
           </p>
         </div>
 
