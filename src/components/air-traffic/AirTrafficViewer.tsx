@@ -67,6 +67,17 @@ function ConvexCesiumToken({ onToken }: { onToken: (token: string | null) => voi
   return null;
 }
 
+/** Fetches OpenAIP API key from Convex. */
+function ConvexOpenAIPKey({ onKey }: { onKey: (key: string | null) => void }) {
+  const config = useQuery(communityApi.clientConfig.get, {});
+  useEffect(() => {
+    if (config !== undefined) {
+      onKey((config as { openAipApiKey?: string } | null)?.openAipApiKey ?? null);
+    }
+  }, [config, onKey]);
+  return null;
+}
+
 /** Subscribes to Convex ADS-B cache and forwards aircraft data via callback. */
 function ConvexAdsbCache({ onData }: { onData: (data: { aircraft: any[]; source: string; fetchedAt: number }) => void }) {
   const data = useQuery(communityApi.adsbCache.getAll, {});
@@ -98,6 +109,8 @@ export function AirTrafficViewer() {
   const handleCesiumToken = useCallback((t: string | null) => {
     setCesiumToken(t ?? undefined);
   }, []);
+  const [openAipKey, setOpenAipKey] = useState<string | null>(null);
+  const handleOpenAIPKey = useCallback((k: string | null) => setOpenAipKey(k), []);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastAlertRef = useRef<Map<string, number>>(new Map());
 
@@ -131,7 +144,7 @@ export function AirTrafficViewer() {
 
     const bbox = { south: -60, north: 70, west: -180, east: 180 };
 
-    loadAllAirspaceZones(bbox)
+    loadAllAirspaceZones(bbox, openAipKey)
       .then((zones) => {
         setZones(zones);
         setLoading(false);
@@ -140,7 +153,7 @@ export function AirTrafficViewer() {
         setError(err instanceof Error ? err.message : "Failed to load airspace data");
         setLoading(false);
       });
-  }, [setZones, setLoading, setError]);
+  }, [setZones, setLoading, setError, openAipKey]);
 
   // ── Load NOTAMs on mount ──
   useEffect(() => {
@@ -318,6 +331,7 @@ export function AirTrafficViewer() {
   return (
     <div className="flex-1 relative min-w-0 h-full">
       {convexAvailable && <ConvexCesiumToken onToken={handleCesiumToken} />}
+      {convexAvailable && <ConvexOpenAIPKey onKey={handleOpenAIPKey} />}
       {convexAvailable && !convexFailed && (
         <ConvexErrorBoundary onError={handleConvexError}>
           <ConvexAdsbCache onData={handleConvexAdsbData} />

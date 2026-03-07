@@ -34,8 +34,11 @@ export async function loadAirspaceZones(
   }
 }
 
-export async function loadAllAirspaceZones(bbox: BoundingBox): Promise<AirspaceZone[]> {
-  const apiKey = process.env.NEXT_PUBLIC_OPENAIP_API_KEY;
+export async function loadAllAirspaceZones(
+  bbox: BoundingBox,
+  openAipApiKey?: string | null,
+): Promise<AirspaceZone[]> {
+  const apiKey = openAipApiKey || process.env.NEXT_PUBLIC_OPENAIP_API_KEY;
 
   if (apiKey) {
     try {
