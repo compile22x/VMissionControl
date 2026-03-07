@@ -8,7 +8,7 @@
 
 "use client";
 
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
 import {
   Cartesian3,
   Cartesian2,
@@ -50,6 +50,24 @@ function getDisplayMode(altitudeM: number): DisplayMode {
   return "close";
 }
 
+interface ViewBounds {
+  south: number;
+  north: number;
+  west: number;
+  east: number;
+}
+
+function getVisibleBounds(viewer: CesiumViewer): ViewBounds | null {
+  const rect = viewer.camera.computeViewRectangle();
+  if (!rect) return null;
+  return {
+    south: CesiumMath.toDegrees(rect.south),
+    north: CesiumMath.toDegrees(rect.north),
+    west: CesiumMath.toDegrees(rect.west),
+    east: CesiumMath.toDegrees(rect.east),
+  };
+}
+
 /** Icon pixel size by display mode. */
 function getIconSize(mode: DisplayMode): number {
   switch (mode) {
@@ -74,6 +92,8 @@ export function AircraftEntities({ viewer }: AircraftEntitiesProps) {
   const indexRef = useRef<Map<string, BillboardEntry>>(new Map());
   /** Current display mode for icon sizing and label visibility. */
   const modeRef = useRef<DisplayMode>("global");
+  /** Visible viewport bounds for frustum culling. */
+  const [visibleBounds, setVisibleBounds] = useState<ViewBounds | null>(null);
 
   // Initialize BillboardCollection + LabelCollection
   useEffect(() => {
@@ -104,6 +124,9 @@ export function AircraftEntities({ viewer }: AircraftEntitiesProps) {
     const cartographic = Cartographic.fromCartesian(viewer.camera.positionWC);
     const altM = cartographic.height;
     const mode = getDisplayMode(altM);
+
+    // Update viewport bounds for frustum culling
+    setVisibleBounds(getVisibleBounds(viewer));
 
     if (modeRef.current !== mode) {
       modeRef.current = mode;
@@ -183,9 +206,26 @@ export function AircraftEntities({ viewer }: AircraftEntitiesProps) {
     const scale = iconSize / 32;
     const currentIcaos = new Set<string>();
 
+    const bounds = visibleBounds;
+    const latM = bounds ? (bounds.north - bounds.south) * 0.1 : 0;
+    const lonM = bounds ? (bounds.east - bounds.west) * 0.1 : 0;
+
     for (const [icao24, ac] of aircraft) {
       // Skip zero-position aircraft
       if (ac.lat === 0 && ac.lon === 0) continue;
+
+      // Viewport culling with 10% margin
+      if (bounds) {
+        if (bounds.west <= bounds.east) {
+          // Normal case
+          if (ac.lat < bounds.south - latM || ac.lat > bounds.north + latM ||
+              ac.lon < bounds.west - lonM || ac.lon > bounds.east + lonM) continue;
+        } else {
+          // Antimeridian wrap
+          if (ac.lat < bounds.south - latM || ac.lat > bounds.north + latM ||
+              (ac.lon < bounds.west - lonM && ac.lon > bounds.east + lonM)) continue;
+        }
+      }
 
       currentIcaos.add(icao24);
 
@@ -261,7 +301,7 @@ export function AircraftEntities({ viewer }: AircraftEntitiesProps) {
       }
     }
 
-  }, [viewer, aircraft, threatLevels, selectedAircraft, trafficVisible]);
+  }, [viewer, aircraft, threatLevels, selectedAircraft, trafficVisible, visibleBounds]);
 
   return null;
 }

@@ -43,7 +43,7 @@ function getBoundaryColors(type: AirspaceZoneType) {
     const cfg = ZONE_COLORS[type];
     if (!cfg) return null;
     cached = {
-      fill: Color.fromCssColorString(cfg.fill).withAlpha(Math.min(cfg.fillOpacity * 0.5, 0.15)),
+      fill: Color.fromCssColorString(cfg.fill).withAlpha(Math.min(cfg.fillOpacity * 0.8, 0.25)),
       border: Color.fromCssColorString(cfg.border).withAlpha(cfg.borderOpacity),
     };
     boundaryColorCache.set(type, cached);

@@ -40,25 +40,40 @@ export async function loadAllAirspaceZones(
 ): Promise<AirspaceZone[]> {
   const apiKey = openAipApiKey || process.env.NEXT_PUBLIC_OPENAIP_API_KEY;
 
-  if (apiKey) {
-    try {
-      const countries = ["IN", "US", "AU", "GB", "DE", "FR", "ES", "IT", "JP", "CA"];
-      const openAipZones = await fetchOpenAIPAirspaces(countries, apiKey);
-      if (openAipZones.length > 0) {
-        console.log(`[airspace] OpenAIP: ${openAipZones.length} real airspace polygons loaded`);
-        return openAipZones;
-      }
-    } catch (err) {
-      console.warn("[airspace] OpenAIP fetch failed, falling back to circles:", err);
-    }
-  }
-
-  // Fallback: circle-based zones
+  // Always load jurisdiction-specific circle zones + ICAO standards
   const [india, us, au] = await Promise.all([
     getIndiaAirspaceZones(bbox),
     getUSAirspaceZones(bbox),
     getAustraliaAirspaceZones(bbox),
   ]);
   const icao = getICAOStandardZones(bbox);
-  return [...india, ...us, ...au, ...icao];
+  const baseZones = [...india, ...us, ...au, ...icao];
+
+  if (!apiKey) return baseZones;
+
+  // Merge OpenAIP real polygons on top of circle fallbacks
+  try {
+    const countries = [
+      // Europe
+      "GB", "DE", "FR", "ES", "IT", "NL", "BE", "AT", "CH", "SE",
+      "NO", "DK", "FI", "PL", "CZ", "HU", "RO", "PT", "IE", "GR",
+      "HR", "BG", "SK", "SI", "LT", "LV", "EE",
+      // Americas
+      "US", "CA", "BR", "MX", "AR", "CL", "CO",
+      // Asia-Pacific
+      "IN", "JP", "KR", "CN", "AU", "NZ", "SG", "TH", "MY", "ID",
+      "PH", "VN",
+      // Middle East & Africa
+      "AE", "SA", "IL", "ZA", "EG", "KE", "NG",
+    ];
+    const openAipZones = await fetchOpenAIPAirspaces(countries, apiKey);
+    if (openAipZones.length > 0) {
+      console.log(`[airspace] OpenAIP: ${openAipZones.length} polygons + ${baseZones.length} circle zones`);
+      return [...baseZones, ...openAipZones];
+    }
+  } catch (err) {
+    console.warn("[airspace] OpenAIP fetch failed, using circle fallbacks:", err);
+  }
+
+  return baseZones;
 }

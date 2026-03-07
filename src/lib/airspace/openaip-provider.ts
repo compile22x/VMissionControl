@@ -64,7 +64,7 @@ export async function fetchOpenAIPAirspaces(
 
     try {
       const zones = await fetchCountryAirspaces(country, apiKey);
-      if (cache.size > 20) cache.clear();
+      if (cache.size > 60) cache.clear();
       cache.set(country, zones);
       results.push(...zones);
     } catch (err) {
@@ -232,6 +232,35 @@ function mapCountryToJurisdiction(country: string): Jurisdiction | undefined {
     JP: "jcab",
     CA: "tcca",
     CN: "caac",
+    // Asia-Pacific
+    KR: "jcab",
+    NZ: "casa",
+    SG: "caac",
+    TH: "caac",
+    MY: "caac",
+    ID: "caac",
+    PH: "caac",
+    VN: "caac",
+    // Europe (additional)
+    SE: "easa", NO: "easa", DK: "easa", FI: "easa",
+    PL: "easa", CZ: "easa", HU: "easa", RO: "easa",
+    PT: "easa", IE: "easa", GR: "easa", HR: "easa",
+    BG: "easa", SK: "easa", SI: "easa",
+    LT: "easa", LV: "easa", EE: "easa",
+    // Middle East & Africa
+    AE: "easa",
+    SA: "easa",
+    IL: "easa",
+    ZA: "easa",
+    EG: "easa",
+    KE: "easa",
+    NG: "easa",
+    // Americas
+    BR: "faa",
+    MX: "faa",
+    AR: "faa",
+    CL: "faa",
+    CO: "faa",
   };
   return map[country];
 }
@@ -249,6 +278,22 @@ function mapCountryToAuthority(country: string): string {
     JP: "JCAB",
     CA: "TCCA",
     CN: "CAAC",
+    // Asia-Pacific
+    KR: "MOLIT/KOCA", NZ: "CAANZ", SG: "CAAS", TH: "CAAT",
+    MY: "CAAM", ID: "DGCA-ID", PH: "CAAP", VN: "CAAV",
+    // Middle East & Africa
+    AE: "GCAA", SA: "GACA", IL: "CAAI", ZA: "SACAA",
+    EG: "ECAA", KE: "KCAA", NG: "NCAA",
+    // Americas
+    BR: "ANAC", MX: "AFAC", AR: "ANAC-AR", CL: "DGAC-CL", CO: "AEROCIVIL",
+    // Europe (additional)
+    SE: "LFV/EASA", NO: "CAA-NO/EASA", DK: "DKCAA/EASA", FI: "Traficom/EASA",
+    PL: "PANSA/EASA", CZ: "CAA-CZ/EASA", HU: "HungaroControl/EASA",
+    RO: "ROMATSA/EASA", PT: "ANAC-PT/EASA", IE: "IAA/EASA",
+    GR: "HCAA/EASA", HR: "CCAA/EASA", BG: "BGCAA/EASA",
+    SK: "CAA-SK/EASA", SI: "CAA-SI/EASA",
+    LT: "CAA-LT/EASA", LV: "CAA-LV/EASA", EE: "CAA-EE/EASA",
+    NL: "LVNL/EASA", BE: "skeyes/EASA", AT: "ACG/EASA",
   };
   return map[country] ?? "ICAO";
 }
