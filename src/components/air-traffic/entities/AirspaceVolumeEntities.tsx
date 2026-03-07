@@ -8,9 +8,9 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { Cartesian3, Color, DistanceDisplayCondition, PolygonHierarchy, type Viewer as CesiumViewer } from "cesium";
+import { Cartesian3, Color, DistanceDisplayCondition, PolygonHierarchy, type Viewer as CesiumViewer, type Entity as CesiumEntity } from "cesium";
 import { useAirspaceStore } from "@/stores/airspace-store";
-import { ZONE_COLORS, type GeoJSONPolygon, type GeoJSONMultiPolygon } from "@/lib/airspace/types";
+import { ZONE_COLORS, type AirspaceZoneType, type GeoJSONPolygon, type GeoJSONMultiPolygon } from "@/lib/airspace/types";
 
 interface AirspaceVolumeEntitiesProps {
   viewer: CesiumViewer | null;
@@ -20,70 +20,88 @@ function polygonToCartesian(coords: number[][]): Cartesian3[] {
   return coords.map(([lon, lat]) => Cartesian3.fromDegrees(lon, lat));
 }
 
+// Module-level color cache — only ~17 zone types, so tiny footprint
+const volumeColorCache = new Map<string, { fill: Color; border: Color }>();
+function getVolumeColors(type: AirspaceZoneType) {
+  let cached = volumeColorCache.get(type);
+  if (!cached) {
+    const cfg = ZONE_COLORS[type];
+    if (!cfg) return null;
+    cached = {
+      fill: Color.fromCssColorString(cfg.fill).withAlpha(cfg.fillOpacity),
+      border: Color.fromCssColorString(cfg.border).withAlpha(cfg.borderOpacity),
+    };
+    volumeColorCache.set(type, cached);
+  }
+  return cached;
+}
+
 export function AirspaceVolumeEntities({ viewer }: AirspaceVolumeEntitiesProps) {
   const zones = useAirspaceStore((s) => s.zones);
   const layerVisibility = useAirspaceStore((s) => s.layerVisibility);
   const operationalAltitude = useAirspaceStore((s) => s.operationalAltitude);
   const showIcaoZones = useAirspaceStore((s) => s.showIcaoZones);
   const activeJurisdictions = useAirspaceStore((s) => s.activeJurisdictions);
-  const entityIdsRef = useRef<string[]>([]);
+  const entityMapRef = useRef<Map<string, CesiumEntity>>(new Map());
 
+  // Effect 1: Toggle entity.show when visibility changes (fast path)
   useEffect(() => {
     if (!viewer || viewer.isDestroyed()) return;
-    if (!layerVisibility.airspace) {
-      for (const id of entityIdsRef.current) {
-        viewer.entities.removeById(id);
-      }
-      entityIdsRef.current = [];
-      viewer.scene.requestRender();
-      return;
+    const visible = layerVisibility.airspace;
+    for (const entity of entityMapRef.current.values()) {
+      entity.show = visible;
     }
+    viewer.scene.requestRender();
+  }, [viewer, layerVisibility.airspace]);
 
-    const newIds: string[] = [];
+  // Effect 2: Create/recreate entities when data or filters change
+  useEffect(() => {
+    if (!viewer || viewer.isDestroyed()) return;
 
-    // Previous entities are removed by the useEffect cleanup return (no manual removal needed)
+    // Remove previous entities
+    for (const entity of entityMapRef.current.values()) {
+      viewer.entities.remove(entity);
+    }
+    entityMapRef.current.clear();
+
+    if (!layerVisibility.airspace) return;
+
+    const visible = layerVisibility.airspace;
 
     for (const zone of zones) {
-      // Filter by operational altitude: skip zones entirely above the slider
       if (zone.floorAltitude > operationalAltitude) continue;
-      // Filter ICAO-generated zones by the showIcaoZones toggle
       if (zone.metadata?.generated === "icao-standard" && !showIcaoZones) continue;
-      // Filter by active jurisdictions — toggling off a jurisdiction hides its volumes
       if (zone.jurisdiction && !activeJurisdictions.has(zone.jurisdiction)) continue;
-      const colors = ZONE_COLORS[zone.type];
+      const colors = getVolumeColors(zone.type);
       if (!colors) continue;
 
-      const fillColor = Color.fromCssColorString(colors.fill).withAlpha(colors.fillOpacity);
-      const borderColor = Color.fromCssColorString(colors.border).withAlpha(colors.borderOpacity);
-
-      // Compute LOD visibility range based on zone size
       const lodDistance = getZoneLodDistance(zone.type, zone.ceilingAltitude);
       const description = `<p><b>${zone.name}</b></p><p>Type: ${zone.type}</p><p>Floor: ${zone.floorAltitude}m / Ceiling: ${zone.ceilingAltitude}m</p><p>Authority: ${zone.authority}</p>`;
 
       if (zone.circle) {
-        // Render as geodetically correct 3D cylinder
         const entityId = `airspace-volume-${zone.id}-0`;
-        const extrudedHeight = Math.max(zone.ceilingAltitude, 1); // avoid zero-height degenerate volume
+        const extrudedHeight = Math.max(zone.ceilingAltitude, 1);
 
-        viewer.entities.add({
+        const entity = viewer.entities.add({
           id: entityId,
           name: zone.name,
+          show: visible,
           position: Cartesian3.fromDegrees(zone.circle.lon, zone.circle.lat),
           ellipse: {
             semiMajorAxis: zone.circle.radiusM,
             semiMinorAxis: zone.circle.radiusM,
             height: zone.floorAltitude,
             extrudedHeight,
-            material: fillColor,
+            material: colors.fill,
             outline: true,
-            outlineColor: borderColor,
+            outlineColor: colors.border,
             outlineWidth: 1,
             distanceDisplayCondition: new DistanceDisplayCondition(0, lodDistance),
           },
           description,
         });
 
-        newIds.push(entityId);
+        entityMapRef.current.set(entityId, entity);
       } else {
         const polygons = extractPolygons(zone.geometry);
 
@@ -94,16 +112,17 @@ export function AirspaceVolumeEntities({ viewer }: AirspaceVolumeEntitiesProps) 
           const entityId = `airspace-volume-${zone.id}-${i}`;
           const positions = polygonToCartesian(ring);
 
-          viewer.entities.add({
+          const entity = viewer.entities.add({
             id: entityId,
             name: zone.name,
+            show: visible,
             polygon: {
               hierarchy: new PolygonHierarchy(positions),
               height: zone.floorAltitude,
               extrudedHeight: zone.ceilingAltitude,
-              material: fillColor,
+              material: colors.fill,
               outline: true,
-              outlineColor: borderColor,
+              outlineColor: colors.border,
               outlineWidth: 1,
               closeTop: true,
               closeBottom: true,
@@ -112,22 +131,22 @@ export function AirspaceVolumeEntities({ viewer }: AirspaceVolumeEntitiesProps) 
             description,
           });
 
-          newIds.push(entityId);
+          entityMapRef.current.set(entityId, entity);
         }
       }
     }
 
-    entityIdsRef.current = newIds;
     viewer.scene.requestRender();
 
     return () => {
       if (viewer && !viewer.isDestroyed()) {
-        for (const id of newIds) {
-          viewer.entities.removeById(id);
+        for (const entity of entityMapRef.current.values()) {
+          viewer.entities.remove(entity);
         }
+        entityMapRef.current.clear();
       }
     };
-  }, [viewer, zones, layerVisibility.airspace, operationalAltitude, showIcaoZones, activeJurisdictions]);
+  }, [viewer, zones, operationalAltitude, showIcaoZones, activeJurisdictions]);
 
   return null;
 }

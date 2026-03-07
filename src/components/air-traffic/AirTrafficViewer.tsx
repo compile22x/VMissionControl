@@ -206,7 +206,16 @@ export function AirTrafficViewer() {
     for (const t of threats) {
       threatMap.set(t.icao24, t.level);
     }
-    setThreatLevels(threatMap);
+
+    // Skip setThreatLevels if unchanged to avoid unnecessary re-renders
+    const existingThreats = useTrafficStore.getState().threatLevels;
+    let threatsChanged = existingThreats.size !== threatMap.size;
+    if (!threatsChanged) {
+      for (const [k, v] of threatMap) {
+        if (existingThreats.get(k) !== v) { threatsChanged = true; break; }
+      }
+    }
+    if (threatsChanged) setThreatLevels(threatMap);
 
     // Generate alerts for RA/TA threats (deduplicated with 30s cooldown)
     const now = Date.now();
@@ -257,20 +266,35 @@ export function AirTrafficViewer() {
         const result = await fetchAircraft(lat, lon, 100);
         console.log(`[air-traffic] Direct fetch: ${result.aircraft.length} aircraft from ${result.source} (${lat.toFixed(2)}, ${lon.toFixed(2)}, r=100nm)`);
         useTrafficStore.getState().recordSuccess(result.source);
-        processAircraft(result.aircraft);
+        processAircraftRef.current(result.aircraft);
       } catch (err) {
         useTrafficStore.getState().recordFailure(err instanceof Error ? err.message : "Fetch failed");
       }
     }
+
+    // Pause polling when tab is hidden to save CPU/network
+    let paused = false;
+    const handleVisibility = () => {
+      if (document.hidden) {
+        paused = true;
+        if (pollRef.current) clearInterval(pollRef.current);
+      } else {
+        paused = false;
+        poll();
+        pollRef.current = setInterval(poll, pollInterval);
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
 
     poll();
     pollRef.current = setInterval(poll, pollInterval);
 
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
+      document.removeEventListener("visibilitychange", handleVisibility);
       setPolling(false);
     };
-  }, [useDirectPolling, viewer, setPolling, processAircraft]);
+  }, [useDirectPolling, viewer, setPolling]);
 
   // ── Consolidated click handler (globe + aircraft) ──
   useEffect(() => {

@@ -8,7 +8,7 @@
 "use client";
 
 import { useEffect, useRef, useMemo } from "react";
-import { Cartesian3, Cartesian2, Color, PolygonHierarchy, ClassificationType, HeightReference, LabelStyle, VerticalOrigin, HorizontalOrigin, DistanceDisplayCondition, type Viewer as CesiumViewer } from "cesium";
+import { Cartesian3, Cartesian2, Color, PolygonHierarchy, ClassificationType, HeightReference, LabelStyle, VerticalOrigin, HorizontalOrigin, DistanceDisplayCondition, type Viewer as CesiumViewer, type Entity as CesiumEntity } from "cesium";
 import { useAirspaceStore } from "@/stores/airspace-store";
 import { ZONE_COLORS, type AirspaceZone, type AirspaceZoneType } from "@/lib/airspace/types";
 
@@ -35,11 +35,29 @@ const ZONE_LABEL_TEXT: Record<string, string> = {
   ctr: "CTR", tma: "TMA", danger: "DANGER", alert: "ALERT", warning: "WARNING",
 };
 
+// Module-level color cache for boundary-specific colors (reduced fill alpha)
+const boundaryColorCache = new Map<string, { fill: Color; border: Color }>();
+function getBoundaryColors(type: AirspaceZoneType) {
+  let cached = boundaryColorCache.get(type);
+  if (!cached) {
+    const cfg = ZONE_COLORS[type];
+    if (!cfg) return null;
+    cached = {
+      fill: Color.fromCssColorString(cfg.fill).withAlpha(Math.min(cfg.fillOpacity * 0.5, 0.15)),
+      border: Color.fromCssColorString(cfg.border).withAlpha(cfg.borderOpacity),
+    };
+    boundaryColorCache.set(type, cached);
+  }
+  return cached;
+}
+
+const LABEL_BG_COLOR = Color.fromCssColorString("#0a0a0f").withAlpha(0.6);
+
 export function ZoneBoundaryEntities({ viewer }: ZoneBoundaryEntitiesProps) {
   const zones = useAirspaceStore((s) => s.zones);
   const layerVisibility = useAirspaceStore((s) => s.layerVisibility);
   const activeJurisdictions = useAirspaceStore((s) => s.activeJurisdictions);
-  const entityIdsRef = useRef<string[]>([]);
+  const entityMapRef = useRef<Map<string, CesiumEntity>>(new Map());
 
   // Filter zones to all active jurisdiction boundary types
   const boundaryZones = useMemo(() => {
@@ -52,52 +70,59 @@ export function ZoneBoundaryEntities({ viewer }: ZoneBoundaryEntitiesProps) {
     return zones.filter((z) => allTypes.has(z.type));
   }, [zones, activeJurisdictions]);
 
+  // Effect 1: Toggle entity.show when visibility changes (fast path)
+  useEffect(() => {
+    if (!viewer || viewer.isDestroyed()) return;
+    const visible = layerVisibility.airspace;
+    for (const entity of entityMapRef.current.values()) {
+      entity.show = visible;
+    }
+    viewer.scene.requestRender();
+  }, [viewer, layerVisibility.airspace]);
+
+  // Effect 2: Create/recreate entities when data changes
   useEffect(() => {
     if (!viewer || viewer.isDestroyed()) return;
 
-    // Remove old
-    for (const id of entityIdsRef.current) {
-      viewer.entities.removeById(id);
+    // Remove previous entities
+    for (const entity of entityMapRef.current.values()) {
+      viewer.entities.remove(entity);
     }
-    entityIdsRef.current = [];
+    entityMapRef.current.clear();
 
     if (!layerVisibility.airspace || boundaryZones.length === 0) {
       viewer.scene.requestRender();
       return;
     }
 
-
-    const newIds: string[] = [];
+    const visible = layerVisibility.airspace;
 
     for (const zone of boundaryZones) {
-      const colors = ZONE_COLORS[zone.type];
+      const colors = getBoundaryColors(zone.type);
       if (!colors) continue;
-
-      const borderColor = Color.fromCssColorString(colors.border).withAlpha(colors.borderOpacity);
-      const fillColor = Color.fromCssColorString(colors.fill).withAlpha(Math.min(colors.fillOpacity * 0.5, 0.15));
 
       const entityId = `zone-boundary-${zone.id}`;
 
       if (zone.circle) {
-        // Render as geodetically correct ellipse (smooth circle on globe)
-        viewer.entities.add({
+        const entity = viewer.entities.add({
           id: entityId,
           name: zone.name,
+          show: visible,
           position: Cartesian3.fromDegrees(zone.circle.lon, zone.circle.lat),
           ellipse: {
             semiMajorAxis: zone.circle.radiusM,
             semiMinorAxis: zone.circle.radiusM,
-            material: fillColor,
+            material: colors.fill,
             outline: true,
-            outlineColor: borderColor,
+            outlineColor: colors.border,
             outlineWidth: 1,
             heightReference: HeightReference.CLAMP_TO_GROUND,
             classificationType: ClassificationType.BOTH,
           },
           description: buildDescription(zone),
         });
+        entityMapRef.current.set(entityId, entity);
       } else {
-        // Render as ground polygon for real (non-circle) geometries
         const coords = zone.geometry.type === "Polygon"
           ? zone.geometry.coordinates[0]
           : zone.geometry.coordinates[0][0];
@@ -108,30 +133,29 @@ export function ZoneBoundaryEntities({ viewer }: ZoneBoundaryEntitiesProps) {
           Cartesian3.fromDegrees(lon, lat)
         );
 
-        viewer.entities.add({
+        const entity = viewer.entities.add({
           id: entityId,
           name: zone.name,
+          show: visible,
           polygon: {
             hierarchy: new PolygonHierarchy(positions),
-            material: fillColor,
+            material: colors.fill,
             outline: true,
-            outlineColor: borderColor,
+            outlineColor: colors.border,
             outlineWidth: 2,
             height: 0,
             classificationType: ClassificationType.BOTH,
           },
           description: buildDescription(zone),
         });
+        entityMapRef.current.set(entityId, entity);
       }
 
-      newIds.push(entityId);
-
-      // Add center label for all zone types
+      // Add center label
       {
         const labelId = `zone-label-${zone.id}`;
         const labelText = ZONE_LABEL_TEXT[zone.type] ?? zone.type.toUpperCase();
 
-        // Use circle center directly when available, otherwise compute centroid
         let labelLon: number;
         let labelLat: number;
         if (zone.circle) {
@@ -146,13 +170,14 @@ export function ZoneBoundaryEntities({ viewer }: ZoneBoundaryEntitiesProps) {
           labelLat = centroid[1];
         }
 
-        viewer.entities.add({
+        const labelEntity = viewer.entities.add({
           id: labelId,
+          show: visible,
           position: Cartesian3.fromDegrees(labelLon, labelLat),
           label: {
             text: labelText,
             font: "bold 11px monospace",
-            fillColor: borderColor,
+            fillColor: colors.border,
             outlineColor: Color.BLACK,
             outlineWidth: 2,
             style: LabelStyle.FILL_AND_OUTLINE,
@@ -161,26 +186,25 @@ export function ZoneBoundaryEntities({ viewer }: ZoneBoundaryEntitiesProps) {
             disableDepthTestDistance: 5000,
             distanceDisplayCondition: new DistanceDisplayCondition(0, 150000),
             showBackground: true,
-            backgroundColor: Color.fromCssColorString("#0a0a0f").withAlpha(0.6),
+            backgroundColor: LABEL_BG_COLOR,
             backgroundPadding: new Cartesian2(6, 3),
           },
         });
-
-        newIds.push(labelId);
+        entityMapRef.current.set(labelId, labelEntity);
       }
     }
 
-    entityIdsRef.current = newIds;
     viewer.scene.requestRender();
 
     return () => {
       if (viewer && !viewer.isDestroyed()) {
-        for (const id of newIds) {
-          viewer.entities.removeById(id);
+        for (const entity of entityMapRef.current.values()) {
+          viewer.entities.remove(entity);
         }
+        entityMapRef.current.clear();
       }
     };
-  }, [viewer, boundaryZones, layerVisibility.airspace]);
+  }, [viewer, boundaryZones]);
 
   return null;
 }
