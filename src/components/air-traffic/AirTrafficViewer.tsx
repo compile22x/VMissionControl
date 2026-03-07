@@ -19,7 +19,7 @@ import { useSettingsStore } from "@/stores/settings-store";
 import { useTelemetryStore } from "@/stores/telemetry-store";
 import { useConvexAvailable } from "@/app/ConvexClientProvider";
 import { communityApi } from "@/lib/community-api";
-import { fetchAircraft } from "@/lib/airspace/adsb-provider";
+import { fetchAircraft, fetchFromConvexCache } from "@/lib/airspace/adsb-provider";
 import { loadAllAirspaceZones } from "@/lib/airspace/airspace-provider";
 import { computeAllThreats } from "@/lib/airspace/threat-calculator";
 import { assessFlyability } from "@/lib/airspace/flyability";
@@ -122,8 +122,72 @@ export function AirTrafficViewer() {
       });
   }, [setZones, setLoading, setError]);
 
-  // ── Traffic polling ──
+  // ── Convex cache subscription (global aircraft data) ──
+  const convexCacheResult = useQuery(
+    communityApi.adsbCache.getAll,
+    convexAvailable ? {} : "skip"
+  );
+
+  // Process aircraft data (from Convex cache or direct polling fallback)
+  const processAircraft = useCallback((aircraftResult: AircraftState[]) => {
+    if (!viewer || viewer.isDestroyed()) return;
+
+    updateAircraft(aircraftResult);
+
+    // Compute threats relative to drone position (if connected) or camera center
+    const camCartographic = Cartographic.fromCartesian(viewer.camera.positionWC);
+    const camLat = CesiumMath.toDegrees(camCartographic.latitude);
+    const camLon = CesiumMath.toDegrees(camCartographic.longitude);
+
+    const telPos = useTelemetryStore.getState().position.latest();
+    const refLat = telPos?.lat ?? camLat;
+    const refLon = telPos?.lon ?? camLon;
+    const refAlt = telPos?.alt ?? 0;
+
+    const threats = computeAllThreats(refLat, refLon, refAlt, aircraftResult);
+    const threatMap = new Map<string, ThreatLevel>();
+    for (const t of threats) {
+      threatMap.set(t.icao24, t.level);
+    }
+    setThreatLevels(threatMap);
+
+    // Generate alerts for RA/TA threats (deduplicated with 30s cooldown)
+    const now = Date.now();
+    for (const t of threats) {
+      if (t.level !== "ra" && t.level !== "ta") continue;
+      const lastAlert = lastAlertRef.current.get(t.icao24);
+      if (lastAlert && now - lastAlert < ALERT_COOLDOWN_MS) continue;
+
+      lastAlertRef.current.set(t.icao24, now);
+      const ac = aircraftResult.find((a) => a.icao24 === t.icao24);
+      const alert: TrafficAlert = {
+        id: randomId(),
+        icao24: t.icao24,
+        callsign: ac?.callsign ?? null,
+        level: t.level,
+        distanceKm: t.cpaDistance / 1000,
+        altitudeDelta: t.altitudeDelta,
+        timestamp: now,
+        dismissed: false,
+      };
+      addAlert(alert);
+    }
+  }, [viewer, updateAircraft, setThreatLevels, addAlert]);
+
+  // ── Primary path: Convex reactive cache ──
   useEffect(() => {
+    if (!convexCacheResult || !viewer || viewer.isDestroyed()) return;
+
+    setPolling(true);
+    const result = fetchFromConvexCache(convexCacheResult);
+    console.log(`[air-traffic] Convex cache: ${result.aircraft.length} aircraft globally`);
+    useTrafficStore.getState().recordSuccess("convex-cache");
+    processAircraft(result.aircraft);
+  }, [convexCacheResult, viewer, setPolling, processAircraft]);
+
+  // ── Fallback path: direct polling when Convex unavailable ──
+  useEffect(() => {
+    if (convexAvailable) return; // Convex handles it
     if (!viewer || viewer.isDestroyed()) return;
 
     const pollInterval = useTrafficStore.getState().pollInterval;
@@ -132,9 +196,6 @@ export function AirTrafficViewer() {
     async function poll() {
       if (viewer!.isDestroyed()) return;
 
-      let aircraftResult: AircraftState[];
-
-      // Always fetch real ADS-B data (adsb.lol primary, OpenSky fallback)
       const camera = viewer!.camera;
       const cartographic = Cartographic.fromCartesian(camera.positionWC);
       const lat = CesiumMath.toDegrees(cartographic.latitude);
@@ -142,53 +203,11 @@ export function AirTrafficViewer() {
 
       try {
         const result = await fetchAircraft(lat, lon, 100);
-        aircraftResult = result.aircraft;
-        console.log(`[air-traffic] Fetched ${result.aircraft.length} aircraft from ${result.source} (${lat.toFixed(2)}, ${lon.toFixed(2)}, r=100nm)`);
+        console.log(`[air-traffic] Direct fetch: ${result.aircraft.length} aircraft from ${result.source} (${lat.toFixed(2)}, ${lon.toFixed(2)}, r=100nm)`);
         useTrafficStore.getState().recordSuccess(result.source);
+        processAircraft(result.aircraft);
       } catch (err) {
         useTrafficStore.getState().recordFailure(err instanceof Error ? err.message : "Fetch failed");
-        return;
-      }
-
-      updateAircraft(aircraftResult);
-
-      // Compute threats relative to drone position (if connected) or camera center
-      const camCartographic = Cartographic.fromCartesian(viewer!.camera.positionWC);
-      const camLat = CesiumMath.toDegrees(camCartographic.latitude);
-      const camLon = CesiumMath.toDegrees(camCartographic.longitude);
-
-      const telPos = useTelemetryStore.getState().position.latest();
-      const refLat = telPos?.lat ?? camLat;
-      const refLon = telPos?.lon ?? camLon;
-      const refAlt = telPos?.alt ?? 0;
-
-      const threats = computeAllThreats(refLat, refLon, refAlt, aircraftResult);
-      const threatMap = new Map<string, ThreatLevel>();
-      for (const t of threats) {
-        threatMap.set(t.icao24, t.level);
-      }
-      setThreatLevels(threatMap);
-
-      // Generate alerts for RA/TA threats (deduplicated with 30s cooldown)
-      const now = Date.now();
-      for (const t of threats) {
-        if (t.level !== "ra" && t.level !== "ta") continue;
-        const lastAlert = lastAlertRef.current.get(t.icao24);
-        if (lastAlert && now - lastAlert < ALERT_COOLDOWN_MS) continue;
-
-        lastAlertRef.current.set(t.icao24, now);
-        const ac = aircraftResult.find((a) => a.icao24 === t.icao24);
-        const alert: TrafficAlert = {
-          id: randomId(),
-          icao24: t.icao24,
-          callsign: ac?.callsign ?? null,
-          level: t.level,
-          distanceKm: t.cpaDistance / 1000,
-          altitudeDelta: t.altitudeDelta,
-          timestamp: now,
-          dismissed: false,
-        };
-        addAlert(alert);
       }
     }
 
@@ -199,7 +218,7 @@ export function AirTrafficViewer() {
       if (pollRef.current) clearInterval(pollRef.current);
       setPolling(false);
     };
-  }, [viewer, updateAircraft, setThreatLevels, addAlert, setPolling]);
+  }, [convexAvailable, viewer, setPolling, processAircraft]);
 
   // ── Consolidated click handler (globe + aircraft) ──
   useEffect(() => {

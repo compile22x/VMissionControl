@@ -6,12 +6,32 @@
  * @license GPL-3.0-only
  */
 
+import type { Jurisdiction } from "@/lib/jurisdiction";
 import type { AirspaceZone, BoundingBox } from "./types";
 import { circlePolygon, inBbox } from "./geo-utils";
 import { getAirportsSync } from "./airport-database";
 
 const NM_TO_KM = 1.852;
 const EXCLUDED_COUNTRIES = new Set(["IN", "US", "AU"]);
+
+/** Maps ISO 3166-1 alpha-2 country codes to their aviation jurisdiction. */
+const COUNTRY_TO_JURISDICTION: Record<string, Jurisdiction> = {
+  // EASA members (EU + EEA + Switzerland)
+  DE: "easa", FR: "easa", ES: "easa", IT: "easa", NL: "easa", BE: "easa",
+  PT: "easa", AT: "easa", SE: "easa", FI: "easa", NO: "easa", DK: "easa",
+  PL: "easa", CZ: "easa", HU: "easa", RO: "easa", BG: "easa", HR: "easa",
+  GR: "easa", IE: "easa", CH: "easa", LU: "easa", SK: "easa", SI: "easa",
+  LT: "easa", LV: "easa", EE: "easa", CY: "easa", MT: "easa", IS: "easa",
+  LI: "easa",
+  // UK
+  GB: "caa_uk",
+  // China
+  CN: "caac", HK: "caac", MO: "caac",
+  // Japan
+  JP: "jcab",
+  // Canada
+  CA: "tcca",
+};
 
 let cachedZones: AirspaceZone[] | null = null;
 
@@ -34,6 +54,8 @@ export function getICAOStandardZones(bbox: BoundingBox): AirspaceZone[] {
     for (const airport of airports) {
       if (EXCLUDED_COUNTRIES.has(airport.country)) continue;
 
+      const jurisdiction = COUNTRY_TO_JURISDICTION[airport.country];
+
       if (airport.type === "large_airport") {
         cachedZones.push({
           id: `icao-classb-${airport.icao}`,
@@ -43,6 +65,7 @@ export function getICAOStandardZones(bbox: BoundingBox): AirspaceZone[] {
           floorAltitude: 0,
           ceilingAltitude: 3048, // 10,000 ft
           authority: "ICAO",
+          ...(jurisdiction && { jurisdiction }),
           metadata: { icao: airport.icao, generated: "icao-standard" },
         });
       } else if (airport.type === "medium_airport") {
@@ -54,6 +77,7 @@ export function getICAOStandardZones(bbox: BoundingBox): AirspaceZone[] {
           floorAltitude: 0,
           ceilingAltitude: 762, // 2,500 ft
           authority: "ICAO",
+          ...(jurisdiction && { jurisdiction }),
           metadata: { icao: airport.icao, generated: "icao-standard" },
         });
       }

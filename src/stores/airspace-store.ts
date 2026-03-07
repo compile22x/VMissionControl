@@ -68,7 +68,7 @@ const INITIAL_STATE = {
   activeJurisdictions: new Set<Jurisdiction>(Object.keys(JURISDICTIONS) as Jurisdiction[]),
   viewportState: { cameraAlt: 0, visibleAirports: [], aircraftInView: 0 } as ViewportState,
   operationalAltitude: 120,
-  showIcaoZones: false,
+  showIcaoZones: true,
   timelineTime: new Date(),
   loading: false,
   error: null as string | null,

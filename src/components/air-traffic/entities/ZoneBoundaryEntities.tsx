@@ -10,7 +10,6 @@
 import { useEffect, useRef, useMemo } from "react";
 import { Cartesian3, Cartesian2, Color, PolygonHierarchy, ClassificationType, LabelStyle, VerticalOrigin, HorizontalOrigin, DistanceDisplayCondition, type Viewer as CesiumViewer } from "cesium";
 import { useAirspaceStore } from "@/stores/airspace-store";
-import { useSettingsStore } from "@/stores/settings-store";
 import { ZONE_COLORS, type AirspaceZone, type AirspaceZoneType } from "@/lib/airspace/types";
 
 interface ZoneBoundaryEntitiesProps {
@@ -21,25 +20,36 @@ const JURISDICTION_ZONE_TYPES: Record<string, AirspaceZoneType[]> = {
   dgca: ["dgcaGreen", "dgcaYellow", "dgcaRed"],
   faa: ["classB", "classC", "classD", "classE"],
   casa: ["casaRestricted", "casaCaution"],
-  easa: [],
-  caa_uk: [],
-  caac: [],
-  jcab: [],
-  tcca: [],
+  easa: ["classB", "classD"],
+  caa_uk: ["classB", "classD"],
+  caac: ["classB", "classD"],
+  jcab: ["classB", "classD"],
+  tcca: ["classB", "classD"],
+};
+
+const ZONE_LABEL_TEXT: Record<string, string> = {
+  dgcaGreen: "GREEN ZONE", dgcaYellow: "YELLOW ZONE", dgcaRed: "RED ZONE",
+  classB: "CLASS B", classC: "CLASS C", classD: "CLASS D", classE: "CLASS E",
+  casaRestricted: "RESTRICTED", casaCaution: "CAUTION",
+  restricted: "RESTRICTED", prohibited: "PROHIBITED", moa: "MOA", tfr: "TFR",
 };
 
 export function ZoneBoundaryEntities({ viewer }: ZoneBoundaryEntitiesProps) {
   const zones = useAirspaceStore((s) => s.zones);
   const layerVisibility = useAirspaceStore((s) => s.layerVisibility);
-  const jurisdiction = useSettingsStore((s) => s.jurisdiction);
+  const activeJurisdictions = useAirspaceStore((s) => s.activeJurisdictions);
   const entityIdsRef = useRef<string[]>([]);
 
-  // Filter zones to jurisdiction-specific boundary types
+  // Filter zones to all active jurisdiction boundary types
   const boundaryZones = useMemo(() => {
-    if (!jurisdiction) return [];
-    const types = JURISDICTION_ZONE_TYPES[jurisdiction] ?? [];
-    return zones.filter((z) => types.includes(z.type));
-  }, [zones, jurisdiction]);
+    const allTypes = new Set<AirspaceZoneType>();
+    for (const j of activeJurisdictions) {
+      for (const t of (JURISDICTION_ZONE_TYPES[j] ?? [])) {
+        allTypes.add(t);
+      }
+    }
+    return zones.filter((z) => allTypes.has(z.type));
+  }, [zones, activeJurisdictions]);
 
   useEffect(() => {
     if (!viewer || viewer.isDestroyed()) return;
@@ -94,14 +104,11 @@ export function ZoneBoundaryEntities({ viewer }: ZoneBoundaryEntitiesProps) {
 
       newIds.push(entityId);
 
-      // Add center label for DGCA zones
-      if (zone.type.startsWith("dgca")) {
+      // Add center label for all zone types
+      {
         const labelId = `zone-label-${zone.id}`;
         const centroid = computeCentroid(coords);
-
-        const labelText = zone.type === "dgcaGreen" ? "GREEN ZONE"
-          : zone.type === "dgcaYellow" ? "YELLOW ZONE"
-          : "RED ZONE";
+        const labelText = ZONE_LABEL_TEXT[zone.type] ?? zone.type.toUpperCase();
 
         viewer.entities.add({
           id: labelId,

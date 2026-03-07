@@ -31,7 +31,9 @@ export function AirspaceVolumeEntities({ viewer }: AirspaceVolumeEntitiesProps) 
   useEffect(() => {
     if (!viewer || viewer.isDestroyed()) return;
     if (!layerVisibility.airspace) {
-      // Cleanup is handled by the useEffect return; just clear the ref
+      for (const id of entityIdsRef.current) {
+        viewer.entities.removeById(id);
+      }
       entityIdsRef.current = [];
       viewer.scene.requestRender();
       return;
