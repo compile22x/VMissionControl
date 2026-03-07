@@ -1,0 +1,87 @@
+/**
+ * @module LayerControlPanel
+ * @description Left-side collapsible panel for toggling airspace, traffic, and restriction
+ * layer visibility on the Air Traffic globe.
+ * @license GPL-3.0-only
+ */
+
+"use client";
+
+import { useState } from "react";
+import { Layers, ChevronLeft, ChevronRight } from "lucide-react";
+import { useAirspaceStore } from "@/stores/airspace-store";
+import { cn } from "@/lib/utils";
+import type { AirTrafficLayers } from "@/lib/airspace/types";
+
+const LAYER_GROUPS: { key: keyof AirTrafficLayers; label: string; description: string }[] = [
+  { key: "airspace", label: "Airspace", description: "Controlled zones, classes B-E" },
+  { key: "traffic", label: "Traffic", description: "Live aircraft positions" },
+  { key: "restrictions", label: "Restrictions", description: "TFRs, NOTAMs, temporary zones" },
+  { key: "advisory", label: "Advisory", description: "MOAs, stadiums, parks" },
+  { key: "ownDrone", label: "Own Drone", description: "Your drone position" },
+  { key: "terrain", label: "Terrain", description: "3D terrain and exaggeration" },
+];
+
+export function LayerControlPanel() {
+  const [collapsed, setCollapsed] = useState(false);
+  const layerVisibility = useAirspaceStore((s) => s.layerVisibility);
+  const setLayerVisibility = useAirspaceStore((s) => s.setLayerVisibility);
+
+  if (collapsed) {
+    return (
+      <button
+        onClick={() => setCollapsed(false)}
+        className="absolute top-4 left-4 z-10 p-2 bg-bg-primary/70 backdrop-blur-md border border-border-default rounded-lg hover:bg-bg-secondary transition-colors cursor-pointer"
+        title="Show layer controls"
+      >
+        <ChevronRight size={14} className="text-text-secondary" />
+      </button>
+    );
+  }
+
+  return (
+    <div className="absolute top-4 left-4 z-10 w-48 bg-bg-primary/80 backdrop-blur-md border border-border-default rounded-lg overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between px-3 py-2 border-b border-border-default">
+        <div className="flex items-center gap-1.5">
+          <Layers size={12} className="text-text-tertiary" />
+          <span className="text-[10px] font-mono font-bold text-text-secondary uppercase tracking-wider">
+            Layers
+          </span>
+        </div>
+        <button
+          onClick={() => setCollapsed(true)}
+          className="p-0.5 text-text-tertiary hover:text-text-primary transition-colors cursor-pointer"
+        >
+          <ChevronLeft size={12} />
+        </button>
+      </div>
+
+      {/* Layer toggles */}
+      <div className="p-2 flex flex-col gap-1">
+        {LAYER_GROUPS.map(({ key, label, description }) => (
+          <label
+            key={key}
+            className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-bg-secondary/50 transition-colors cursor-pointer group"
+            title={description}
+          >
+            <input
+              type="checkbox"
+              checked={layerVisibility[key]}
+              onChange={(e) => setLayerVisibility(key, e.target.checked)}
+              className="w-3 h-3 rounded accent-accent-primary shrink-0"
+            />
+            <div className="flex flex-col min-w-0">
+              <span className="text-[11px] font-mono text-text-primary truncate">
+                {label}
+              </span>
+              <span className="text-[9px] text-text-tertiary truncate group-hover:text-text-secondary transition-colors">
+                {description}
+              </span>
+            </div>
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}

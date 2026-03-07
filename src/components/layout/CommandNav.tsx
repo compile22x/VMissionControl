@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Terminal, Route, Play, History } from "lucide-react";
+import { LayoutDashboard, Terminal, Route, Play, Radar, History } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const tabs = [
@@ -10,6 +10,7 @@ const tabs = [
   { icon: Terminal, label: "Command", href: "/command" },
   { icon: Route, label: "Plan", href: "/plan" },
   { icon: Play, label: "Simulate", href: "/simulate" },
+  { icon: Radar, label: "Air Traffic", href: "/air-traffic" },
   { icon: History, label: "History", href: "/history" },
 ] as const;
 
