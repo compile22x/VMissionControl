@@ -30,10 +30,12 @@ export function ViewportStatsOverlay() {
 
   return (
     <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 px-2.5 py-1.5 bg-bg-primary/70 backdrop-blur-md border border-border-default rounded-lg text-[9px] font-mono text-text-secondary">
-      {/* Aircraft count */}
-      <div className="flex items-center gap-1" title="Total aircraft tracked">
+      {/* Aircraft count (viewport / total) */}
+      <div className="flex items-center gap-1" title={`${viewportState.aircraftInView} in viewport / ${aircraft.size} total`}>
         <Plane size={9} className="text-text-tertiary" />
-        <span className="text-text-primary font-bold">{aircraft.size}</span>
+        <span className="text-text-primary font-bold">{viewportState.aircraftInView}</span>
+        <span className="text-text-tertiary">/</span>
+        <span className="text-text-secondary">{aircraft.size}</span>
       </div>
 
       <div className="w-px h-3 bg-border-default/50" />

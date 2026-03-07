@@ -20,6 +20,7 @@ const LAYER_GROUPS: { key: keyof AirTrafficLayers; label: string; description: s
   { key: "advisory", label: "Advisory", description: "MOAs, stadiums, parks" },
   { key: "ownDrone", label: "Own Drone", description: "Your drone position" },
   { key: "terrain", label: "Terrain", description: "3D terrain and exaggeration" },
+  { key: "trails", label: "Flight Trails", description: "Position history for tracked aircraft" },
 ];
 
 export function LayerControlPanel() {

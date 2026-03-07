@@ -24,11 +24,7 @@ interface FlightTrailEntitiesProps {
 }
 
 export function FlightTrailEntities({ viewer }: FlightTrailEntitiesProps) {
-  // aircraftTrails will be added by UX agent. Read with optional chaining.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const aircraftTrails = (useTrafficStore as any)((s: any) => s.aircraftTrails) as
-    | Map<string, Array<{ lat: number; lon: number; alt: number }>>
-    | undefined;
+  const aircraftTrails = useTrafficStore((s) => s.aircraftTrails);
   const threatLevels = useTrafficStore((s) => s.threatLevels);
 
   const polyCollRef = useRef<PolylineCollection | null>(null);

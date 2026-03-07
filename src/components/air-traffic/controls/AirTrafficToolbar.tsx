@@ -7,9 +7,9 @@
 
 "use client";
 
-import { useCallback } from "react";
-import { Maximize, Compass, Camera } from "lucide-react";
-import type { Viewer as CesiumViewer } from "cesium";
+import { useCallback, useState, useRef, useEffect } from "react";
+import { Maximize, Compass, Camera, MapPin } from "lucide-react";
+import { Cartesian3, type Viewer as CesiumViewer } from "cesium";
 
 interface AirTrafficToolbarProps {
   viewer: CesiumViewer | null;
@@ -50,11 +50,60 @@ export function AirTrafficToolbar({ viewer }: AirTrafficToolbarProps) {
     link.click();
   }, [viewer]);
 
+  const [flyToOpen, setFlyToOpen] = useState(false);
+  const flyToRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!flyToOpen) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (flyToRef.current && !flyToRef.current.contains(e.target as Node)) {
+        setFlyToOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [flyToOpen]);
+
+  const FLY_TO_LOCATIONS = [
+    { name: "Bangalore", lat: 12.97, lon: 77.59, alt: 50_000 },
+    { name: "New York", lat: 40.71, lon: -74.01, alt: 50_000 },
+    { name: "London", lat: 51.51, lon: -0.13, alt: 50_000 },
+    { name: "Dubai", lat: 25.20, lon: 55.27, alt: 50_000 },
+    { name: "Tokyo", lat: 35.68, lon: 139.69, alt: 50_000 },
+    { name: "Sydney", lat: -33.87, lon: 151.21, alt: 50_000 },
+    { name: "Sao Paulo", lat: -23.55, lon: -46.63, alt: 50_000 },
+  ];
+
+  const handleFlyTo = useCallback((lat: number, lon: number, alt: number) => {
+    if (!viewer || viewer.isDestroyed()) return;
+    viewer.camera.flyTo({
+      destination: Cartesian3.fromDegrees(lon, lat, alt),
+      duration: 2,
+    });
+    setFlyToOpen(false);
+  }, [viewer]);
+
   return (
     <div className="absolute top-16 right-4 z-10 flex flex-col gap-1">
       <ToolbarButton icon={Maximize} title="Fullscreen" onClick={handleFullscreen} />
       <ToolbarButton icon={Compass} title="Reset compass (north up)" onClick={handleCompassReset} />
       <ToolbarButton icon={Camera} title="Screenshot" onClick={handleScreenshot} />
+      <div ref={flyToRef} className="relative">
+        <ToolbarButton icon={MapPin} title="Fly to location" onClick={() => setFlyToOpen((o) => !o)} />
+        {flyToOpen && (
+          <div className="absolute right-10 top-0 w-32 bg-bg-primary/90 backdrop-blur-md border border-border-default rounded-lg overflow-hidden">
+            {FLY_TO_LOCATIONS.map((loc) => (
+              <button
+                key={loc.name}
+                onClick={() => handleFlyTo(loc.lat, loc.lon, loc.alt)}
+                className="w-full text-left px-3 py-1.5 text-[10px] font-mono text-text-secondary hover:bg-bg-secondary hover:text-text-primary transition-colors cursor-pointer"
+              >
+                {loc.name}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
