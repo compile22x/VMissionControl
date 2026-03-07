@@ -20,7 +20,7 @@ import { useTelemetryStore } from "@/stores/telemetry-store";
 import { useConvexAvailable } from "@/app/ConvexClientProvider";
 import { communityApi } from "@/lib/community-api";
 import { fetchAircraft } from "@/lib/airspace/adsb-provider";
-import { loadAirspaceZones } from "@/lib/airspace/airspace-provider";
+import { loadAllAirspaceZones } from "@/lib/airspace/airspace-provider";
 import { computeAllThreats } from "@/lib/airspace/threat-calculator";
 import { assessFlyability } from "@/lib/airspace/flyability";
 import { isDemoMode, randomId } from "@/lib/utils";
@@ -40,6 +40,10 @@ import { AltitudeSlider } from "./overlays/AltitudeSlider";
 import { TimelineScrubber } from "./overlays/TimelineScrubber";
 import { AirTrafficMapControls } from "./controls/AirTrafficMapControls";
 import { AirTrafficToolbar } from "./controls/AirTrafficToolbar";
+import { StatsOverlay } from "./overlays/StatsOverlay";
+import { ViewportStatsOverlay } from "./overlays/ViewportStatsOverlay";
+import { AirportDetailPanel } from "./panels/AirportDetailPanel";
+import { useViewportAwareness } from "@/hooks/use-viewport-awareness";
 
 const CesiumScene = dynamic(
   () => import("@/components/simulation/CesiumScene"),
@@ -130,16 +134,17 @@ export function AirTrafficViewer() {
 
   const handleViewerReady = useCallback((v: CesiumViewer) => setViewer(v), []);
 
-  // ── Load airspace zones when jurisdiction changes ──
-  useEffect(() => {
-    if (!jurisdiction) return;
+  // Viewport awareness: camera altitude, visible airports, auto-panel
+  const viewportAwareness = useViewportAwareness(viewer);
 
+  // ── Load all airspace zones on mount ──
+  useEffect(() => {
     setLoading(true);
     setError(null);
 
     const bbox = { south: -60, north: 70, west: -180, east: 180 };
 
-    loadAirspaceZones(jurisdiction, bbox)
+    loadAllAirspaceZones(bbox)
       .then((zones) => {
         setZones(zones);
         setLoading(false);
@@ -148,7 +153,7 @@ export function AirTrafficViewer() {
         setError(err instanceof Error ? err.message : "Failed to load airspace data");
         setLoading(false);
       });
-  }, [jurisdiction, setZones, setLoading, setError]);
+  }, [setZones, setLoading, setError]);
 
   // ── Traffic polling ──
   useEffect(() => {
@@ -167,6 +172,7 @@ export function AirTrafficViewer() {
       if (demo) {
         // Demo mode: generate mock aircraft without hitting real APIs
         aircraftResult = generateMockAircraft(tickRef.current);
+        useTrafficStore.getState().recordSuccess("demo");
       } else {
         // Real mode: fetch from ADS-B providers
         const camera = viewer!.camera;
@@ -177,8 +183,10 @@ export function AirTrafficViewer() {
         try {
           const result = await fetchAircraft(lat, lon, 50);
           aircraftResult = result.aircraft;
-        } catch {
-          return; // Silently ignore poll failures
+          useTrafficStore.getState().recordSuccess(result.source);
+        } catch (err) {
+          useTrafficStore.getState().recordFailure(err instanceof Error ? err.message : "Fetch failed");
+          return;
         }
       }
 
@@ -314,27 +322,21 @@ export function AirTrafficViewer() {
       <FlyabilityOverlay />
       <AltitudeSlider />
       <TimelineScrubber />
+      <StatsOverlay />
+      <ViewportStatsOverlay />
 
       {/* Panels */}
       <LayerControlPanel />
       <AirspaceInfoPanel />
       <AlertsPanel />
       <LocationSearchPanel viewer={viewer} />
+      {viewportAwareness.autoPanel?.type === "airport" && (
+        <AirportDetailPanel airport={viewportAwareness.autoPanel.airport} />
+      )}
 
       {/* Controls */}
       <AirTrafficMapControls hasIonToken={!!cesiumToken} />
       <AirTrafficToolbar viewer={viewer} />
-
-      {/* No jurisdiction selected */}
-      {viewer && !jurisdiction && (
-        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
-          <div className="bg-bg-primary/80 backdrop-blur-md rounded-lg px-4 py-2 border border-border-default text-center">
-            <p className="text-xs text-text-secondary">
-              Set your jurisdiction in <span className="text-accent-primary">Settings</span> to see airspace data
-            </p>
-          </div>
-        </div>
-      )}
 
       {/* Zone loading indicator */}
       {airspaceLoading && (

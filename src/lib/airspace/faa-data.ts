@@ -1,84 +1,60 @@
 /**
  * @module airspace/faa-data
- * @description Sample US FAA airspace zones for MVP.
+ * @description US FAA airspace zones generated from the global airport database.
+ * Large airports get Class B (30nm radius), medium airports get Class D (5nm radius).
  * @license GPL-3.0-only
  */
 
 import type { AirspaceZone, BoundingBox } from "./types";
 import { circlePolygon, inBbox } from "./geo-utils";
+import { getByCountry, preloadAirports } from "./airport-database";
 
-const JFK_LAT = 40.6413;
-const JFK_LON = -73.7781;
-const LAX_LAT = 33.9425;
-const LAX_LON = -118.4081;
-const SFO_LAT = 37.6213;
-const SFO_LON = -122.379;
-const ORD_LAT = 41.9742;
-const ORD_LON = -87.9073;
+interface ZoneEntry {
+  zone: AirspaceZone;
+  lat: number;
+  lon: number;
+}
 
-const US_ZONES: Array<{ zone: AirspaceZone; lat: number; lon: number }> = [
-  {
-    lat: JFK_LAT,
-    lon: JFK_LON,
-    zone: {
-      id: "faa-jfk-classb",
-      name: "JFK Class B",
-      type: "classB",
-      geometry: circlePolygon(JFK_LAT, JFK_LON, 55.56), // ~30nm
-      floorAltitude: 0,
-      ceilingAltitude: 2134, // 7000ft
-      authority: "FAA",
-      laancCeiling: 122, // 400ft — standard LAANC ceiling for Class B
-      metadata: { icao: "KJFK", facility: "New York TRACON" },
-    },
-  },
-  {
-    lat: LAX_LAT,
-    lon: LAX_LON,
-    zone: {
-      id: "faa-lax-classb",
-      name: "LAX Class B",
-      type: "classB",
-      geometry: circlePolygon(LAX_LAT, LAX_LON, 55.56),
-      floorAltitude: 0,
-      ceilingAltitude: 3048, // 10000ft
-      authority: "FAA",
-      laancCeiling: 122, // 400ft — standard LAANC ceiling for Class B
-      metadata: { icao: "KLAX", facility: "SoCal TRACON" },
-    },
-  },
-  {
-    lat: SFO_LAT,
-    lon: SFO_LON,
-    zone: {
-      id: "faa-sfo-classd",
-      name: "SFO Class D",
-      type: "classD",
-      geometry: circlePolygon(SFO_LAT, SFO_LON, 9.26), // ~5nm
-      floorAltitude: 0,
-      ceilingAltitude: 762, // 2500ft
-      authority: "FAA",
-      laancCeiling: 61, // 200ft
-      metadata: { icao: "KSFO", facility: "San Francisco Tower" },
-    },
-  },
-  {
-    lat: ORD_LAT,
-    lon: ORD_LON,
-    zone: {
-      id: "faa-ord-classd",
-      name: "ORD Class D",
-      type: "classD",
-      geometry: circlePolygon(ORD_LAT, ORD_LON, 9.26),
-      floorAltitude: 0,
-      ceilingAltitude: 762,
-      authority: "FAA",
-      laancCeiling: 61,
-      metadata: { icao: "KORD", facility: "Chicago O'Hare Tower" },
-    },
-  },
-];
+let cachedZones: ZoneEntry[] | null = null;
 
-export function getUSAirspaceZones(bbox: BoundingBox): AirspaceZone[] {
-  return US_ZONES.filter((z) => inBbox(z.lat, z.lon, bbox)).map((z) => z.zone);
+async function buildZones(): Promise<ZoneEntry[]> {
+  if (cachedZones) return cachedZones;
+
+  await preloadAirports();
+  const airports = await getByCountry("US");
+
+  cachedZones = airports
+    .filter((a) => a.type === "large_airport" || a.type === "medium_airport")
+    .map((airport) => {
+      const { name, icao, lat, lon } = airport;
+      const isLarge = airport.type === "large_airport";
+      const radiusKm = isLarge ? 55.56 : 9.26; // 30nm or 5nm
+      const zoneType = isLarge ? "classB" : "classD";
+      const ceiling = isLarge ? 2134 : 762; // 7000ft or 2500ft
+      const laancCeiling = isLarge ? 122 : 61; // 400ft or 200ft
+
+      return {
+        lat,
+        lon,
+        zone: {
+          id: `faa-${icao.toLowerCase()}-${zoneType.toLowerCase()}`,
+          name: `${name} ${isLarge ? "Class B" : "Class D"}`,
+          type: zoneType as AirspaceZone["type"],
+          geometry: circlePolygon(lat, lon, radiusKm),
+          floorAltitude: 0,
+          ceilingAltitude: ceiling,
+          authority: "FAA",
+          jurisdiction: "faa" as const,
+          laancCeiling,
+          metadata: { icao, facility: `${airport.municipality} ${isLarge ? "TRACON" : "Tower"}` },
+        },
+      };
+    });
+
+  return cachedZones;
+}
+
+export async function getUSAirspaceZones(bbox: BoundingBox): Promise<AirspaceZone[]> {
+  const zones = await buildZones();
+  return zones.filter((z) => inBbox(z.lat, z.lon, bbox)).map((z) => z.zone);
 }

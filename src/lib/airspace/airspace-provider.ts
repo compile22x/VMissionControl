@@ -25,3 +25,12 @@ export async function loadAirspaceZones(
       return [];
   }
 }
+
+export async function loadAllAirspaceZones(bbox: BoundingBox): Promise<AirspaceZone[]> {
+  const [india, us, au] = await Promise.all([
+    getIndiaAirspaceZones(bbox),
+    getUSAirspaceZones(bbox),
+    getAustraliaAirspaceZones(bbox),
+  ]);
+  return [...india, ...us, ...au];
+}

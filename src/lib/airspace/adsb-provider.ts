@@ -47,6 +47,8 @@ export async function fetchFromAdsbLol(
       squawk: a.squawk != null ? String(a.squawk) : null,
       category: Number(a.category) || 0,
       lastSeen: a.seen != null ? Date.now() - Number(a.seen) * 1000 : Date.now(),
+      registration: typeof a.r === "string" ? a.r.trim() || undefined : undefined,
+      aircraftType: typeof a.t === "string" ? a.t.trim() || undefined : undefined,
     }));
 
     return { aircraft, timestamp: Date.now(), source: "adsb.lol" };
@@ -119,4 +121,53 @@ export async function fetchAircraft(
   };
 
   return fetchFromOpenSky(bbox);
+}
+
+// ── Convex cache provider ───────────────────────────────────────────
+
+interface ConvexCachedAircraft {
+  icao24: string;
+  callsign: string | null;
+  lat: number;
+  lon: number;
+  altitudeMsl: number | null;
+  velocity: number | null;
+  heading: number | null;
+  verticalRate: number | null;
+  squawk: string | null;
+  category: number;
+  lastSeen: number;
+  originCountry: string;
+  registration: string | null;
+  aircraftType: string | null;
+}
+
+export function fetchFromConvexCache(cached: {
+  aircraft: ConvexCachedAircraft[];
+  source: string;
+  fetchedAt: number;
+}): AdsbFetchResult {
+  const aircraft: AircraftState[] = cached.aircraft.map((a) => ({
+    icao24: a.icao24,
+    callsign: a.callsign,
+    originCountry: a.originCountry || "",
+    lat: a.lat,
+    lon: a.lon,
+    altitudeMsl: a.altitudeMsl,
+    altitudeAgl: null,
+    velocity: a.velocity,
+    heading: a.heading,
+    verticalRate: a.verticalRate,
+    squawk: a.squawk,
+    category: a.category,
+    lastSeen: a.lastSeen,
+    registration: a.registration ?? undefined,
+    aircraftType: a.aircraftType ?? undefined,
+  }));
+
+  return {
+    aircraft,
+    timestamp: cached.fetchedAt,
+    source: "adsb.lol",
+  };
 }

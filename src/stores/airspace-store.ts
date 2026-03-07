@@ -7,6 +7,7 @@
 
 import { create } from "zustand";
 import type { Jurisdiction } from "@/lib/jurisdiction";
+import type { Airport } from "@/lib/airspace/airport-database";
 import type {
   AirspaceZone,
   Notam,
@@ -16,6 +17,12 @@ import type {
 } from "@/lib/airspace/types";
 import { DEFAULT_LAYERS } from "@/lib/airspace/types";
 
+export interface ViewportState {
+  cameraAlt: number;
+  visibleAirports: Airport[];
+  aircraftInView: number;
+}
+
 interface AirspaceStoreState {
   jurisdiction: Jurisdiction | null;
   zones: AirspaceZone[];
@@ -24,6 +31,8 @@ interface AirspaceStoreState {
   selectedPoint: { lat: number; lon: number } | null;
   flyability: Flyability | null;
   layerVisibility: AirTrafficLayers;
+  activeJurisdictions: Set<Jurisdiction>;
+  viewportState: ViewportState;
   operationalAltitude: number;
   timelineTime: Date;
   loading: boolean;
@@ -36,6 +45,9 @@ interface AirspaceStoreState {
   setSelectedPoint: (point: { lat: number; lon: number } | null) => void;
   setFlyability: (f: Flyability | null) => void;
   setLayerVisibility: (layer: keyof AirTrafficLayers, visible: boolean) => void;
+  setActiveJurisdictions: (jurisdictions: Set<Jurisdiction>) => void;
+  toggleJurisdiction: (j: Jurisdiction) => void;
+  setViewportState: (vs: ViewportState) => void;
   setOperationalAltitude: (alt: number) => void;
   setTimelineTime: (time: Date) => void;
   setLoading: (loading: boolean) => void;
@@ -51,6 +63,8 @@ const INITIAL_STATE = {
   selectedPoint: null as { lat: number; lon: number } | null,
   flyability: null as Flyability | null,
   layerVisibility: { ...DEFAULT_LAYERS },
+  activeJurisdictions: new Set<Jurisdiction>(["dgca", "faa", "casa"]),
+  viewportState: { cameraAlt: 0, visibleAirports: [], aircraftInView: 0 } as ViewportState,
   operationalAltitude: 120,
   timelineTime: new Date(),
   loading: false,
@@ -70,6 +84,15 @@ export const useAirspaceStore = create<AirspaceStoreState>()((set) => ({
     set((s) => ({
       layerVisibility: { ...s.layerVisibility, [layer]: visible },
     })),
+  setActiveJurisdictions: (activeJurisdictions) => set({ activeJurisdictions }),
+  toggleJurisdiction: (j) =>
+    set((s) => {
+      const next = new Set(s.activeJurisdictions);
+      if (next.has(j)) next.delete(j);
+      else next.add(j);
+      return { activeJurisdictions: next };
+    }),
+  setViewportState: (viewportState) => set({ viewportState }),
   setOperationalAltitude: (operationalAltitude) => set({ operationalAltitude }),
   setTimelineTime: (timelineTime) => set({ timelineTime }),
   setLoading: (loading) => set({ loading }),

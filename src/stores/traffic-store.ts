@@ -13,6 +13,8 @@ import type {
   BoundingBox,
 } from "@/lib/airspace/types";
 
+export type DisplayMode = "global" | "regional" | "local" | "close";
+
 interface TrafficStoreState {
   aircraft: Map<string, AircraftState>;
   alerts: TrafficAlert[];
@@ -22,6 +24,11 @@ interface TrafficStoreState {
   boundingBox: BoundingBox | null;
   lastUpdate: number;
   polling: boolean;
+  dataSource: string;
+  displayMode: DisplayMode;
+  connectionQuality: "good" | "degraded" | "disconnected";
+  consecutiveFailures: number;
+  lastError: string | null;
 
   updateAircraft: (aircraft: AircraftState[]) => void;
   setThreatLevels: (threats: Map<string, ThreatLevel>) => void;
@@ -30,6 +37,11 @@ interface TrafficStoreState {
   setAltitudeFilter: (alt: number) => void;
   setBoundingBox: (bbox: BoundingBox | null) => void;
   setPolling: (polling: boolean) => void;
+  setDataSource: (source: string) => void;
+  setDisplayMode: (mode: DisplayMode) => void;
+  setConnectionQuality: (quality: "good" | "degraded" | "disconnected") => void;
+  recordFailure: (error: string) => void;
+  recordSuccess: (source: string) => void;
   clear: () => void;
 }
 
@@ -44,6 +56,11 @@ export const useTrafficStore = create<TrafficStoreState>()((set, get) => ({
   boundingBox: null,
   lastUpdate: 0,
   polling: false,
+  dataSource: "",
+  displayMode: "global" as DisplayMode,
+  connectionQuality: "disconnected",
+  consecutiveFailures: 0,
+  lastError: null,
 
   updateAircraft: (incoming) => {
     const now = Date.now();
@@ -87,6 +104,26 @@ export const useTrafficStore = create<TrafficStoreState>()((set, get) => ({
   setAltitudeFilter: (altitudeFilter) => set({ altitudeFilter }),
   setBoundingBox: (boundingBox) => set({ boundingBox }),
   setPolling: (polling) => set({ polling }),
+  setDataSource: (dataSource) => set({ dataSource }),
+  setDisplayMode: (displayMode) => set({ displayMode }),
+  setConnectionQuality: (connectionQuality) => set({ connectionQuality }),
+
+  recordFailure: (error) => {
+    const failures = get().consecutiveFailures + 1;
+    set({
+      consecutiveFailures: failures,
+      lastError: error,
+      connectionQuality: failures >= 3 ? "disconnected" : "degraded",
+    });
+  },
+
+  recordSuccess: (source) =>
+    set({
+      consecutiveFailures: 0,
+      lastError: null,
+      dataSource: source,
+      connectionQuality: "good",
+    }),
 
   clear: () =>
     set({
@@ -98,5 +135,10 @@ export const useTrafficStore = create<TrafficStoreState>()((set, get) => ({
       boundingBox: null,
       lastUpdate: 0,
       polling: false,
+      dataSource: "",
+      displayMode: "global" as DisplayMode,
+      connectionQuality: "disconnected",
+      consecutiveFailures: 0,
+      lastError: null,
     }),
 }));

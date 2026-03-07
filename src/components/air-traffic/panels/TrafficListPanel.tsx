@@ -1,7 +1,8 @@
 /**
  * @module TrafficListPanel
  * @description Right-side sortable aircraft table with threat-level color coding.
- * Shows callsign, altitude, speed, distance, and threat classification.
+ * Shows callsign, type, altitude, speed, distance, vertical rate, and threat
+ * classification. Supports distance sorting relative to drone/camera position.
  * @license GPL-3.0-only
  */
 
@@ -11,9 +12,11 @@ import { useState, useMemo } from "react";
 import { Plane, ChevronLeft, ArrowUpDown } from "lucide-react";
 import { useTrafficStore } from "@/stores/traffic-store";
 import { cn } from "@/lib/utils";
-import { THREAT_COLORS, THREAT_LABELS, type AircraftState, type ThreatLevel } from "@/lib/airspace/types";
+import { THREAT_COLORS, THREAT_LABELS, type ThreatLevel } from "@/lib/airspace/types";
+import { haversineDistance } from "@/lib/airspace/threat-calculator";
+import { getTypeDescription } from "@/lib/airspace/aircraft-types";
 
-type SortKey = "callsign" | "altitude" | "speed" | "threat";
+type SortKey = "callsign" | "altitude" | "speed" | "threat" | "distance";
 type SortDir = "asc" | "desc";
 
 interface TrafficListPanelProps {
@@ -22,12 +25,26 @@ interface TrafficListPanelProps {
   droneLon?: number;
 }
 
+/** Compute bearing from point A to point B in degrees (0-360). */
+function computeBearing(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const toRad = Math.PI / 180;
+  const dLon = (lon2 - lon1) * toRad;
+  const y = Math.sin(dLon) * Math.cos(lat2 * toRad);
+  const x =
+    Math.cos(lat1 * toRad) * Math.sin(lat2 * toRad) -
+    Math.sin(lat1 * toRad) * Math.cos(lat2 * toRad) * Math.cos(dLon);
+  const brng = (Math.atan2(y, x) * 180) / Math.PI;
+  return (brng + 360) % 360;
+}
+
 export function TrafficListPanel({ onClose, droneLat, droneLon }: TrafficListPanelProps) {
   const aircraft = useTrafficStore((s) => s.aircraft);
   const threatLevels = useTrafficStore((s) => s.threatLevels);
   const lastUpdate = useTrafficStore((s) => s.lastUpdate);
   const [sortKey, setSortKey] = useState<SortKey>("threat");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+
+  const hasRef = droneLat != null && droneLon != null;
 
   const aircraftList = useMemo(() => {
     const list = Array.from(aircraft.values());
@@ -45,6 +62,13 @@ export function TrafficListPanel({ onClose, droneLat, droneLon }: TrafficListPan
         case "speed":
           cmp = (a.velocity ?? 0) - (b.velocity ?? 0);
           break;
+        case "distance": {
+          if (!hasRef) break;
+          const dA = haversineDistance(droneLat!, droneLon!, a.lat, a.lon);
+          const dB = haversineDistance(droneLat!, droneLon!, b.lat, b.lon);
+          cmp = dA - dB;
+          break;
+        }
         case "threat": {
           const ta = threatLevels.get(a.icao24) ?? "other";
           const tb = threatLevels.get(b.icao24) ?? "other";
@@ -56,7 +80,7 @@ export function TrafficListPanel({ onClose, droneLat, droneLon }: TrafficListPan
     });
 
     return list;
-  }, [aircraft, threatLevels, sortKey, sortDir]);
+  }, [aircraft, threatLevels, sortKey, sortDir, hasRef, droneLat, droneLon]);
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) {
@@ -72,7 +96,7 @@ export function TrafficListPanel({ onClose, droneLat, droneLon }: TrafficListPan
     : "No data";
 
   return (
-    <div className="w-72 shrink-0 flex flex-col h-full border-l border-border-default bg-bg-primary/95 backdrop-blur-md">
+    <div className="w-80 shrink-0 flex flex-col h-full border-l border-border-default bg-bg-primary/95 backdrop-blur-md">
       {/* Header */}
       <div className="flex items-center gap-2 px-3 py-2 border-b border-border-default shrink-0">
         <Plane size={12} className="text-text-tertiary" />
@@ -90,9 +114,12 @@ export function TrafficListPanel({ onClose, droneLat, droneLon }: TrafficListPan
 
       {/* Column headers */}
       <div className="flex items-center gap-1 px-3 py-1.5 border-b border-border-default text-[9px] font-mono text-text-tertiary uppercase">
-        <SortButton label="Call" sortKey="callsign" current={sortKey} dir={sortDir} onClick={toggleSort} className="flex-1" />
-        <SortButton label="Alt" sortKey="altitude" current={sortKey} dir={sortDir} onClick={toggleSort} className="w-14 text-right" />
-        <SortButton label="Spd" sortKey="speed" current={sortKey} dir={sortDir} onClick={toggleSort} className="w-12 text-right" />
+        <SortButton label="Call" sortKey="callsign" current={sortKey} dir={sortDir} onClick={toggleSort} className="w-[72px]" />
+        <span className="w-8 text-center">Typ</span>
+        <SortButton label="Alt" sortKey="altitude" current={sortKey} dir={sortDir} onClick={toggleSort} className="w-12 text-right" />
+        <SortButton label="Spd" sortKey="speed" current={sortKey} dir={sortDir} onClick={toggleSort} className="w-10 text-right" />
+        <SortButton label="Dist" sortKey="distance" current={sortKey} dir={sortDir} onClick={toggleSort} className="w-12 text-right" />
+        <span className="w-4 text-center">VR</span>
         <SortButton label="Thr" sortKey="threat" current={sortKey} dir={sortDir} onClick={toggleSort} className="w-8 text-center" />
       </div>
 
@@ -106,12 +133,24 @@ export function TrafficListPanel({ onClose, droneLat, droneLon }: TrafficListPan
         {aircraftList.map((ac) => {
           const threat = threatLevels.get(ac.icao24) ?? "other";
           const color = THREAT_COLORS[threat];
+          const distM = hasRef ? haversineDistance(droneLat!, droneLon!, ac.lat, ac.lon) : null;
+          const bearing = hasRef ? computeBearing(droneLat!, droneLon!, ac.lat, ac.lon) : null;
+
+          // Vertical rate trend
+          const vr = ac.verticalRate;
+          const vrIcon = vr != null && vr > 1 ? "\u25B2" : vr != null && vr < -1 ? "\u25BC" : "\u25CF";
+          const vrColor = vr != null && vr > 1 ? "text-green-400" : vr != null && vr < -1 ? "text-red-400" : "text-text-tertiary";
+
+          // Type tooltip
+          const typeTooltip = ac.aircraftType ? getTypeDescription(ac.aircraftType) : undefined;
+
           return (
             <div
               key={ac.icao24}
               className="flex items-center gap-1 px-3 py-1.5 hover:bg-bg-secondary/50 transition-colors text-[10px] font-mono border-b border-border-default/30"
             >
-              <div className="flex-1 flex items-center gap-1.5 min-w-0">
+              {/* Callsign + threat dot */}
+              <div className="w-[72px] flex items-center gap-1 min-w-0">
                 <span
                   className="w-1.5 h-1.5 rounded-full shrink-0"
                   style={{ backgroundColor: color }}
@@ -120,12 +159,48 @@ export function TrafficListPanel({ onClose, droneLat, droneLon }: TrafficListPan
                   {ac.callsign?.trim() || ac.icao24.toUpperCase()}
                 </span>
               </div>
-              <span className="w-14 text-right text-text-secondary">
+
+              {/* Aircraft type */}
+              <span
+                className="w-8 text-center text-text-tertiary truncate"
+                title={typeTooltip}
+              >
+                {ac.aircraftType ?? "-"}
+              </span>
+
+              {/* Altitude */}
+              <span className="w-12 text-right text-text-secondary">
                 {ac.altitudeMsl != null ? `${Math.round(ac.altitudeMsl)}m` : "-"}
               </span>
-              <span className="w-12 text-right text-text-secondary">
+
+              {/* Speed */}
+              <span className="w-10 text-right text-text-secondary">
                 {ac.velocity != null ? `${Math.round(ac.velocity)}` : "-"}
               </span>
+
+              {/* Distance + direction arrow */}
+              <span className="w-12 text-right text-text-secondary flex items-center justify-end gap-0.5">
+                {bearing != null && (
+                  <span
+                    className="text-[8px] text-text-tertiary inline-block"
+                    style={{ transform: `rotate(${bearing}deg)` }}
+                  >
+                    {"\u2191"}
+                  </span>
+                )}
+                {distM != null
+                  ? distM >= 1000
+                    ? `${(distM / 1000).toFixed(1)}k`
+                    : `${Math.round(distM)}`
+                  : "-"}
+              </span>
+
+              {/* Vertical rate trend */}
+              <span className={cn("w-4 text-center text-[8px]", vrColor)}>
+                {vrIcon}
+              </span>
+
+              {/* Threat level */}
               <span
                 className="w-8 text-center text-[9px] font-bold uppercase"
                 style={{ color }}

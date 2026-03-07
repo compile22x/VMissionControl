@@ -18,17 +18,7 @@ import type {
   NearestAirport,
 } from "./types";
 import { haversineDistance } from "./threat-calculator";
-
-/** Known airports for nearest-airport detection. */
-const KNOWN_AIRPORTS: { name: string; icao: string; lat: number; lon: number }[] = [
-  { name: "Delhi Indira Gandhi", icao: "VIDP", lat: 28.5562, lon: 77.1000 },
-  { name: "Bangalore Kempegowda", icao: "VOBL", lat: 13.1986, lon: 77.7066 },
-  { name: "Mumbai Chhatrapati Shivaji", icao: "VABB", lat: 19.0896, lon: 72.8656 },
-  { name: "John F. Kennedy", icao: "KJFK", lat: 40.6413, lon: -73.7781 },
-  { name: "Los Angeles Intl", icao: "KLAX", lat: 33.9425, lon: -118.4081 },
-  { name: "Sydney Kingsford Smith", icao: "YSSY", lat: -33.9461, lon: 151.1772 },
-  { name: "Melbourne Tullamarine", icao: "YMML", lat: -37.6690, lon: 144.8410 },
-];
+import { getAirportsSync } from "./airport-database";
 
 export function assessFlyability(
   lat: number,
@@ -146,10 +136,11 @@ function isPointInZone(lat: number, lon: number, zone: AirspaceZone): boolean {
 }
 
 function findNearestAirport(lat: number, lon: number): NearestAirport | null {
+  const airports = getAirportsSync();
   let nearest: NearestAirport | null = null;
   let minDist = Infinity;
 
-  for (const airport of KNOWN_AIRPORTS) {
+  for (const airport of airports) {
     const dist = haversineDistance(lat, lon, airport.lat, airport.lon);
     if (dist < minDist) {
       minDist = dist;

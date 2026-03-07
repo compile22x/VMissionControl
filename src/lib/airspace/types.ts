@@ -23,6 +23,8 @@ export interface AircraftState {
   squawk: string | null;
   category: number;
   lastSeen: number;
+  registration?: string;
+  aircraftType?: string;
 }
 
 // ── Airspace Zone Types ────────────────────────────────────────────
@@ -50,6 +52,7 @@ export interface AirspaceZone {
   floorAltitude: number;
   ceilingAltitude: number;
   authority: string;
+  jurisdiction?: Jurisdiction;
   validFrom?: string;
   validTo?: string;
   laancCeiling?: number;
@@ -167,6 +170,7 @@ export interface AirTrafficLayers {
   advisory: boolean;
   ownDrone: boolean;
   terrain: boolean;
+  heatmap: boolean;
 }
 
 export const DEFAULT_LAYERS: AirTrafficLayers = {
@@ -176,6 +180,7 @@ export const DEFAULT_LAYERS: AirTrafficLayers = {
   advisory: false,
   ownDrone: true,
   terrain: true,
+  heatmap: false,
 };
 
 // ── Zone Color Config ──────────────────────────────────────────────

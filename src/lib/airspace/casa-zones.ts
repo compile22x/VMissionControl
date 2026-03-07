@@ -1,76 +1,68 @@
 /**
  * @module airspace/casa-zones
- * @description Australia CASA airspace zones for MVP.
+ * @description Australia CASA airspace zones generated from the global airport
+ * database. Restricted (5.5km) and Caution (10km) zones for all AU airports.
  * @license GPL-3.0-only
  */
 
 import type { AirspaceZone, BoundingBox } from "./types";
 import { circlePolygon, inBbox } from "./geo-utils";
+import { getByCountry, preloadAirports } from "./airport-database";
 
-const SYD_LAT = -33.9461;
-const SYD_LON = 151.1772;
-const MEL_LAT = -37.669;
-const MEL_LON = 144.841;
+interface ZoneEntry {
+  zone: AirspaceZone;
+  lat: number;
+  lon: number;
+}
 
-const AU_ZONES: Array<{ zone: AirspaceZone; lat: number; lon: number }> = [
-  {
-    lat: SYD_LAT,
-    lon: SYD_LON,
-    zone: {
-      id: "casa-syd-restricted",
-      name: "SYD Aerodrome Restricted",
-      type: "casaRestricted",
-      geometry: circlePolygon(SYD_LAT, SYD_LON, 5.5),
-      floorAltitude: 0,
-      ceilingAltitude: 120,
-      authority: "CASA",
-      metadata: { icao: "YSSY", buffer: "5.5km aerodrome" },
-    },
-  },
-  {
-    lat: SYD_LAT,
-    lon: SYD_LON,
-    zone: {
-      id: "casa-syd-caution",
-      name: "SYD Caution Zone",
-      type: "casaCaution",
-      geometry: circlePolygon(SYD_LAT, SYD_LON, 10),
-      floorAltitude: 0,
-      ceilingAltitude: 120,
-      authority: "CASA",
-      metadata: { icao: "YSSY", buffer: "10km extended" },
-    },
-  },
-  {
-    lat: MEL_LAT,
-    lon: MEL_LON,
-    zone: {
-      id: "casa-mel-restricted",
-      name: "MEL Aerodrome Restricted",
-      type: "casaRestricted",
-      geometry: circlePolygon(MEL_LAT, MEL_LON, 5.5),
-      floorAltitude: 0,
-      ceilingAltitude: 120,
-      authority: "CASA",
-      metadata: { icao: "YMML", buffer: "5.5km aerodrome" },
-    },
-  },
-  {
-    lat: MEL_LAT,
-    lon: MEL_LON,
-    zone: {
-      id: "casa-mel-caution",
-      name: "MEL Caution Zone",
-      type: "casaCaution",
-      geometry: circlePolygon(MEL_LAT, MEL_LON, 10),
-      floorAltitude: 0,
-      ceilingAltitude: 120,
-      authority: "CASA",
-      metadata: { icao: "YMML", buffer: "10km extended" },
-    },
-  },
-];
+let cachedZones: ZoneEntry[] | null = null;
 
-export function getAustraliaAirspaceZones(bbox: BoundingBox): AirspaceZone[] {
-  return AU_ZONES.filter((z) => inBbox(z.lat, z.lon, bbox)).map((z) => z.zone);
+async function buildZones(): Promise<ZoneEntry[]> {
+  if (cachedZones) return cachedZones;
+
+  await preloadAirports();
+  const airports = await getByCountry("AU");
+
+  cachedZones = airports.flatMap((airport) => {
+    const { name, icao, lat, lon } = airport;
+    return [
+      {
+        lat,
+        lon,
+        zone: {
+          id: `casa-${icao.toLowerCase()}-restricted`,
+          name: `${name} Aerodrome Restricted`,
+          type: "casaRestricted" as const,
+          geometry: circlePolygon(lat, lon, 5.5),
+          floorAltitude: 0,
+          ceilingAltitude: 120,
+          authority: "CASA",
+          jurisdiction: "casa" as const,
+          metadata: { icao, buffer: "5.5km aerodrome" },
+        },
+      },
+      {
+        lat,
+        lon,
+        zone: {
+          id: `casa-${icao.toLowerCase()}-caution`,
+          name: `${name} Caution Zone`,
+          type: "casaCaution" as const,
+          geometry: circlePolygon(lat, lon, 10),
+          floorAltitude: 0,
+          ceilingAltitude: 120,
+          authority: "CASA",
+          jurisdiction: "casa" as const,
+          metadata: { icao, buffer: "10km extended" },
+        },
+      },
+    ];
+  });
+
+  return cachedZones;
+}
+
+export async function getAustraliaAirspaceZones(bbox: BoundingBox): Promise<AirspaceZone[]> {
+  const zones = await buildZones();
+  return zones.filter((z) => inBbox(z.lat, z.lon, bbox)).map((z) => z.zone);
 }

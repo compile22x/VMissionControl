@@ -10,7 +10,7 @@
 import { useState } from "react";
 import { Layers, ChevronLeft, ChevronRight } from "lucide-react";
 import { useAirspaceStore } from "@/stores/airspace-store";
-import { cn } from "@/lib/utils";
+import { JURISDICTIONS, type Jurisdiction } from "@/lib/jurisdiction";
 import type { AirTrafficLayers } from "@/lib/airspace/types";
 
 const LAYER_GROUPS: { key: keyof AirTrafficLayers; label: string; description: string }[] = [
@@ -26,6 +26,8 @@ export function LayerControlPanel() {
   const [collapsed, setCollapsed] = useState(false);
   const layerVisibility = useAirspaceStore((s) => s.layerVisibility);
   const setLayerVisibility = useAirspaceStore((s) => s.setLayerVisibility);
+  const activeJurisdictions = useAirspaceStore((s) => s.activeJurisdictions);
+  const toggleJurisdiction = useAirspaceStore((s) => s.toggleJurisdiction);
 
   if (collapsed) {
     return (
@@ -81,6 +83,29 @@ export function LayerControlPanel() {
             </div>
           </label>
         ))}
+      </div>
+
+      {/* Jurisdiction filters */}
+      <div className="px-2 pt-1 pb-2 border-t border-border-default mt-1">
+        <span className="text-[9px] font-mono text-text-tertiary uppercase px-2">Jurisdictions</span>
+        <div className="flex flex-col gap-1 mt-1">
+          {(["dgca", "faa", "casa"] as const).map((j) => (
+            <label
+              key={j}
+              className="flex items-center gap-2 px-2 py-1 rounded hover:bg-bg-secondary/50 transition-colors cursor-pointer"
+            >
+              <input
+                type="checkbox"
+                checked={activeJurisdictions.has(j)}
+                onChange={() => toggleJurisdiction(j)}
+                className="w-3 h-3 rounded accent-accent-primary shrink-0"
+              />
+              <span className="text-[11px] font-mono text-text-primary">
+                {JURISDICTIONS[j].flag} {JURISDICTIONS[j].name}
+              </span>
+            </label>
+          ))}
+        </div>
       </div>
     </div>
   );

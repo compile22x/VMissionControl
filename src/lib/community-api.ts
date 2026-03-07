@@ -53,4 +53,8 @@ export const communityApi = {
     checkAndRecord: makeFunctionReference<"mutation">("cmdAiUsage:checkAndRecord"),
     getRemaining: makeFunctionReference<"query">("cmdAiUsage:getRemaining"),
   },
+  adsbCache: {
+    getAll: makeFunctionReference<"query">("cmdAdsbCache:getAll"),
+    getByRegion: makeFunctionReference<"query">("cmdAdsbCache:getByRegion"),
+  },
 };

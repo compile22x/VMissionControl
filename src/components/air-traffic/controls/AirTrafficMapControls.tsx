@@ -9,6 +9,7 @@
 "use client";
 
 import { useSettingsStore } from "@/stores/settings-store";
+import { useTrafficStore } from "@/stores/traffic-store";
 import { cn } from "@/lib/utils";
 
 interface AirTrafficMapControlsProps {
@@ -22,6 +23,8 @@ export function AirTrafficMapControls({ hasIonToken }: AirTrafficMapControlsProp
   const setBuildingsEnabled = useSettingsStore((s) => s.setCesiumBuildingsEnabled);
   const terrainExaggeration = useSettingsStore((s) => s.terrainExaggeration);
   const setTerrainExaggeration = useSettingsStore((s) => s.setTerrainExaggeration);
+  const dataSource = useTrafficStore((s) => s.dataSource);
+  const connectionQuality = useTrafficStore((s) => s.connectionQuality);
 
   const satDisabled = !hasIonToken;
   const buildingsDisabled = !hasIonToken;
@@ -92,6 +95,17 @@ export function AirTrafficMapControls({ hasIonToken }: AirTrafficMapControlsProp
           onChange={(e) => setTerrainExaggeration(parseFloat(e.target.value))}
           className="w-full h-1 rounded-full appearance-none bg-border-default accent-accent-primary cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-accent-primary"
         />
+      </div>
+
+      {/* Data source + connection quality */}
+      <div className="flex items-center gap-1.5 pt-1 border-t border-border-default/50 mt-1">
+        <span className={cn(
+          "w-2 h-2 rounded-full shrink-0",
+          connectionQuality === "good" && "bg-green-400",
+          connectionQuality === "degraded" && "bg-yellow-400",
+          connectionQuality === "disconnected" && "bg-red-400",
+        )} />
+        <span className="text-[9px] font-mono text-text-tertiary truncate">{dataSource || "offline"}</span>
       </div>
     </div>
   );
