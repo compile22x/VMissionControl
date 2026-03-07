@@ -8,7 +8,7 @@
 
 "use client";
 
-import { useEffect, useRef, useCallback, useState } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import {
   Cartesian3,
   Cartesian2,
@@ -92,8 +92,8 @@ export function AircraftEntities({ viewer }: AircraftEntitiesProps) {
   const indexRef = useRef<Map<string, BillboardEntry>>(new Map());
   /** Current display mode for icon sizing and label visibility. */
   const modeRef = useRef<DisplayMode>("global");
-  /** Visible viewport bounds for frustum culling. */
-  const [visibleBounds, setVisibleBounds] = useState<ViewBounds | null>(null);
+  /** Visible viewport bounds for frustum culling (ref to avoid re-renders on camera move). */
+  const visibleBoundsRef = useRef<ViewBounds | null>(null);
 
   // Initialize BillboardCollection + LabelCollection
   useEffect(() => {
@@ -125,8 +125,8 @@ export function AircraftEntities({ viewer }: AircraftEntitiesProps) {
     const altM = cartographic.height;
     const mode = getDisplayMode(altM);
 
-    // Update viewport bounds for frustum culling
-    setVisibleBounds(getVisibleBounds(viewer));
+    // Update viewport bounds ref for frustum culling (no React re-render)
+    visibleBoundsRef.current = getVisibleBounds(viewer);
 
     if (modeRef.current !== mode) {
       modeRef.current = mode;
@@ -206,7 +206,7 @@ export function AircraftEntities({ viewer }: AircraftEntitiesProps) {
     const scale = iconSize / 32;
     const currentIcaos = new Set<string>();
 
-    const bounds = visibleBounds;
+    const bounds = visibleBoundsRef.current;
     const latM = bounds ? (bounds.north - bounds.south) * 0.1 : 0;
     const lonM = bounds ? (bounds.east - bounds.west) * 0.1 : 0;
 
@@ -301,7 +301,7 @@ export function AircraftEntities({ viewer }: AircraftEntitiesProps) {
       }
     }
 
-  }, [viewer, aircraft, threatLevels, selectedAircraft, trafficVisible, visibleBounds]);
+  }, [viewer, aircraft, threatLevels, selectedAircraft, trafficVisible]);
 
   return null;
 }

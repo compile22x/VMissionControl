@@ -55,20 +55,35 @@ export async function fetchOpenAIPAirspaces(
   apiKey: string,
 ): Promise<AirspaceZone[]> {
   const results: AirspaceZone[] = [];
+  const uncached: string[] = [];
 
+  // Collect cached results first
   for (const country of countries) {
     if (cache.has(country)) {
       results.push(...cache.get(country)!);
-      continue;
+    } else {
+      uncached.push(country);
     }
+  }
 
-    try {
-      const zones = await fetchCountryAirspaces(country, apiKey);
-      if (cache.size > 60) cache.clear();
-      cache.set(country, zones);
-      results.push(...zones);
-    } catch (err) {
-      console.warn(`[openaip] Failed to fetch ${country}:`, err);
+  // Fetch uncached countries in batches of 6
+  const BATCH_SIZE = 6;
+  for (let i = 0; i < uncached.length; i += BATCH_SIZE) {
+    const batch = uncached.slice(i, i + BATCH_SIZE);
+    const settled = await Promise.allSettled(
+      batch.map((country) => fetchCountryAirspaces(country, apiKey))
+    );
+
+    for (let j = 0; j < settled.length; j++) {
+      const result = settled[j];
+      const country = batch[j];
+      if (result.status === "fulfilled") {
+        if (cache.size > 60) cache.clear();
+        cache.set(country, result.value);
+        results.push(...result.value);
+      } else {
+        console.warn(`[openaip] Failed to fetch ${country}:`, result.reason);
+      }
     }
   }
 
@@ -100,7 +115,7 @@ async function fetchCountryAirspaces(
     }
 
     const url = `/api/airspace/openaip?${params.toString()}`;
-    const resp = await fetch(url);
+    const resp = await fetch(url, { signal: AbortSignal.timeout(10_000) });
 
     if (!resp.ok) {
       throw new Error(`OpenAIP ${country} page ${page}: ${resp.status} ${resp.statusText}`);
