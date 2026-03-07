@@ -195,19 +195,19 @@ export interface ZoneColorConfig {
 }
 
 export const ZONE_COLORS: Record<AirspaceZoneType, ZoneColorConfig> = {
-  classB: { fill: "#3A82FF", fillOpacity: 0.2, border: "#3A82FF", borderOpacity: 0.8 },
-  classC: { fill: "#C850C0", fillOpacity: 0.2, border: "#C850C0", borderOpacity: 0.8 },
-  classD: { fill: "#3A82FF", fillOpacity: 0.15, border: "#3A82FF", borderOpacity: 0.6 },
-  classE: { fill: "#C850C0", fillOpacity: 0.1, border: "#C850C0", borderOpacity: 0.4 },
-  restricted: { fill: "#3A82FF", fillOpacity: 0.15, border: "#3A82FF", borderOpacity: 0.7 },
-  prohibited: { fill: "#FF4444", fillOpacity: 0.25, border: "#FF4444", borderOpacity: 0.9 },
-  moa: { fill: "#FF8C00", fillOpacity: 0.1, border: "#FF8C00", borderOpacity: 0.5 },
-  tfr: { fill: "#FF4444", fillOpacity: 0.3, border: "#FF4444", borderOpacity: 0.9 },
-  dgcaGreen: { fill: "#44FF44", fillOpacity: 0.1, border: "#44FF44", borderOpacity: 0.5 },
-  dgcaYellow: { fill: "#FFDD44", fillOpacity: 0.25, border: "#FFDD44", borderOpacity: 0.7 },
-  dgcaRed: { fill: "#FF4444", fillOpacity: 0.3, border: "#FF4444", borderOpacity: 0.8 },
-  casaRestricted: { fill: "#FF4444", fillOpacity: 0.25, border: "#FF4444", borderOpacity: 0.8 },
-  casaCaution: { fill: "#FF8C00", fillOpacity: 0.2, border: "#FF8C00", borderOpacity: 0.7 },
+  classB: { fill: "#3A82FF", fillOpacity: 0.08, border: "#3A82FF", borderOpacity: 0.8 },
+  classC: { fill: "#C850C0", fillOpacity: 0.08, border: "#C850C0", borderOpacity: 0.8 },
+  classD: { fill: "#3A82FF", fillOpacity: 0.06, border: "#3A82FF", borderOpacity: 0.6 },
+  classE: { fill: "#C850C0", fillOpacity: 0.04, border: "#C850C0", borderOpacity: 0.4 },
+  restricted: { fill: "#3A82FF", fillOpacity: 0.06, border: "#3A82FF", borderOpacity: 0.7 },
+  prohibited: { fill: "#FF4444", fillOpacity: 0.12, border: "#FF4444", borderOpacity: 0.9 },
+  moa: { fill: "#FF8C00", fillOpacity: 0.05, border: "#FF8C00", borderOpacity: 0.5 },
+  tfr: { fill: "#FF4444", fillOpacity: 0.15, border: "#FF4444", borderOpacity: 0.9 },
+  dgcaGreen: { fill: "#44FF44", fillOpacity: 0.05, border: "#44FF44", borderOpacity: 0.5 },
+  dgcaYellow: { fill: "#FFDD44", fillOpacity: 0.1, border: "#FFDD44", borderOpacity: 0.7 },
+  dgcaRed: { fill: "#FF4444", fillOpacity: 0.15, border: "#FF4444", borderOpacity: 0.8 },
+  casaRestricted: { fill: "#FF4444", fillOpacity: 0.1, border: "#FF4444", borderOpacity: 0.8 },
+  casaCaution: { fill: "#FF8C00", fillOpacity: 0.08, border: "#FF8C00", borderOpacity: 0.7 },
 };
 
 // ── Threat level display config ────────────────────────────────────

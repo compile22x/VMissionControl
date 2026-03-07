@@ -8,9 +8,9 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { Cartesian3, Color, PolygonHierarchy, type Viewer as CesiumViewer } from "cesium";
+import { Cartesian3, Color, DistanceDisplayCondition, PolygonHierarchy, type Viewer as CesiumViewer } from "cesium";
 import { useAirspaceStore } from "@/stores/airspace-store";
-import { ZONE_COLORS, type AirspaceZone, type GeoJSONPolygon, type GeoJSONMultiPolygon } from "@/lib/airspace/types";
+import { ZONE_COLORS, type GeoJSONPolygon, type GeoJSONMultiPolygon } from "@/lib/airspace/types";
 
 interface AirspaceVolumeEntitiesProps {
   viewer: CesiumViewer | null;
@@ -25,6 +25,7 @@ export function AirspaceVolumeEntities({ viewer }: AirspaceVolumeEntitiesProps) 
   const layerVisibility = useAirspaceStore((s) => s.layerVisibility);
   const operationalAltitude = useAirspaceStore((s) => s.operationalAltitude);
   const showIcaoZones = useAirspaceStore((s) => s.showIcaoZones);
+  const activeJurisdictions = useAirspaceStore((s) => s.activeJurisdictions);
   const entityIdsRef = useRef<string[]>([]);
 
   useEffect(() => {
@@ -45,6 +46,8 @@ export function AirspaceVolumeEntities({ viewer }: AirspaceVolumeEntitiesProps) 
       if (zone.floorAltitude > operationalAltitude) continue;
       // Filter ICAO-generated zones by the showIcaoZones toggle
       if (zone.metadata?.generated === "icao-standard" && !showIcaoZones) continue;
+      // Filter by active jurisdictions — toggling off a jurisdiction hides its volumes
+      if (zone.jurisdiction && !activeJurisdictions.has(zone.jurisdiction)) continue;
       const colors = ZONE_COLORS[zone.type];
       if (!colors) continue;
 
@@ -52,6 +55,9 @@ export function AirspaceVolumeEntities({ viewer }: AirspaceVolumeEntitiesProps) 
       const borderColor = Color.fromCssColorString(colors.border).withAlpha(colors.borderOpacity);
 
       const polygons = extractPolygons(zone.geometry);
+
+      // Compute LOD visibility range based on zone size
+      const lodDistance = getZoneLodDistance(zone.type, zone.ceilingAltitude);
 
       for (let i = 0; i < polygons.length; i++) {
         const ring = polygons[i];
@@ -73,6 +79,7 @@ export function AirspaceVolumeEntities({ viewer }: AirspaceVolumeEntitiesProps) 
             outlineWidth: 1,
             closeTop: true,
             closeBottom: true,
+            distanceDisplayCondition: new DistanceDisplayCondition(0, lodDistance),
           },
           description: `<p><b>${zone.name}</b></p><p>Type: ${zone.type}</p><p>Floor: ${zone.floorAltitude}m / Ceiling: ${zone.ceilingAltitude}m</p><p>Authority: ${zone.authority}</p>`,
         });
@@ -91,9 +98,38 @@ export function AirspaceVolumeEntities({ viewer }: AirspaceVolumeEntitiesProps) 
         }
       }
     };
-  }, [viewer, zones, layerVisibility.airspace, operationalAltitude, showIcaoZones]);
+  }, [viewer, zones, layerVisibility.airspace, operationalAltitude, showIcaoZones, activeJurisdictions]);
 
   return null;
+}
+
+/** Returns max camera distance (meters) at which this zone type should be visible. */
+function getZoneLodDistance(type: string, _ceilingAlt: number): number {
+  switch (type) {
+    // Small zones (~5km radius): visible below 100km
+    case "dgcaRed":
+    case "casaRestricted":
+      return 100_000;
+    // Medium zones (~9-25km radius): visible below 250km
+    case "dgcaYellow":
+    case "classD":
+    case "casaCaution":
+    case "moa":
+      return 250_000;
+    // Large zones (~45-55km radius): visible below 500km
+    case "dgcaGreen":
+    case "classB":
+    case "classC":
+    case "classE":
+      return 500_000;
+    // Restrictions and TFRs: visible below 300km
+    case "restricted":
+    case "prohibited":
+    case "tfr":
+      return 300_000;
+    default:
+      return 300_000;
+  }
 }
 
 function extractPolygons(geometry: GeoJSONPolygon | GeoJSONMultiPolygon): number[][][] {
