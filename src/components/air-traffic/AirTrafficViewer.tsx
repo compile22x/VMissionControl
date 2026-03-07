@@ -9,7 +9,7 @@
 
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, Component, type ReactNode } from "react";
 import { useQuery } from "convex/react";
 import { Cartesian3, Cartographic, ScreenSpaceEventHandler, ScreenSpaceEventType, Math as CesiumMath, defined, type Viewer as CesiumViewer } from "cesium";
 import dynamic from "next/dynamic";
@@ -21,6 +21,7 @@ import { useConvexAvailable } from "@/app/ConvexClientProvider";
 import { communityApi } from "@/lib/community-api";
 import { fetchAircraft, fetchFromConvexCache } from "@/lib/airspace/adsb-provider";
 import { loadAllAirspaceZones } from "@/lib/airspace/airspace-provider";
+import { fetchNotams } from "@/lib/airspace/notam-provider";
 import { computeAllThreats } from "@/lib/airspace/threat-calculator";
 import { assessFlyability } from "@/lib/airspace/flyability";
 import { lookupJurisdiction } from "@/lib/airspace/jurisdiction-lookup";
@@ -64,6 +65,25 @@ function ConvexCesiumToken({ onToken }: { onToken: (token: string | null) => voi
     }
   }, [config, onToken]);
   return null;
+}
+
+/** Subscribes to Convex ADS-B cache and forwards aircraft data via callback. */
+function ConvexAdsbCache({ onData }: { onData: (data: { aircraft: any[]; source: string; fetchedAt: number }) => void }) {
+  const data = useQuery(communityApi.adsbCache.getAll, {});
+  useEffect(() => {
+    if (data !== undefined) {
+      onData(data as { aircraft: any[]; source: string; fetchedAt: number });
+    }
+  }, [data, onData]);
+  return null;
+}
+
+/** Error boundary that silently catches Convex query errors. */
+class ConvexErrorBoundary extends Component<{ children: ReactNode; onError?: () => void }, { hasError: boolean }> {
+  state = { hasError: false };
+  static getDerivedStateFromError() { return { hasError: true }; }
+  componentDidCatch() { this.props.onError?.(); }
+  render() { return this.state.hasError ? null : this.props.children; }
 }
 
 // ── Alert deduplication ──────────────────────────────────────────────
@@ -122,11 +142,34 @@ export function AirTrafficViewer() {
       });
   }, [setZones, setLoading, setError]);
 
-  // ── Convex cache subscription (global aircraft data) ──
-  const convexCacheResult = useQuery(
-    communityApi.adsbCache.getAll,
-    convexAvailable ? {} : "skip"
-  );
+  // ── Load NOTAMs on mount ──
+  useEffect(() => {
+    const bbox = { south: -60, north: 70, west: -180, east: 180 };
+    fetchNotams(bbox)
+      .then((notams) => {
+        if (notams.length > 0) {
+          useAirspaceStore.getState().setNotams(notams);
+        }
+      })
+      .catch(() => {}); // graceful fallback
+  }, []);
+
+  // ── Convex cache state ──
+  const [convexFailed, setConvexFailed] = useState(false);
+
+  const handleConvexAdsbData = useCallback((data: { aircraft: any[]; source: string; fetchedAt: number }) => {
+    if (!viewer || viewer.isDestroyed()) return;
+    const result = fetchFromConvexCache(data);
+    console.log(`[air-traffic] Convex cache: ${result.aircraft.length} aircraft globally`);
+    useTrafficStore.getState().recordSuccess("convex-cache");
+    setPolling(true);
+    processAircraftRef.current(result.aircraft);
+  }, [viewer, setPolling]);
+
+  const handleConvexError = useCallback(() => {
+    console.warn("[air-traffic] Convex ADS-B cache unavailable, falling back to direct fetch");
+    setConvexFailed(true);
+  }, []);
 
   // Process aircraft data (from Convex cache or direct polling fallback)
   const processAircraft = useCallback((aircraftResult: AircraftState[]) => {
@@ -174,20 +217,15 @@ export function AirTrafficViewer() {
     }
   }, [viewer, updateAircraft, setThreatLevels, addAlert]);
 
-  // ── Primary path: Convex reactive cache ──
-  useEffect(() => {
-    if (!convexCacheResult || !viewer || viewer.isDestroyed()) return;
+  // Keep a ref to processAircraft for use in callbacks that can't depend on it
+  const processAircraftRef = useRef(processAircraft);
+  processAircraftRef.current = processAircraft;
 
-    setPolling(true);
-    const result = fetchFromConvexCache(convexCacheResult);
-    console.log(`[air-traffic] Convex cache: ${result.aircraft.length} aircraft globally`);
-    useTrafficStore.getState().recordSuccess("convex-cache");
-    processAircraft(result.aircraft);
-  }, [convexCacheResult, viewer, setPolling, processAircraft]);
+  // ── Fallback path: direct polling when Convex unavailable or errored ──
+  const useDirectPolling = !convexAvailable || convexFailed;
 
-  // ── Fallback path: direct polling when Convex unavailable ──
   useEffect(() => {
-    if (convexAvailable) return; // Convex handles it
+    if (!useDirectPolling) return;
     if (!viewer || viewer.isDestroyed()) return;
 
     const pollInterval = useTrafficStore.getState().pollInterval;
@@ -218,7 +256,7 @@ export function AirTrafficViewer() {
       if (pollRef.current) clearInterval(pollRef.current);
       setPolling(false);
     };
-  }, [convexAvailable, viewer, setPolling, processAircraft]);
+  }, [useDirectPolling, viewer, setPolling, processAircraft]);
 
   // ── Consolidated click handler (globe + aircraft) ──
   useEffect(() => {
@@ -280,6 +318,11 @@ export function AirTrafficViewer() {
   return (
     <div className="flex-1 relative min-w-0 h-full">
       {convexAvailable && <ConvexCesiumToken onToken={handleCesiumToken} />}
+      {convexAvailable && !convexFailed && (
+        <ConvexErrorBoundary onError={handleConvexError}>
+          <ConvexAdsbCache onData={handleConvexAdsbData} />
+        </ConvexErrorBoundary>
+      )}
       <CesiumScene
         cesiumToken={cesiumToken}
         onReady={handleViewerReady}

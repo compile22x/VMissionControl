@@ -11,6 +11,7 @@
 import { useState } from "react";
 import { BarChart3, ChevronDown, ChevronUp } from "lucide-react";
 import { useTrafficStore } from "@/stores/traffic-store";
+import { useAirspaceStore } from "@/stores/airspace-store";
 import { cn } from "@/lib/utils";
 
 export function StatsOverlay() {
@@ -20,7 +21,9 @@ export function StatsOverlay() {
   const connectionQuality = useTrafficStore((s) => s.connectionQuality);
   const lastUpdate = useTrafficStore((s) => s.lastUpdate);
   const threatLevels = useTrafficStore((s) => s.threatLevels);
+  const zones = useAirspaceStore((s) => s.zones);
 
+  const hasOpenAIP = zones.some((z) => z.metadata?.source === "openaip");
   const allAircraft = Array.from(aircraft.values());
   const total = allAircraft.length;
 
@@ -109,6 +112,20 @@ export function StatsOverlay() {
               <span>{dataSource || "offline"}</span>
               <span>{freshness}</span>
             </div>
+
+            {hasOpenAIP && (
+              <div className="border-t border-border-default/50 pt-1.5 text-text-tertiary text-center">
+                Airspace:{" "}
+                <a
+                  href="https://www.openaip.net"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-accent-primary hover:underline"
+                >
+                  OpenAIP
+                </a>
+              </div>
+            )}
           </div>
         </div>
       )}

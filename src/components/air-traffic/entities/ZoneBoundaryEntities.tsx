@@ -17,14 +17,14 @@ interface ZoneBoundaryEntitiesProps {
 }
 
 const JURISDICTION_ZONE_TYPES: Record<string, AirspaceZoneType[]> = {
-  dgca: ["dgcaGreen", "dgcaYellow", "dgcaRed"],
-  faa: ["classB", "classC", "classD", "classE"],
-  casa: ["casaRestricted", "casaCaution"],
-  easa: ["classB", "classD"],
-  caa_uk: ["classB", "classD"],
-  caac: ["classB", "classD"],
-  jcab: ["classB", "classD"],
-  tcca: ["classB", "classD"],
+  dgca: ["dgcaGreen", "dgcaYellow", "dgcaRed", "restricted", "prohibited", "ctr", "tma"],
+  faa: ["classB", "classC", "classD", "classE", "restricted", "prohibited", "moa", "danger", "alert", "warning"],
+  casa: ["casaRestricted", "casaCaution", "restricted", "prohibited", "danger", "warning"],
+  easa: ["classB", "classC", "classD", "classE", "ctr", "tma", "restricted", "prohibited", "danger", "alert", "warning"],
+  caa_uk: ["classB", "classC", "classD", "classE", "ctr", "tma", "restricted", "prohibited", "danger", "alert", "warning"],
+  caac: ["classB", "classD", "restricted", "prohibited", "danger"],
+  jcab: ["classB", "classD", "restricted", "prohibited", "danger"],
+  tcca: ["classB", "classC", "classD", "classE", "restricted", "prohibited", "danger", "alert", "warning"],
 };
 
 const ZONE_LABEL_TEXT: Record<string, string> = {
@@ -32,6 +32,7 @@ const ZONE_LABEL_TEXT: Record<string, string> = {
   classB: "CLASS B", classC: "CLASS C", classD: "CLASS D", classE: "CLASS E",
   casaRestricted: "RESTRICTED", casaCaution: "CAUTION",
   restricted: "RESTRICTED", prohibited: "PROHIBITED", moa: "MOA", tfr: "TFR",
+  ctr: "CTR", tma: "TMA", danger: "DANGER", alert: "ALERT", warning: "WARNING",
 };
 
 export function ZoneBoundaryEntities({ viewer }: ZoneBoundaryEntitiesProps) {

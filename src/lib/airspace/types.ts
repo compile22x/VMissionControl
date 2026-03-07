@@ -42,7 +42,12 @@ export type AirspaceZoneType =
   | "dgcaYellow"
   | "dgcaRed"
   | "casaRestricted"
-  | "casaCaution";
+  | "casaCaution"
+  | "ctr"
+  | "tma"
+  | "danger"
+  | "alert"
+  | "warning";
 
 export interface AirspaceZone {
   id: string;
@@ -208,6 +213,11 @@ export const ZONE_COLORS: Record<AirspaceZoneType, ZoneColorConfig> = {
   dgcaRed: { fill: "#FF4444", fillOpacity: 0.15, border: "#FF4444", borderOpacity: 0.8 },
   casaRestricted: { fill: "#FF4444", fillOpacity: 0.1, border: "#FF4444", borderOpacity: 0.8 },
   casaCaution: { fill: "#FF8C00", fillOpacity: 0.08, border: "#FF8C00", borderOpacity: 0.7 },
+  ctr:     { fill: "#3A82FF", fillOpacity: 0.06, border: "#3A82FF", borderOpacity: 0.6 },
+  tma:     { fill: "#C850C0", fillOpacity: 0.08, border: "#C850C0", borderOpacity: 0.7 },
+  danger:  { fill: "#FF8C00", fillOpacity: 0.1,  border: "#FF8C00", borderOpacity: 0.7 },
+  alert:   { fill: "#FF8C00", fillOpacity: 0.06, border: "#FF8C00", borderOpacity: 0.5 },
+  warning: { fill: "#FF8C00", fillOpacity: 0.08, border: "#FF8C00", borderOpacity: 0.6 },
 };
 
 // ── Threat level display config ────────────────────────────────────

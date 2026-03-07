@@ -128,7 +128,14 @@ function getZoneLodDistance(type: string, _ceilingAlt: number): number {
     case "restricted":
     case "prohibited":
     case "tfr":
+    case "ctr":
+    case "tma":
       return 300_000;
+    // Danger/Alert/Warning: visible below 250km
+    case "danger":
+    case "alert":
+    case "warning":
+      return 250_000;
     default:
       return 300_000;
   }

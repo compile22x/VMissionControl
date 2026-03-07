@@ -11,7 +11,7 @@ export function circlePolygon(
   centerLat: number,
   centerLon: number,
   radiusKm: number,
-  points = 36,
+  points = 64,
 ): GeoJSONPolygon {
   const coords: number[][] = [];
   for (let i = 0; i <= points; i++) {

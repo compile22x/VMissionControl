@@ -10,6 +10,7 @@ import { getUSAirspaceZones } from "./faa-data";
 import { getIndiaAirspaceZones } from "./dgca-zones";
 import { getAustraliaAirspaceZones } from "./casa-zones";
 import { getICAOStandardZones } from "./icao-zones";
+import { fetchOpenAIPAirspaces } from "./openaip-provider";
 
 export async function loadAirspaceZones(
   jurisdiction: Jurisdiction | null,
@@ -34,6 +35,22 @@ export async function loadAirspaceZones(
 }
 
 export async function loadAllAirspaceZones(bbox: BoundingBox): Promise<AirspaceZone[]> {
+  const apiKey = process.env.NEXT_PUBLIC_OPENAIP_API_KEY;
+
+  if (apiKey) {
+    try {
+      const countries = ["IN", "US", "AU", "GB", "DE", "FR", "ES", "IT", "JP", "CA"];
+      const openAipZones = await fetchOpenAIPAirspaces(countries, apiKey);
+      if (openAipZones.length > 0) {
+        console.log(`[airspace] OpenAIP: ${openAipZones.length} real airspace polygons loaded`);
+        return openAipZones;
+      }
+    } catch (err) {
+      console.warn("[airspace] OpenAIP fetch failed, falling back to circles:", err);
+    }
+  }
+
+  // Fallback: circle-based zones
   const [india, us, au] = await Promise.all([
     getIndiaAirspaceZones(bbox),
     getUSAirspaceZones(bbox),
