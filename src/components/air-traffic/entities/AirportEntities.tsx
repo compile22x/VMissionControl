@@ -17,6 +17,8 @@ import {
   HorizontalOrigin,
   NearFarScalar,
   Math as CesiumMath,
+  PointPrimitiveCollection,
+  LabelCollection,
   type Viewer as CesiumViewer,
 } from "cesium";
 import {
@@ -28,11 +30,6 @@ import {
 interface AirportEntitiesProps {
   viewer: CesiumViewer | null;
 }
-
-type PointPrimitiveCollection = InstanceType<
-  typeof import("cesium").PointPrimitiveCollection
->;
-type LabelCollection = InstanceType<typeof import("cesium").LabelCollection>;
 
 const LOD_GLOBAL = 500_000; // >500km: large airports as faint dots
 const LOD_REGIONAL = 100_000; // 100-500km: all airports + ICAO labels for large
@@ -135,13 +132,8 @@ export function AirportEntities({ viewer }: AirportEntitiesProps) {
 
     if (filtered.length === 0) return;
 
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const cesium = require("cesium");
-    const points: PointPrimitiveCollection =
-      new cesium.PointPrimitiveCollection();
-    const labels: LabelCollection = new cesium.LabelCollection({
-      scene: viewer.scene,
-    });
+    const points = new PointPrimitiveCollection();
+    const labels = new LabelCollection({ scene: viewer.scene });
 
     // Find closest airport to camera for highlight
     const camLat = CesiumMath.toDegrees(camPos.latitude);
