@@ -113,10 +113,10 @@ interface DiagnosticsStoreState {
   /** Performance metrics */
   performanceMetrics: PerformanceMetrics;
 
-  /** Tracking arrays for perf calculation */
-  _parseTimestamps: number[];
-  _callbackLatencies: number[];
-  _frameProcessingTimes: number[];
+  /** Tracking ring buffers for perf calculation (O(1) push, no splice) */
+  _parseTimestamps: RingBuffer<number>;
+  _callbackLatencies: RingBuffer<number>;
+  _frameProcessingTimes: RingBuffer<number>;
 
   logMessage: (msgId: number, msgName: string, direction: "in" | "out", size: number, rawHex?: string) => void;
   logEvent: (type: EventType, description: string) => void;
@@ -151,9 +151,9 @@ export const useDiagnosticsStore = create<DiagnosticsStoreState>((set, get) => (
   commandQueueSnapshot: { pendingCount: 0, entries: [], totalSent: 0, totalSuccess: 0, totalFailed: 0 },
   ringBufferInfo: [],
   performanceMetrics: { parseRateHz: 0, avgCallbackLatencyMs: 0, frameProcessingTimeMs: 0, lastUpdated: 0 },
-  _parseTimestamps: [],
-  _callbackLatencies: [],
-  _frameProcessingTimes: [],
+  _parseTimestamps: new RingBuffer<number>(MAX_PERF_SAMPLES),
+  _callbackLatencies: new RingBuffer<number>(MAX_PERF_SAMPLES),
+  _frameProcessingTimes: new RingBuffer<number>(MAX_PERF_SAMPLES),
 
   logMessage: (msgId, msgName, direction, size, rawHex) => {
     const now = Date.now();
@@ -167,6 +167,7 @@ export const useDiagnosticsStore = create<DiagnosticsStoreState>((set, get) => (
     });
 
     // Track timestamps per message type for rate calculation
+    // Mutate in place — updateRates() (called on interval) triggers re-render
     const rates = get().messageRates;
     const entry = rates.get(msgId);
     if (entry) {
@@ -174,8 +175,6 @@ export const useDiagnosticsStore = create<DiagnosticsStoreState>((set, get) => (
     } else {
       rates.set(msgId, { msgId, msgName, timestamps: [now], hz: 0 });
     }
-
-    set({});
   },
 
   logEvent: (type, description) => {
