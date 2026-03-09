@@ -162,12 +162,19 @@ export function polygonBounds(vertices: [number, number][]): {
 /**
  * Clip a line segment to a convex polygon using Sutherland-Hodgman.
  * Returns the clipped segment endpoints, or null if fully outside.
+ *
+ * WARNING: This algorithm only produces correct results for convex polygons.
+ * Concave polygons will silently yield incorrect clipping results.
+ * Use {@link isConvex} to validate the polygon before calling this function.
  */
 export function clipLineToPolygon(
   lineStart: [number, number],
   lineEnd: [number, number],
   polygon: [number, number][]
 ): [number, number][] | null {
+  if (polygon.length >= 3 && !isConvex(polygon)) {
+    console.warn("[geo-utils] clipLineToPolygon called with concave polygon — results may be incorrect");
+  }
   let output: [number, number][] = [lineStart, lineEnd];
 
   for (let i = 0; i < polygon.length; i++) {

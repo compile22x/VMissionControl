@@ -7,6 +7,7 @@
 
 import type { Waypoint } from "@/lib/types";
 import { haversineDistance } from "@/lib/telemetry-utils";
+import { pointInPolygon } from "@/lib/drawing/geo-utils";
 
 /** A single validation issue (error or warning). */
 export interface ValidationIssue {
@@ -34,21 +35,6 @@ interface ValidationOptions {
   };
   maxAltitude?: number;
   maxDistanceBetweenWps?: number;
-}
-
-/**
- * Check if a point is inside a polygon using ray-casting algorithm.
- */
-function pointInPolygon(lat: number, lon: number, polygon: [number, number][]): boolean {
-  let inside = false;
-  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-    const [yi, xi] = polygon[i]; // yi=lat, xi=lon
-    const [yj, xj] = polygon[j]; // yj=lat, xj=lon
-    if ((yi > lat) !== (yj > lat) && lon < ((xj - xi) * (lat - yi)) / (yj - yi) + xi) {
-      inside = !inside;
-    }
-  }
-  return inside;
 }
 
 /**
@@ -142,7 +128,7 @@ export function validateMission(
 
     // 7. Geofence polygon check
     if (options?.geofence?.polygonPoints && options.geofence.polygonPoints.length >= 3) {
-      if (!pointInPolygon(wp.lat, wp.lon, options.geofence.polygonPoints)) {
+      if (!pointInPolygon([wp.lat, wp.lon], options.geofence.polygonPoints)) {
         errors.push({
           type: "error",
           code: "OUTSIDE_GEOFENCE",

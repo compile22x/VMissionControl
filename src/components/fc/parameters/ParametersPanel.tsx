@@ -25,6 +25,12 @@ let cachedParamList: ParameterValue[] | null = null;
 let cacheTimestamp = 0;
 const PARAM_LIST_CACHE_TTL = 300_000;
 
+/** Invalidate the param cache (call on FC disconnect/reconnect). */
+export function invalidateParamCache(): void {
+  cachedParamList = null;
+  cacheTimestamp = 0;
+}
+
 const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
 
 function getCategory(name: string): string {

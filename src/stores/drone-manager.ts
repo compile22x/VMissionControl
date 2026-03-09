@@ -11,6 +11,7 @@ import { useSettingsStore } from "./settings-store";
 import { useDiagnosticsStore } from "./diagnostics-store";
 import { startRecording, getRecordingState } from "@/lib/telemetry-recorder";
 import { bridgeTelemetry } from "./drone-manager-bridge";
+import { invalidateParamCache } from "@/components/fc/parameters/ParametersPanel";
 
 export interface ConnectionMeta {
   type: "serial" | "websocket";
@@ -158,6 +159,7 @@ export const useDroneManager = create<DroneManagerState>((set, get) => ({
       useDroneStore.getState().selectDrone(null);
       useDroneStore.getState().setConnectionState("disconnected");
       useTelemetryStore.getState().clear();
+      invalidateParamCache();
     }
   },
 
