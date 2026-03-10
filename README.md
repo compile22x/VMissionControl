@@ -2,7 +2,7 @@
 
 **Open-source web GCS for autonomous drones. Configure, plan, fly, simulate.**
 
-![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-green.svg) ![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue.svg) ![Next.js 16](https://img.shields.io/badge/Next.js-16-black.svg) ![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg) [![Community](https://img.shields.io/badge/Community-Join-3A82FF.svg)](https://command.altnautica.com/community)
+![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-green.svg) ![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue.svg) ![Next.js 16](https://img.shields.io/badge/Next.js-16-black.svg) ![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg) [![Discord](https://img.shields.io/badge/Discord-Join-5865F2.svg)](https://discord.gg/uxbvuD4d5q)
 
 <p align="center">
   <img src="public/screenshots/dashboard.png" alt="Fleet Dashboard" width="100%">
@@ -12,8 +12,7 @@
   <strong><a href="https://command.altnautica.com">Live App</a></strong> |
   <strong><a href="https://command.altnautica.com/community/changelog">Changelog</a></strong> |
   <strong><a href="https://command.altnautica.com/community/roadmap">Roadmap</a></strong> |
-  <strong><a href="https://command.altnautica.com/community/requests">Feature Requests</a></strong> |
-  <strong><a href="https://command.altnautica.com/community">Community</a></strong> |
+  <strong><a href="https://discord.gg/uxbvuD4d5q">Discord</a></strong> |
   <strong><a href="https://command.altnautica.com/community/contact">Contact</a></strong>
 </p>
 
@@ -27,7 +26,7 @@ It replaces desktop-only tools like QGroundControl and Mission Planner with a mo
 
 ~98K lines of TypeScript. 38 FC configuration panels. 7 pattern generators. 83 MAVLink + 34 MSP message decoders. 33 Zustand stores. Full demo mode with zero setup.
 
-**[Live App](https://command.altnautica.com)** · **[Website](https://altnautica.com/command)** · **[Community](https://command.altnautica.com/community)**
+**[Live App](https://command.altnautica.com)** · **[Website](https://altnautica.com/command)** · **[Discord](https://discord.gg/uxbvuD4d5q)**
 
 ---
 
@@ -323,9 +322,9 @@ These run inside Convex functions, not in Next.js. Only needed if you use cloud 
 
 ## Community
 
+- **[Discord](https://discord.gg/uxbvuD4d5q)**: Join the community, ask questions, share builds
 - **[Changelog](https://command.altnautica.com/community/changelog)**: What shipped and when. Auto-synced from GitHub commits
 - **[Roadmap](https://command.altnautica.com/community/roadmap)**: What's planned next, organized by priority
-- **[Feature Requests](https://command.altnautica.com/community/requests)**: Vote on features or submit your own
 - **[Contact](https://command.altnautica.com/community/contact)**: Reach the team directly
 - **[GitHub Issues](https://github.com/altnautica/ADOSMissionControl/issues)**: Bug reports and technical discussions
 
@@ -357,6 +356,6 @@ Free to use, modify, and distribute. Derivative works must also be GPL-3.0, same
 
 - **Live app:** [command.altnautica.com](https://command.altnautica.com)
 - **Website:** [altnautica.com/command](https://altnautica.com/command)
-- **Community:** [command.altnautica.com/community](https://command.altnautica.com/community)
+- **Discord:** [discord.gg/uxbvuD4d5q](https://discord.gg/uxbvuD4d5q)
 - **Issues:** [github.com/altnautica/ADOSMissionControl/issues](https://github.com/altnautica/ADOSMissionControl/issues)
 - **SITL tool:** [`tools/sitl/`](tools/sitl/)
