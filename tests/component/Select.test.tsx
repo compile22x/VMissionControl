@@ -212,6 +212,7 @@ describe('Select', () => {
 
     fireEvent.click(screen.getByRole('combobox'));
     expect(screen.getByText('Flight')).toBeDefined();
-    expect(screen.getByText('Auto')).toBeDefined();
+    // "Auto" appears as both group header and option label, so use getAllByText
+    expect(screen.getAllByText('Auto').length).toBeGreaterThanOrEqual(1);
   });
 });
