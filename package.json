@@ -18,7 +18,15 @@
     "desktop:build": "npm run build && npm run electron:compile && electron-builder",
     "desktop:build:mac": "npm run build && npm run electron:compile && electron-builder --mac",
     "desktop:build:win": "npm run build && npm run electron:compile && electron-builder --win",
-    "desktop:build:linux": "npm run build && npm run electron:compile && electron-builder --linux"
+    "desktop:build:linux": "npm run build && npm run electron:compile && electron-builder --linux",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage",
+    "test:bench": "vitest bench",
+    "test:e2e": "playwright test --project=demo",
+    "test:e2e:sitl": "playwright test --project=sitl",
+    "test:all": "vitest run && playwright test --project=demo"
   },
   "dependencies": {
     "@convex-dev/auth": "^0.0.90",
@@ -45,22 +53,32 @@
   },
   "devDependencies": {
     "@clack/prompts": "^1.0.1",
+    "@playwright/test": "^1.58.2",
     "@tailwindcss/postcss": "^4",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/leaflet": "^1.9.17",
     "@types/node": "^20",
     "@types/pako": "^2.0.4",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/three": "^0.183.1",
+    "@vitest/coverage-v8": "^4.0.18",
+    "@vitest/ui": "^4.0.18",
     "commander": "^13.1.0",
     "electron": "^35.0.0",
     "electron-builder": "^26.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
+    "happy-dom": "^20.8.3",
     "listr2": "^8.2.0",
+    "msw": "^2.12.10",
     "picocolors": "^1.1.1",
     "tailwindcss": "^4",
     "tsx": "^4.19.0",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.0.18",
+    "vitest-websocket-mock": "^0.5.0"
   }
 }
